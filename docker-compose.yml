@@ -1,0 +1,20 @@
+version: '3'
+services:
+  search-featured-results:
+    build: .
+    environment:
+      DB_HOST: mongodb
+    env_file:
+      .env
+    ports:
+      - 3000:80
+    links:
+      - mongodb
+  mongodb:
+    image: mongo:latest
+    ports:
+      - 27017:27017
+    volumes:
+      - featureddb:/data/db
+volumes:
+  featureddb: {}

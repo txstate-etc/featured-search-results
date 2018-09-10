@@ -13,11 +13,12 @@ A RESTful API for storing/retrieving featured search results
 # create / update operations
 Include JSON in the body, set Content-Type header on the request to `application/json`
 ```
-{ 
+{
   "url": string
   "title": string
   "entries": [{
     "keyphrase": string,
+    /* case-insensitive, will be stored lower case */
     "mode": enum('keyword','phrase','exact')
     /* keyword: all words must be present, but in any order
      * phrase: all words must be present, in order
@@ -29,7 +30,7 @@ Include JSON in the body, set Content-Type header on the request to `application
    * e.g. `liberal_arts,anthropology` */
 }
 ```
-     
+
 # authorization
 * `GET /search` is open to the public
 * All other endpoints secured by single secret key for server-to-server editing

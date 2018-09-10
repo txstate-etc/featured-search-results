@@ -1,0 +1,25 @@
+{
+  "name": "search-featured-results",
+  "version": "1.0.0",
+  "description": "A RESTful API for storing/retrieving featured search results.",
+  "private": true,
+  "dependencies": {
+    "express": "~4",
+    "mongoose": "~5",
+    "dotenv": "~6",
+    "morgan": "~1",
+    "express-async-errors": "~3"
+  },
+  "scripts": {
+    "start": "node ./index"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/txstate-etc/search-featured-results"
+  },
+  "keywords": [
+    "search", "curated", "featured", "google"
+  ],
+  "author": "nw13@txstate.edu",
+  "license": "MIT"
+}
