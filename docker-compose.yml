@@ -4,8 +4,8 @@ services:
     build: .
     environment:
       DB_HOST: mongodb
-    env_file:
-      .env
+      NODE_ENV: development
+      FEATURED_SECRET: mysecret
     ports:
       - 3000:80
     links:

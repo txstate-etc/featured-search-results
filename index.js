@@ -4,7 +4,6 @@ const app = express()
 const mongoose = require('mongoose')
 const logger = require('morgan')
 const helpers = require('./lib/helpers')
-require('dotenv').config()
 
 // database config
 var db_host = process.env.DB_HOST || 'localhost';
@@ -22,10 +21,10 @@ if (db_authdb.length > 0) db_authdb_suffix = '?authSource='+db_authdb;
 var server_port = parseInt(process.env.PORT, 10) || 3000;
 
 // models
-var Entry = require('./models/entry')
+var Result = require('./models/result')
 
 // middleware
-app.use(logger('dev'))
+app.use(logger('tiny'))
 app.use(express.json())
 
 // add endpoints
@@ -34,29 +33,37 @@ app.get('/search', async function (req, res) {
   var query = req.query.q
   res.json(ret)
 })
-app.get('/entry', async function (req, res) {
+app.get('/results', async function (req, res) {
   var id = req.params.id
-  var ret = (await Entry.find()).map(entry => { return entry.full() })
+  var ret = (await Result.find()).map(result => { return result.full() })
   res.json(ret)
 })
-app.post('/entry', async function (req, res) {
+app.post('/result', async function (req, res) {
   var input = req.body
-  if (helpers.isBlank(input.url)) return res.status(400).send('Posted entry must contain a URL.')
+  if (!input) return res.status(400).send('POST body was not parseable JSON.')
+  if (helpers.isBlank(input.url)) return res.status(400).send('Posted result must contain a URL.')
 
-  var entry = (await Entry.findOne({url: input.url})) || new Entry({ url: input.url })
-  await entry.save()
+  var result = (await Result.findOne({url: input.url})) || new Result({ url: input.url })
+  result.fromJson(input)
+  await result.save()
   res.sendStatus(200)
 })
-app.get('/entry/:id', async function (req, res) {
-  var id = req.params.id
-  res.json(info)
-})
-app.put('/entry/:id', async function (req, res) {
+app.get('/result/:id', async function (req, res) {
   if (!helpers.isHex(req.params.id)) return res.status(400).send('Bad id format. Should be a hex string.')
-  var entry = await Entry.findById(req.params.id)
+  var result = await Result.findById(req.params.id)
+  res.json(result.full())
 })
-app.delete('/entry/:id', async function (req, res) {
-  await Entry.findByIdAndRemove(req.params.id)
+app.put('/result/:id', async function (req, res) {
+  if (!helpers.isHex(req.params.id)) return res.status(400).send('Bad id format. Should be a hex string.')
+  if (!req.body) return res.status(400).send('POST body was not parseable JSON.')
+  var result = await Result.findById(req.params.id)
+  if (!result) return res.status(404).send('That result id does not exist.')
+  result.fromJson(req.body)
+  await result.save()
+  res.sendStatus(200)
+})
+app.delete('/result/:id', async function (req, res) {
+  await Result.findByIdAndRemove(req.params.id)
   res.sendStatus(200)
 })
 
