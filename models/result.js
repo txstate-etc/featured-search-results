@@ -1,5 +1,6 @@
 var mongoose = require('mongoose')
 var Schema = mongoose.Schema
+var helpers = require('../lib/helpers.js')
 
 var ResultSchema = new Schema({
   url: String,
@@ -47,9 +48,27 @@ ResultSchema.methods.full = function () {
 }
 
 ResultSchema.methods.match = function (words) {
-  // given an array of words, determine whether this entry is a match
+  // given a query string, determine whether this entry is a match
   // after accounting for mode
-  return true
+  for (var entry of this.entries) {
+    if (entry.mode == 'exact') {
+      if (words.join(' ') === entry.keywords.join(' ')) return true
+    } else if (entry.mode == 'phrase') {
+      var index = 0;
+      for (var word of words) {
+        if (word == entry.keywords[index]) index++
+      }
+      if (index == entry.keywords.length) return true
+    } else { // entry.mode == 'keyword'
+      var wordset = new Set(words)
+      var count = 0
+      for (var keyword of entry.keywords) {
+        if (wordset.has(keyword)) count++
+      }
+      if (count == entry.keywords.length) return true
+    }
+  }
+  return false
 }
 
 ResultSchema.methods.fromJson = function (input) {
@@ -59,14 +78,21 @@ ResultSchema.methods.fromJson = function (input) {
   result.tags = input.tags
   result.entries = []
   for (var entry of input.entries) {
-    var words = entry.keyphrase.toLowerCase().split(/[^\w-]+/)
     var lcmode = entry.mode.toLowerCase()
     var mode = ['keyword','phrase','exact'].includes(lcmode) ? lcmode : 'keyword'
+    var keyphrase = entry.keyphrase.toLowerCase()
+    var words = helpers.querysplit(keyphrase)
     result.entries.push({
       keywords: words,
       mode: mode
     })
   }
+}
+
+ResultSchema.statics.findByQuery = async function (query) {
+  var words = helpers.querysplit(query)
+  var results = await this.find({'entries': {$not: {$elemMatch: {'keywords': { $elemMatch: {$nin : words}}}}}})
+  return results.filter(result => result.match(words))
 }
 
 module.exports = mongoose.model('Result', ResultSchema)

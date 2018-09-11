@@ -4,11 +4,11 @@ A RESTful API for storing/retrieving featured search results
 # endpoints
 * `GET /search?q={query}` : retrieve results based on a user-provided query string
   * results include only `url` and `title`
-* `GET /entry` : a list of all entries
-* `POST /entry` : create a new entry, will replace an existing entry if there is an identical url
-* `GET /entry/{id}` : retrieve entry by id
-* `PUT /entry/{id}` : update an entry
-* `DELETE /entry/{id}` : delete an entry
+* `GET /results` : a list of all results
+* `POST /result` : create a new result, will replace an existing result if there is an identical url
+* `GET /result/{id}` : retrieve result by id
+* `PUT /result/{id}` : update a result
+* `DELETE /result/{id}` : delete a result
 
 # create / update operations
 Include JSON in the body, set Content-Type header on the request to `application/json`

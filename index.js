@@ -29,8 +29,9 @@ app.use(express.json())
 
 // add endpoints
 app.get('/search', async function (req, res) {
-  var ret = []
   var query = req.query.q
+  var results = await Result.findByQuery(query)
+  var ret = results.map(result => result.basic())
   res.json(ret)
 })
 app.get('/results', async function (req, res) {
