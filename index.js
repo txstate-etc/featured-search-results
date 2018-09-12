@@ -1,7 +1,5 @@
-const service = require('./lib/apiservice')
+const app = require('./lib/apiservice')
 const helpers = require('./lib/helpers')
-
-var app = service.app
 
 // models
 var Result = require('./models/result')
@@ -46,5 +44,3 @@ app.delete('/result/:id', async function (req, res) {
   await Result.findByIdAndRemove(req.params.id)
   res.sendStatus(200)
 })
-
-service.start()
