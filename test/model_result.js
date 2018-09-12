@@ -33,11 +33,14 @@ describe('model', function() {
     it('should match when query words are given as lower case', function() {
       result.match(['texas','state']).should.be.true()
     })
-    it('should enforce exact match on "Texas State"', function() {
+    it('should not match when mode is exact and query has an extra word', function() {
       result.match(['texas','state','bobcats']).should.be.false()
     })
     it('should match when mode is phrase and query is an exact match', function() {
       result.match(['texas','state','homepage']).should.be.true()
+    })
+    it('should not match when mode is phrase and words are missing from the query', function() {
+      result.match(['homepage']).should.be.false()
     })
     it('should match when mode is phrase and query has an extra word at the end', function() {
       result.match(['texas','state','homepage','links']).should.be.true()
@@ -59,6 +62,16 @@ describe('model', function() {
     })
     it('should match when mode is keyword and query is out of order with extra words', function() {
       result.match(['show','texas','full','university','bobcats','state']).should.be.true()
+    })
+    it('should not return an id in the basic info', function () {
+      should.not.exist(result.basic()._id)
+      should.not.exist(result.basic().id)
+    })
+    it('should return an id in the full info', function () {
+      should.exist(result.full().id)
+    })
+    it('should return 3 entries in the full info', function () {
+      result.full().entries.length.should.equal(3)
     })
   })
 })
