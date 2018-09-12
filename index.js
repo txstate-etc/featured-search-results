@@ -74,7 +74,8 @@ var db_connect = function () {
     ssl: process.env.DB_SSL == 'true' ? true : false,
     reconnectTries: Number.MAX_VALUE,
     reconnectInterval: 500,
-    poolSize: 50
+    poolSize: 50,
+    useNewUrlParser: true
   })
   .then(function () {
     console.log("DB connection alive")

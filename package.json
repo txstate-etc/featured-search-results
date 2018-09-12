@@ -5,19 +5,27 @@
   "private": true,
   "dependencies": {
     "express": "~4",
+    "express-async-errors": "~3",
     "mongoose": "~5",
-    "morgan": "~1",
-    "express-async-errors": "~3"
+    "morgan": "~1"
+  },
+  "devDependencies": {
+    "mocha": "~5",
+    "should": "~13"
   },
   "scripts": {
-    "start": "node ./index"
+    "start": "node ./index",
+    "test": "mocha"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/txstate-etc/search-featured-results"
   },
   "keywords": [
-    "search", "curated", "featured", "google"
+    "search",
+    "curated",
+    "featured",
+    "google"
   ],
   "author": "nw13@txstate.edu",
   "license": "MIT"

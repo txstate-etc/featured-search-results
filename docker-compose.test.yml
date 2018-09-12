@@ -1,0 +1,20 @@
+version: '3'
+services:
+  search-featured-results-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      API_HOST: search-featured-results
+      FEATURED_SECRET: mysecret
+    links:
+      - search-featured-results
+  search-featured-results:
+    build: .
+    environment:
+      DB_HOST: mongodb
+      FEATURED_SECRET: mysecret
+    links:
+      - mongodb
+  mongodb:
+    image: mongo:latest

@@ -47,12 +47,14 @@ ResultSchema.methods.full = function () {
   return info
 }
 
-ResultSchema.methods.match = function (words) {
+ResultSchema.methods.match = function (words, wordset, wordsjoined) {
   // given a query string, determine whether this entry is a match
   // after accounting for mode
+  if (!wordset) wordset = new Set(words)
+  if (helpers.isBlank(wordsjoined)) wordsjoined = words.join(' ')
   for (var entry of this.entries) {
     if (entry.mode == 'exact') {
-      if (words.join(' ') === entry.keywords.join(' ')) return true
+      if (wordsjoined === entry.keywords.join(' ')) return true
     } else if (entry.mode == 'phrase') {
       var index = 0;
       for (var word of words) {
@@ -60,7 +62,6 @@ ResultSchema.methods.match = function (words) {
       }
       if (index == entry.keywords.length) return true
     } else { // entry.mode == 'keyword'
-      var wordset = new Set(words)
       var count = 0
       for (var keyword of entry.keywords) {
         if (wordset.has(keyword)) count++
@@ -92,7 +93,9 @@ ResultSchema.methods.fromJson = function (input) {
 ResultSchema.statics.findByQuery = async function (query) {
   var words = helpers.querysplit(query)
   var results = await this.find({'entries': {$not: {$elemMatch: {'keywords': { $elemMatch: {$nin : words}}}}}})
-  return results.filter(result => result.match(words))
+  var wordset = new Set(words)
+  var wordsjoined = words.join(' ')
+  return results.filter(result => result.match(words, wordset, wordsjoined))
 }
 
 module.exports = mongoose.model('Result', ResultSchema)
