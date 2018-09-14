@@ -13,7 +13,6 @@ COPY lib lib
 COPY models models
 COPY index.js index.js
 
-ENV PORT 80
 EXPOSE 80
 
 ENTRYPOINT [ "npm" ]
