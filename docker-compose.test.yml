@@ -6,9 +6,11 @@ services:
       dockerfile: Dockerfile.test
     environment:
       API_HOST: search-featured-results
+      DB_HOST: mongodb
       FEATURED_SECRET: mysecret
     links:
       - search-featured-results
+      - mongodb
   search-featured-results:
     build: .
     environment:

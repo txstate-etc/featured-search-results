@@ -15,7 +15,8 @@
   },
   "scripts": {
     "start": "node ./index",
-    "test": "mocha"
+    "test": "mocha test/unit",
+    "integration": "mocha test/unit test/integration"
   },
   "repository": {
     "type": "git",

@@ -1,17 +1,16 @@
 require('should')
-var Result = require('../models/result')
+var Result = require('../../models/result')
 
 describe('model', function() {
   describe('result', function() {
     var result = new Result()
-
     before(function () {
       result.fromJson({
         url: "http://txstate.edu",
         title: "Texas State University Homepage",
         entries: [
           {
-            keyphrase: "Texas State",
+            keyphrase: "Bobcat Village",
             mode: "exact"
           },{
             keyphrase: "Texas State Homepage",
@@ -31,10 +30,10 @@ describe('model', function() {
       result.entries.length.should.equal(3)
     })
     it('should match when query words are given as lower case', function() {
-      result.match(['texas','state']).should.be.true()
+      result.match(['bobcat','village']).should.be.true()
     })
     it('should not match when mode is exact and query has an extra word', function() {
-      result.match(['texas','state','bobcats']).should.be.false()
+      result.match(['bobcat','village','apartments']).should.be.false()
     })
     it('should match when mode is phrase and query is an exact match', function() {
       result.match(['texas','state','homepage']).should.be.true()

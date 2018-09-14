@@ -9,9 +9,9 @@ COPY package.json ./
 
 RUN npm --quiet --production install
 
-COPY index.js index.js
-COPY models models
 COPY lib lib
+COPY models models
+COPY index.js index.js
 
 ENV PORT 80
 EXPOSE 80

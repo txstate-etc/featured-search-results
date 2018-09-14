@@ -12,7 +12,6 @@ app.get('/search', async function (req, res) {
   res.json(ret)
 })
 app.get('/results', async function (req, res) {
-  var id = req.params.id
   var ret = (await Result.find()).map(result => { return result.full() })
   res.json(ret)
 })

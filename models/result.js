@@ -90,9 +90,13 @@ ResultSchema.methods.fromJson = function (input) {
   }
 }
 
+ResultSchema.statics.getByQuery = async function (words) {
+  return await this.find({'entries': {$elemMatch: {'keywords': {$not: {$elemMatch: {$nin : words}}}}}})
+}
+
 ResultSchema.statics.findByQuery = async function (query) {
   var words = helpers.querysplit(query)
-  var results = await this.find({'entries': {$not: {$elemMatch: {'keywords': { $elemMatch: {$nin : words}}}}}})
+  var results = await this.getByQuery(words)
   var wordset = new Set(words)
   var wordsjoined = words.join(' ')
   return results.filter(result => result.match(words, wordset, wordsjoined))

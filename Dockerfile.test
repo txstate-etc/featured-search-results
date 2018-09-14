@@ -9,10 +9,10 @@ COPY package.json ./
 
 RUN npm --development --quiet install
 
-COPY models models
 COPY lib lib
+COPY models models
 COPY test test
 
 ENTRYPOINT [ "npm" ]
 
-CMD ["test"]
+CMD ["run-script","integration"]
