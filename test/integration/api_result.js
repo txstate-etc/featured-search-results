@@ -26,6 +26,7 @@ var hold_until_service_up = async function(endpoint) {
 describe('integration', function() {
   describe('api', function() {
     describe('result', function() {
+      var id;
       var result = {
         url: "http://txstate.edu",
         title: "Texas State University Homepage",
@@ -53,7 +54,9 @@ describe('integration', function() {
         (await post('/result', result)).status.should.equal(200)
       })
       it('should return one result on /results', async function() {
-        (await get('/results')).length.should.equal(1)
+        var results = (await get('/results'))
+        results.length.should.equal(1)
+        id = results[0].id
       })
       it('should be case insensitive', async function() {
         (await get('/search?q=bObCAt VILLagE')).length.should.equal(1)
@@ -90,6 +93,15 @@ describe('integration', function() {
       })
       it('should return results when mode is keyword and query is out of order with extra words', async function() {
         (await get('/search?q=show texas full university bobcats state')).length.should.equal(1)
+      })
+      it('should be able to retrieve a record by id', async function() {
+        (await get('/result/'+id)).id.should.equal(id)
+      })
+      it('should not return an id in the search results', async function () {
+        should.not.exist((await get('/search?q=bobcat village'))[0].id)
+      })
+      it('should return 3 entries in the full info', async function () {
+        (await get('/result/'+id)).entries.length.should.equal(3)
       })
     })
   })
