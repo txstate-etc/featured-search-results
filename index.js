@@ -1,5 +1,6 @@
 const app = require('./lib/apiservice')
 const helpers = require('./lib/helpers')
+const util = require('./lib/util')
 
 // models
 var Result = require('./models/result')
@@ -18,7 +19,7 @@ app.get('/results', async function (req, res) {
 app.post('/result', async function (req, res) {
   var input = req.body
   if (!input) return res.status(400).send('POST body was not parseable JSON.')
-  if (helpers.isBlank(input.url)) return res.status(400).send('Posted result must contain a URL.')
+  if (util.isBlank(input.url)) return res.status(400).send('Posted result must contain a URL.')
 
   var result = (await Result.findOne({url: input.url})) || new Result({ url: input.url })
   result.fromJson(input)
@@ -26,12 +27,12 @@ app.post('/result', async function (req, res) {
   res.sendStatus(200)
 })
 app.get('/result/:id', async function (req, res) {
-  if (!helpers.isHex(req.params.id)) return res.status(400).send('Bad id format. Should be a hex string.')
+  if (!util.isHex(req.params.id)) return res.status(400).send('Bad id format. Should be a hex string.')
   var result = await Result.findById(req.params.id)
   res.json(result.full())
 })
 app.put('/result/:id', async function (req, res) {
-  if (!helpers.isHex(req.params.id)) return res.status(400).send('Bad id format. Should be a hex string.')
+  if (!util.isHex(req.params.id)) return res.status(400).send('Bad id format. Should be a hex string.')
   if (!req.body) return res.status(400).send('POST body was not parseable JSON.')
   var result = await Result.findById(req.params.id)
   if (!result) return res.status(404).send('That result id does not exist.')

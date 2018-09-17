@@ -1,6 +1,7 @@
 var mongoose = require('mongoose')
 var Schema = mongoose.Schema
-var helpers = require('../lib/helpers.js')
+var helpers = require('../lib/helpers')
+var util = require('../lib/util')
 
 var ResultSchema = new Schema({
   url: String,
@@ -51,7 +52,7 @@ ResultSchema.methods.match = function (words, wordset, wordsjoined) {
   // given a query string, determine whether this entry is a match
   // after accounting for mode
   if (!wordset) wordset = new Set(words)
-  if (helpers.isBlank(wordsjoined)) wordsjoined = words.join(' ')
+  if (util.isBlank(wordsjoined)) wordsjoined = words.join(' ')
   for (var entry of this.entries) {
     if (entry.mode == 'exact') {
       if (wordsjoined === entry.keywords.join(' ')) return true
