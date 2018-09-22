@@ -4,10 +4,7 @@
   "description": "A RESTful API for storing/retrieving featured search results.",
   "private": true,
   "dependencies": {
-    "express": "~4",
-    "express-async-errors": "~3",
-    "mongoose": "~5",
-    "morgan": "~1"
+    "node-api-utils": "txstate-etc/node-api-utils"
   },
   "devDependencies": {
     "mocha": "~5",
@@ -17,7 +14,7 @@
   "scripts": {
     "start": "node ./index",
     "test": "mocha test/unit",
-    "integration": "mocha test/unit test/integration"
+    "integration": "mocha --exit test/unit test/integration"
   },
   "repository": {
     "type": "git",

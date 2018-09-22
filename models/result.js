@@ -1,7 +1,7 @@
 var mongoose = require('mongoose')
 var Schema = mongoose.Schema
 var helpers = require('../lib/helpers')
-var util = require('../lib/util')
+var util = require('node-api-utils').util
 
 var ResultSchema = new Schema({
   url: String,

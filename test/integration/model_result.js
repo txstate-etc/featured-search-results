@@ -1,5 +1,5 @@
 require('should')
-var db = require('../../lib/db')
+var db = require('node-api-utils').db
 var Result = require('../../models/result')
 
 describe('integration', function() {

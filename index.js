@@ -1,6 +1,7 @@
-const app = require('./lib/apiservice')
 const helpers = require('./lib/helpers')
-const util = require('./lib/util')
+const utils = require('node-api-utils')
+const app = utils.apiservice
+const util = utils.util
 
 // models
 var Result = require('./models/result')

@@ -1,6 +1,6 @@
 require('should')
-var db = require('../../lib/db')
-var util = require('../../lib/util')
+var db = require('node-api-utils').db
+var util = require('node-api-utils').util
 var Result = require('../../models/result')
 var axios = require('axios')
 
