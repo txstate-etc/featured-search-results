@@ -4,7 +4,7 @@
   "description": "A RESTful API for storing/retrieving featured search results.",
   "private": true,
   "dependencies": {
-    "node-api-utils": "txstate-etc/node-api-utils"
+    "node-api-utils": "txstate-etc/node-api-utils#1.0"
   },
   "devDependencies": {
     "mocha": "~5",

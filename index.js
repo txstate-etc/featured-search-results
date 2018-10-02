@@ -45,3 +45,5 @@ app.delete('/result/:id', async function (req, res) {
   await Result.findByIdAndRemove(req.params.id)
   res.sendStatus(200)
 })
+
+utils.apiservice.start()
