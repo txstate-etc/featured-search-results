@@ -6,6 +6,14 @@ const util = utils.util
 // models
 var Result = require('./models/result')
 
+// authorize based on secret key
+app.use(function (req, res, next) {
+  if (req.method !== 'GET') {
+    if (req.get('X-Secret-Key') !== process.env.FEATURED_SECRET) return res.status(401).send('Secret key required for endpoints other than /search')
+  }
+  next()
+})
+
 // add endpoints
 app.get('/search', async function (req, res) {
   var query = req.query.q

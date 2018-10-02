@@ -12,8 +12,10 @@ var api_path = 'https://'+process.env.API_HOST
 var get = async function(endpoint) {
   return (await axios.get(api_path+endpoint, {httpsAgent: agent})).data
 }
-var post = async function(endpoint, payload) {
-  return await axios.post(api_path+endpoint, payload, {httpsAgent: agent})
+var post = async function(endpoint, payload, skipSecret = false) {
+  const headers = {}
+  if (!skipSecret) headers['X-Secret-Key'] = process.env.FEATURED_SECRET
+  return await axios.post(api_path+endpoint, payload, {httpsAgent: agent, headers: headers})
 }
 var hold_until_service_up = async function(endpoint) {
   for (var i = 0; i < 100; i++) {
@@ -53,6 +55,9 @@ describe('integration', function() {
         await Result.deleteMany()
         await db.disconnect()
         await hold_until_service_up('/results')
+      })
+      it('should return 401 instead of accepting our result if X-Secret-Key header is absent', async function () {
+        await post('/result', result, true).should.be.rejectedWith({response: {status: 401}})
       })
       it('should accept our result', async function() {
         (await post('/result', result)).status.should.equal(200)
