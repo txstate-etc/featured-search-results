@@ -3,13 +3,17 @@ var db = require('node-api-utils').db
 var util = require('node-api-utils').util
 var Result = require('../../models/result')
 var axios = require('axios')
+const https = require('https')
 
-var api_path = 'http://'+process.env.API_HOST
+const agent = new https.Agent({
+  rejectUnauthorized: false
+})
+var api_path = 'https://'+process.env.API_HOST
 var get = async function(endpoint) {
-  return (await axios.get(api_path+endpoint)).data
+  return (await axios.get(api_path+endpoint, {httpsAgent: agent})).data
 }
 var post = async function(endpoint, payload) {
-  return await axios.post(api_path+endpoint, payload)
+  return await axios.post(api_path+endpoint, payload, {httpsAgent: agent})
 }
 var hold_until_service_up = async function(endpoint) {
   for (var i = 0; i < 100; i++) {
@@ -46,7 +50,7 @@ describe('integration', function() {
       }
       before(async function () {
         await db.connect()
-        await Result.remove()
+        await Result.deleteMany()
         await db.disconnect()
         await hold_until_service_up('/results')
       })

@@ -7,7 +7,7 @@ services:
       NODE_ENV: development
       FEATURED_SECRET: mysecret
     ports:
-      - 80:80
+      - 443:443
     links:
       - mongodb
   mongodb:

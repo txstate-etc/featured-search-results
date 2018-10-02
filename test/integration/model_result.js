@@ -8,7 +8,7 @@ describe('integration', function() {
       var result = new Result()
       before(async function () {
         await db.connect()
-        await Result.remove()
+        await Result.deleteMany()
         result.fromJson({
           url: "http://txstate.edu",
           title: "Texas State University Homepage",
