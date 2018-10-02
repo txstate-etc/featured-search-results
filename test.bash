@@ -1,0 +1,1 @@
+docker-compose -f docker-compose.test.yml up --build --exit-code-from search-featured-results-test
