@@ -22,11 +22,11 @@ app.use('/search', function (req, res, next) {
 // add endpoints
 app.get('/search', async function (req, res) {
   var query = req.query.q
-  var iscomplete = req.query.complete ? true : false
+  var asyoutype = req.query.asyoutype ? true : false
   var results = await Result.findByQuery(query)
   var ret = results.map(result => result.basic())
   res.json(ret)
-  if (!iscomplete) Query.record(query, ret)
+  if (!asyoutype) Query.record(query, ret)
 })
 app.get('/results', async function (req, res) {
   var ret = (await Result.find()).map(result => { return result.full() })
