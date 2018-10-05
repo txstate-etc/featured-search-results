@@ -84,6 +84,26 @@ describe('integration', function() {
       it('should return results when mode is keyword and query is out of order with extra words', async function() {
         (await Result.findByQuery('show texas full university bobcats state')).length.should.equal(1)
       })
+      it('should find broken links', async function () {
+        const result = new Result()
+        result.fromJson({
+          url: "http://txstate.edu/thisisabrokenlink",
+          title: "Texas State University Homepage",
+          entries: [
+            {
+              keyphrase: "broken link",
+              mode: "exact"
+            }
+          ],
+          tags: ["broken"]
+        })
+        await result.save()
+        await Result.currencyTestAll()
+        const badresult = (await Result.findByQuery('broken link'))[0]
+        badresult.currency.broken.should.be.true()
+        const goodresult = (await Result.findByQuery('texas university state'))[0]
+        goodresult.currency.broken.should.be.false()
+      })
       after(function() {
         return db.disconnect()
       })

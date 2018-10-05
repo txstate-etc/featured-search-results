@@ -112,37 +112,43 @@ ResultSchema.statics.findByQuery = async function (query) {
   return results.filter(result => result.match(words, wordset, wordsjoined))
 }
 
-ResultSchema.statics.currencyTestLoop = async function() {
-  var Result = this
+ResultSchema.methods.currencyTest = async function () {
+  const result = this
   try {
-    const results = await this.find({
-      $or: [{
-        'currency.tested': {$lte: moment().subtract(1,'day')}
-      },{
-        'currency.tested': {$exists: false}
-      }]
-    })
-    for (const result of results) {
-      let resp = null
-      try {
-        resp = await axios.get(result.url, {timeout: 2000})
-      } catch (e) {
-        resp = e.response
-      }
-      if (resp && resp.status >= 200 && resp.status < 300) {
-        result.currency.broken = false
-        result.currency.brokensince = null
-      } else {
-        if (!result.currency.broken) result.currency.brokensince = moment()
-        result.currency.broken = true
-      }
-      result.currency.tested = moment()
-      await result.save()
-    }
+    await axios.get(result.url, {timeout: 5000})
+    result.currency.broken = false
+    result.currency.brokensince = null
+  } catch (e) {
+    if (!result.currency.broken) result.currency.brokensince = moment()
+    result.currency.broken = true
+  }
+  result.currency.tested = moment()
+  try {
+    await result.save()
   } catch (e) {
     console.log(e)
   }
-  setTimeout(function () { Result.currencyTestLoop() }, 600)
+}
+
+ResultSchema.statics.currencyTestAll = async function() {
+  const results = await this.find({
+    $or: [{
+      'currency.tested': {$lte: moment().subtract(1,'day')}
+    },{
+      'currency.tested': {$exists: false}
+    }]
+  })
+  await Promise.all(results.map((result) => result.currencyTest()))
+}
+
+ResultSchema.statics.currencyTestLoop = async function() {
+  const Result = this
+  try {
+    await this.currencyTestAll()
+  } catch (e) {
+    console.log(e)
+  }
+  setTimeout(function () { Result.currencyTestLoop() }, 600000)
 }
 
 module.exports = mongoose.model('Result', ResultSchema)
