@@ -2,10 +2,17 @@ var mongoose = require('mongoose')
 var Schema = mongoose.Schema
 var helpers = require('../lib/helpers')
 var util = require('node-api-utils').util
+const moment = require('moment')
+const axios = require('axios')
 
 var ResultSchema = new Schema({
   url: String,
   title: String,
+  currency: {
+    broken: Boolean,
+    tested: Date,
+    brokensince: Date
+  },
   entries: [{
     keywords: [String],
     mode: {
@@ -17,6 +24,7 @@ var ResultSchema = new Schema({
 })
 
 ResultSchema.index({'entries.keywords': 1})
+ResultSchema.index({'currency.tested': 1})
 
 ResultSchema.methods.basic = function () {
   var info = {
@@ -42,6 +50,7 @@ ResultSchema.methods.full = function () {
     id: this._id.toString(),
     url: this.url,
     title: this.title,
+    brokensince: this.currency.brokensince,
     entries: this.outentries(),
     tags: this.tags
   }
@@ -101,6 +110,39 @@ ResultSchema.statics.findByQuery = async function (query) {
   var wordset = new Set(words)
   var wordsjoined = words.join(' ')
   return results.filter(result => result.match(words, wordset, wordsjoined))
+}
+
+ResultSchema.statics.currencyTestLoop = async function() {
+  var Result = this
+  try {
+    const results = await this.find({
+      $or: [{
+        'currency.tested': {$lte: moment().subtract(1,'day')}
+      },{
+        'currency.tested': {$exists: false}
+      }]
+    })
+    for (const result of results) {
+      let resp = null
+      try {
+        resp = await axios.get(result.url, {timeout: 2000})
+      } catch (e) {
+        resp = e.response
+      }
+      if (resp && resp.status >= 200 && resp.status < 300) {
+        result.currency.broken = false
+        result.currency.brokensince = null
+      } else {
+        if (!result.currency.broken) result.currency.brokensince = moment()
+        result.currency.broken = true
+      }
+      result.currency.tested = moment()
+      await result.save()
+    }
+  } catch (e) {
+    console.log(e)
+  }
+  setTimeout(function () { Result.currencyTestLoop() }, 600)
 }
 
 module.exports = mongoose.model('Result', ResultSchema)

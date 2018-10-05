@@ -4,6 +4,7 @@ var util = require('node-api-utils').util
 var Result = require('../../models/result')
 var axios = require('axios')
 const https = require('https')
+const moment = require('moment')
 
 const agent = new https.Agent({
   rejectUnauthorized: false
@@ -111,6 +112,19 @@ describe('integration', function() {
       })
       it('should return 3 entries in the full info', async function () {
         (await get('/result/'+id)).entries.length.should.equal(3)
+      })
+      it('should have recorded our queries while searching', async function () {
+        const queries = await get('/queries')
+        queries.length.should.be.greaterThan(0)
+        for (const query of queries) {
+          query.hits.should.be.greaterThan(0)
+          moment(query.lasthit).isAfter(moment().subtract(1,'hour')).should.be.true()
+          if (query.query === 'texas university state') {
+            query.results.length.should.equal(1)
+            query.results[0].url.should.equal('http://txstate.edu')
+            query.results[0].title.should.equal('Texas State University Homepage')
+          }
+        }
       })
     })
   })

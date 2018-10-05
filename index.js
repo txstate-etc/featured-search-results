@@ -4,7 +4,8 @@ const app = utils.apiservice.app
 const util = utils.util
 
 // models
-var Result = require('./models/result')
+const Result = require('./models/result')
+const Query = require('./models/query')
 
 // authorize based on secret key
 app.use(function (req, res, next) {
@@ -21,9 +22,11 @@ app.use('/search', function (req, res, next) {
 // add endpoints
 app.get('/search', async function (req, res) {
   var query = req.query.q
+  var iscomplete = req.query.complete ? true : false
   var results = await Result.findByQuery(query)
   var ret = results.map(result => result.basic())
   res.json(ret)
+  if (!iscomplete) Query.record(query, ret)
 })
 app.get('/results', async function (req, res) {
   var ret = (await Result.find()).map(result => { return result.full() })
@@ -57,5 +60,9 @@ app.delete('/result/:id', async function (req, res) {
   await Result.findByIdAndRemove(req.params.id)
   res.sendStatus(200)
 })
+app.get('/queries', async function (req, res) {
+  const ret = (await Query.find()).map((query) => query.basic())
+  res.json(ret)
+})
 
-utils.apiservice.start()
+utils.apiservice.start().then(() => Result.currencyTestLoop())

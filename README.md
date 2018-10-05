@@ -9,6 +9,7 @@ A RESTful API for storing/retrieving featured search results
 * `GET /result/{id}` : retrieve result by id
 * `PUT /result/{id}` : update a result
 * `DELETE /result/{id}` : delete a result
+* `GET /queries` : a list of recent search queries
 
 # create / update operations
 Include JSON in the body, set Content-Type header on the request to `application/json`
