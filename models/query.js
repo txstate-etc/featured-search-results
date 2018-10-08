@@ -5,10 +5,7 @@ const Schema = mongoose.Schema
 const QuerySchema = new Schema({
   query: String,
   hits: [Date],
-  results: [{
-    title: String,
-    url: String
-  }]
+  results: [{ type: Schema.Types.ObjectId, ref: 'Result' }]
 })
 
 QuerySchema.index({'query': 1})
@@ -22,13 +19,18 @@ QuerySchema.methods.basic = function () {
     query: this.query,
     hits: this.hits.length,
     lasthit: this.hits[this.hits.length-1],
-    results: this.results
+    results: this.results.map((result) => result.basic())
   }
 }
 
 QuerySchema.statics.record = async function (query, results) {
   const Query = this
   return await Query.findOneAndUpdate({ query: query }, {$set: {results: results}, $push: {hits: new Date()}}, {upsert: true})
+}
+
+QuerySchema.statics.getAllQueries = async function () {
+  const Query = this
+  return await Query.find().populate('results')
 }
 
 QuerySchema.statics.cleanup = async function () {

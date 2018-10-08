@@ -11,10 +11,6 @@ describe('integration', function() {
         await db.connect()
         await Query.deleteMany()
         query.query = 'texas state university'
-        query.results = [{
-          title: 'Texas State University',
-          url: 'https://www.txstate.edu'
-        }]
         for (i = 12; i > 0; i--) query.hits.push(moment().subtract(i, 'month'))
       })
       it('should save successfully', function () {
@@ -39,10 +35,6 @@ describe('integration', function() {
       it('should remove entries that have no hits in the last 6 months upon calling cleanup', async function () {
         const oldquery = new Query()
         oldquery.query = 'bobcats'
-        oldquery.results = [{
-          title: 'My Bobcats Link',
-          url: 'https://google.com'
-        }]
         oldquery.hits.push(moment().subtract(8,'month'))
         await oldquery.save()
         let queries = await Query.find()

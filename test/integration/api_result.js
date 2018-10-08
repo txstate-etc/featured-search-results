@@ -128,6 +128,10 @@ describe('integration', function() {
           }
         }
       })
+      it('should return a query count with each result', async function () {
+        const result = (await get('/results'))[0]
+        result.count.should.be.greaterThan(0)
+      })
     })
   })
 })

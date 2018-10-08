@@ -22,6 +22,11 @@ var ResultSchema = new Schema({
   }],
   tags: [String]
 })
+ResultSchema.virtual('queries', {
+  ref: 'Query',
+  localField: '_id',
+  foreignField: 'results'
+})
 
 ResultSchema.index({'entries.keywords': 1})
 ResultSchema.index({'currency.tested': 1})
@@ -54,6 +59,12 @@ ResultSchema.methods.full = function () {
     entries: this.outentries(),
     tags: this.tags
   }
+  return info
+}
+
+ResultSchema.methods.fullWithCount = function () {
+  const info = this.full()
+  info.count = this.queries.length
   return info
 }
 
@@ -98,6 +109,10 @@ ResultSchema.methods.fromJson = function (input) {
       mode: mode
     })
   }
+}
+
+ResultSchema.statics.getAllWithQueries = async function() {
+  return await this.find().populate('queries')
 }
 
 ResultSchema.statics.getByQuery = async function (words) {

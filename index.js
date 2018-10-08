@@ -26,10 +26,10 @@ app.get('/search', async function (req, res) {
   var results = await Result.findByQuery(query)
   var ret = results.map(result => result.basic())
   res.json(ret)
-  if (!asyoutype) Query.record(query, ret)
+  if (!asyoutype) Query.record(query, results)
 })
 app.get('/results', async function (req, res) {
-  var ret = (await Result.find()).map(result => { return result.full() })
+  var ret = (await Result.getAllWithQueries()).map(result => { return result.fullWithCount() })
   res.json(ret)
 })
 app.post('/result', async function (req, res) {
@@ -61,7 +61,7 @@ app.delete('/result/:id', async function (req, res) {
   res.sendStatus(200)
 })
 app.get('/queries', async function (req, res) {
-  const ret = (await Query.find()).map((query) => query.basic())
+  const ret = (await Query.getAllQueries()).map((query) => query.basic())
   res.json(ret)
 })
 
