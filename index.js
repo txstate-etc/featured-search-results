@@ -65,4 +65,7 @@ app.get('/queries', async function (req, res) {
   res.json(ret)
 })
 
-utils.apiservice.start().then(() => Result.currencyTestLoop())
+utils.apiservice.start().then(() => {
+  Result.currencyTestLoop()
+  Query.cleanupLoop()
+})

@@ -1,24 +1,25 @@
 require('should')
-var db = require('node-api-utils').db
-var util = require('node-api-utils').util
-var Result = require('../../models/result')
-var axios = require('axios')
+const db = require('node-api-utils').db
+const util = require('node-api-utils').util
+const Result = require('../../models/result')
+const Query = require('../../models/query')
+const axios = require('axios')
 const https = require('https')
 const moment = require('moment')
 
 const agent = new https.Agent({
   rejectUnauthorized: false
 })
-var api_path = 'https://'+process.env.API_HOST
-var get = async function(endpoint) {
+const api_path = 'https://'+process.env.API_HOST
+const get = async function(endpoint) {
   return (await axios.get(api_path+endpoint, {httpsAgent: agent})).data
 }
-var post = async function(endpoint, payload, skipSecret = false) {
+const post = async function(endpoint, payload, skipSecret = false) {
   const headers = {}
   if (!skipSecret) headers['X-Secret-Key'] = process.env.FEATURED_SECRET
   return await axios.post(api_path+endpoint, payload, {httpsAgent: agent, headers: headers})
 }
-var hold_until_service_up = async function(endpoint) {
+const hold_until_service_up = async function(endpoint) {
   for (var i = 0; i < 100; i++) {
     try {
       await get(endpoint)
@@ -54,6 +55,7 @@ describe('integration', function() {
       before(async function () {
         await db.connect()
         await Result.deleteMany()
+        await Query.deleteMany()
         await db.disconnect()
         await hold_until_service_up('/results')
       })
