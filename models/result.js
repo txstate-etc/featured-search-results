@@ -64,31 +64,54 @@ ResultSchema.methods.full = function () {
 
 ResultSchema.methods.fullWithCount = function () {
   const info = this.full()
-  info.count = this.queries.length
+  for (const query of this.queries) {
+    const words = helpers.querysplit(query.query)
+    const [wordset, wordsjoined] = wordsProcessed(words)
+    for (let i = 0; i < info.entries.length; i++) {
+      if (entryMatch(this.entries[i], words, wordset, wordsjoined)) {
+        info.entries[i].count = info.entries[i].count + 1 || 1
+        break
+      }
+    }
+  }
   return info
 }
 
-ResultSchema.methods.match = function (words, wordset, wordsjoined) {
+const wordsProcessed = function(words, wordset, wordsjoined) {
+  return [
+    wordset || new Set(words),
+    wordsjoined || words.join(' ')
+  ]
+}
+
+const entryMatch = function (entry, words, wordset, wordsjoined) {
   // given a query string, determine whether this entry is a match
   // after accounting for mode
-  if (!wordset) wordset = new Set(words)
-  if (util.isBlank(wordsjoined)) wordsjoined = words.join(' ')
-  for (var entry of this.entries) {
-    if (entry.mode == 'exact') {
-      if (wordsjoined === entry.keywords.join(' ')) return true
-    } else if (entry.mode == 'phrase') {
-      var index = 0;
-      for (var word of words) {
-        if (word == entry.keywords[index]) index++
-      }
-      if (index == entry.keywords.length) return true
-    } else { // entry.mode == 'keyword'
-      var count = 0
-      for (var keyword of entry.keywords) {
-        if (wordset.has(keyword)) count++
-      }
-      if (count == entry.keywords.length) return true
+  [wordset, wordsjoined] = wordsProcessed(words, wordset, wordsjoined)
+  console.log(entry)
+  if (entry.mode == 'exact') {
+    if (wordsjoined === entry.keywords.join(' ')) return true
+  } else if (entry.mode == 'phrase') {
+    var index = 0;
+    for (var word of words) {
+      if (word == entry.keywords[index]) index++
     }
+    if (index == entry.keywords.length) return true
+  } else { // entry.mode == 'keyword'
+    var count = 0
+    for (var keyword of entry.keywords) {
+      if (wordset.has(keyword)) count++
+    }
+    if (count == entry.keywords.length) return true
+  }
+
+  return false
+}
+
+ResultSchema.methods.match = function (words, wordset, wordsjoined) {
+  [wordset, wordsjoined] = wordsProcessed(words, wordset, wordsjoined)
+  for (var entry of this.entries) {
+    if (entryMatch(entry, words, wordset, wordsjoined)) return true
   }
   return false
 }
@@ -122,8 +145,7 @@ ResultSchema.statics.getByQuery = async function (words) {
 ResultSchema.statics.findByQuery = async function (query) {
   var words = helpers.querysplit(query)
   var results = await this.getByQuery(words)
-  var wordset = new Set(words)
-  var wordsjoined = words.join(' ')
+  let [wordset, wordsjoined] = wordsProcessed(words)
   return results.filter(result => result.match(words, wordset, wordsjoined))
 }
 
