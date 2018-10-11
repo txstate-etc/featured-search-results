@@ -104,6 +104,29 @@ describe('integration', function() {
         const goodresult = (await Result.findByQuery('texas university state'))[0]
         goodresult.currency.broken.should.be.false()
       })
+      it('should sort search results by priority', async function () {
+        const secondresult = new Result()
+        secondresult.fromJson({
+          url: "http://google.com",
+          title: "Google",
+          priority: 2,
+          entries: [
+            {
+              keyphrase: "Bobcat Village",
+              mode: "exact"
+            }
+          ]
+        })
+        await secondresult.save()
+        let results = await Result.findByQuery('bobcat village')
+        results[0].title.should.not.equal("Google")
+        results[1].title.should.equal("Google")
+        secondresult.priority = 0
+        await secondresult.save()
+        results = await Result.findByQuery('bobcat village')
+        results[1].title.should.not.equal("Google")
+        results[0].title.should.equal("Google")
+      })
       after(function() {
         return db.disconnect()
       })

@@ -8,6 +8,7 @@ const axios = require('axios')
 var ResultSchema = new Schema({
   url: String,
   title: String,
+  priority: {type: Number, get: function (num) { return num || 1 } },
   currency: {
     broken: Boolean,
     tested: Date,
@@ -59,6 +60,7 @@ ResultSchema.methods.outentries = function () {
 ResultSchema.methods.full = function () {
   const info = this.basicPlusId()
   info.brokensince = this.currency.brokensince
+  info.priority = this.priority
   info.entries = this.outentries()
   info.tags = this.tags
   return info
@@ -122,6 +124,7 @@ ResultSchema.methods.fromJson = function (input) {
   var result = this
   result.url = input.url
   result.title = input.title
+  result.priority = input.priority || 1
   result.tags = []
   result.entries = []
   for (var entry of input.entries) {
@@ -134,7 +137,7 @@ ResultSchema.methods.fromJson = function (input) {
       mode: mode
     })
   }
-  for (const tag of input.tags) {
+  for (const tag of input.tags || []) {
     result.tags.push(tag.toLowerCase())
   }
 }
@@ -166,7 +169,13 @@ ResultSchema.statics.findByQuery = async function (query) {
   var words = helpers.querysplit(query)
   var results = await this.getByQuery(words)
   let [wordset, wordsjoined] = wordsProcessed(words)
-  return results.filter(result => result.match(words, wordset, wordsjoined))
+  return results.filter(result => result.match(words, wordset, wordsjoined)).sort(function (a,b) {
+    if (a.priority > b.priority) return 1
+    if (b.priority > a.priority) return -1
+    if (a.title > b.title) return 1
+    if (b.title > a.title) return -1
+    return 0
+  })
 }
 
 ResultSchema.methods.currencyTest = async function () {

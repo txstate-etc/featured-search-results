@@ -50,6 +50,7 @@ app.post('/result', async function (req, res) {
   if (oldresult) {
     result = oldresult
     if (!util.isBlank(newresult.title)) result.title = input.title
+    result.priority = input.priority || 1
     for (const entry of newresult.entries) {
       if (!result.hasEntry(entry)) result.entries.push(entry)
     }
