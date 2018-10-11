@@ -64,12 +64,13 @@ ResultSchema.methods.full = function () {
 
 ResultSchema.methods.fullWithCount = function () {
   const info = this.full()
+  for (const entry of info.entries) entry.count = 0
   for (const query of this.queries) {
     const words = helpers.querysplit(query.query)
     const [wordset, wordsjoined] = wordsProcessed(words)
     for (let i = 0; i < info.entries.length; i++) {
       if (entryMatch(this.entries[i], words, wordset, wordsjoined)) {
-        info.entries[i].count = info.entries[i].count + 1 || 1
+        info.entries[i].count += query.hits.length
         break
       }
     }
@@ -88,7 +89,6 @@ const entryMatch = function (entry, words, wordset, wordsjoined) {
   // given a query string, determine whether this entry is a match
   // after accounting for mode
   [wordset, wordsjoined] = wordsProcessed(words, wordset, wordsjoined)
-  console.log(entry)
   if (entry.mode == 'exact') {
     if (wordsjoined === entry.keywords.join(' ')) return true
   } else if (entry.mode == 'phrase') {
@@ -120,7 +120,7 @@ ResultSchema.methods.fromJson = function (input) {
   var result = this
   result.url = input.url
   result.title = input.title
-  result.tags = input.tags
+  result.tags = []
   result.entries = []
   for (var entry of input.entries) {
     var lcmode = entry.mode.toLowerCase()
@@ -132,10 +132,28 @@ ResultSchema.methods.fromJson = function (input) {
       mode: mode
     })
   }
+  for (const tag of input.tags) {
+    result.tags.push(tag.toLowerCase())
+  }
+}
+
+ResultSchema.methods.hasEntry = function (entry) {
+  for (const e of this.entries) {
+    if (e.words.join(' ') === entry.words.join(' ') && e.mode == entry.mode) return true
+  }
+  return false
+}
+
+ResultSchema.methods.hasTag = function (tag) {
+  return this.tags.includes(tag)
 }
 
 ResultSchema.statics.getAllWithQueries = async function() {
   return await this.find().populate('queries')
+}
+
+ResultSchema.statics.getWithQueries = async function(id) {
+  return await this.findById(id).populate('queries')
 }
 
 ResultSchema.statics.getByQuery = async function (words) {

@@ -37,14 +37,28 @@ app.post('/result', async function (req, res) {
   if (!input) return res.status(400).send('POST body was not parseable JSON.')
   if (util.isBlank(input.url)) return res.status(400).send('Posted result must contain a URL.')
 
-  var result = (await Result.findOne({url: input.url})) || new Result({ url: input.url })
-  result.fromJson(input)
+  let result = null
+  const newresult = new Result()
+  newresult.fromJson(input)
+  const oldresult = await Result.findOne({url: input.url})
+  if (oldresult) {
+    result = oldresult
+    if (!util.isBlank(newresult.title)) result.title = input.title
+    for (const entry of newresult.entries) {
+      if (!result.hasEntry(entry)) result.entries.push(entry)
+    }
+    for (const tag of newresult.tags) {
+      if (!result.hasTag(tag)) result.tags.push(tag)
+    }
+  } else {
+    result = newresult
+  }
   await result.save()
-  res.sendStatus(200)
+  res.status(200).json(result.full())
 })
 app.get('/result/:id', async function (req, res) {
   if (!util.isHex(req.params.id)) return res.status(400).send('Bad id format. Should be a hex string.')
-  var result = await Result.findById(req.params.id)
+  var result = await Result.getWithQueries(req.params.id)
   res.json(result.full())
 })
 app.put('/result/:id', async function (req, res) {
@@ -54,7 +68,7 @@ app.put('/result/:id', async function (req, res) {
   if (!result) return res.status(404).send('That result id does not exist.')
   result.fromJson(req.body)
   await result.save()
-  res.sendStatus(200)
+  res.status(200).json(result.full())
 })
 app.delete('/result/:id', async function (req, res) {
   await Result.findByIdAndRemove(req.params.id)
