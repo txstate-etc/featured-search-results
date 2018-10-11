@@ -60,6 +60,7 @@ app.post('/result', async function (req, res) {
   } else {
     result = newresult
   }
+  if (!result.valid()) return res.status(400).send('Result did not validate.')
   await result.save()
   res.status(200).json(result.full())
 })
@@ -74,6 +75,7 @@ app.put('/result/:id', async function (req, res) {
   var result = await Result.findById(req.params.id)
   if (!result) return res.status(404).send('That result id does not exist.')
   result.fromJson(req.body)
+  if (!result.valid()) return res.status(400).send('Result did not validate.')
   await result.save()
   res.status(200).json(result.full())
 })

@@ -130,15 +130,16 @@ ResultSchema.methods.fromJson = function (input) {
   for (var entry of input.entries) {
     var lcmode = entry.mode.toLowerCase()
     var mode = ['keyword','phrase','exact'].includes(lcmode) ? lcmode : 'keyword'
-    var keyphrase = entry.keyphrase.toLowerCase()
-    var words = helpers.querysplit(keyphrase)
-    result.entries.push({
-      keywords: words,
-      mode: mode
-    })
+    var words = helpers.querysplit(entry.keyphrase)
+    if (words.length > 0) {
+      result.entries.push({
+        keywords: words,
+        mode: mode
+      })
+    }
   }
   for (const tag of input.tags || []) {
-    result.tags.push(tag.toLowerCase())
+    if (!util.isBlank(tag)) result.tags.push(tag.toLowerCase().trim())
   }
 }
 
@@ -151,6 +152,14 @@ ResultSchema.methods.hasEntry = function (entry) {
 
 ResultSchema.methods.hasTag = function (tag) {
   return this.tags.includes(tag)
+}
+
+ResultSchema.methods.valid = function () {
+  if (this.entries.length === 0) return false
+  if (util.isBlank(this.title)) return false
+  if (util.isBlank(this.url)) return false
+  if (!this.url.match(/^(\w+:)?\/\//i)) return false
+  return true
 }
 
 ResultSchema.statics.getAllWithQueries = async function() {
