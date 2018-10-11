@@ -39,6 +39,11 @@ ResultSchema.methods.basic = function () {
   return info
 }
 
+ResultSchema.methods.basicPlusId = function () {
+  const info = this.basic()
+  info.id = this._id.toString()
+}
+
 ResultSchema.methods.outentries = function () {
   var outentries = []
   for (var entry of this.entries) {
@@ -51,14 +56,10 @@ ResultSchema.methods.outentries = function () {
 }
 
 ResultSchema.methods.full = function () {
-  var info = {
-    id: this._id.toString(),
-    url: this.url,
-    title: this.title,
-    brokensince: this.currency.brokensince,
-    entries: this.outentries(),
-    tags: this.tags
-  }
+  const info = this.basicPlusId()
+  info.brokensince = this.currency.brokensince
+  info.entries = this.outentries()
+  info.tags = this.tags
   return info
 }
 

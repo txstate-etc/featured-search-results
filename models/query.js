@@ -19,7 +19,7 @@ QuerySchema.methods.basic = function () {
     query: this.query,
     hits: this.hits.length,
     lasthit: this.hits[this.hits.length-1],
-    results: this.results.map((result) => result.basic())
+    results: this.results.map((result) => result.basicPlusId())
   }
 }
 
