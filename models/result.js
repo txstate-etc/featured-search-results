@@ -42,6 +42,7 @@ ResultSchema.methods.basic = function () {
 ResultSchema.methods.basicPlusId = function () {
   const info = this.basic()
   info.id = this._id.toString()
+  return info
 }
 
 ResultSchema.methods.outentries = function () {
