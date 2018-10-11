@@ -28,6 +28,12 @@ app.get('/search', async function (req, res) {
   res.json(ret)
   if (!asyoutype) Query.record(query, results)
 })
+app.get('/adminsearch', async function (req, res) {
+  var query = req.query.q
+  var results = await Result.findByQuery(query)
+  var ret = results.map(result => result.basicPlusId())
+  res.json(ret)
+})
 app.get('/results', async function (req, res) {
   var ret = (await Result.getAllWithQueries()).map(result => { return result.fullWithCount() })
   res.json(ret)
