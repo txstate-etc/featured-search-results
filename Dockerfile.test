@@ -1,7 +1,7 @@
-FROM node:10
+FROM node:10-alpine
 
-RUN apt-get update -y
-RUN apt-get upgrade -y
+RUN apk update && apk upgrade && \
+    apk add --no-cache git
 
 WORKDIR /usr/src/app
 

@@ -22,6 +22,7 @@ app.use('/search', function (req, res, next) {
 // add endpoints
 app.get('/search', async function (req, res) {
   var query = req.query.q
+  if (query && query.length > 1024) return res.status(400).send('Query length is limited to 1kB.')
   var asyoutype = req.query.asyoutype ? true : false
   var results = await Result.findByQuery(query)
   var ret = results.map(result => result.basic())
@@ -30,6 +31,7 @@ app.get('/search', async function (req, res) {
 })
 app.get('/adminsearch', async function (req, res) {
   var query = req.query.q
+  if (query && query.length > 1024) return res.status(400).send('Query length is limited to 1kB.')
   var results = await Result.findByQuery(query)
   var ret = results.map(result => result.basicPlusId())
   res.json(ret)

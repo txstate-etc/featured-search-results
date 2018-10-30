@@ -175,6 +175,7 @@ ResultSchema.statics.getByQuery = async function (words) {
 }
 
 ResultSchema.statics.findByQuery = async function (query) {
+  if (util.isBlank(query)) return []
   var words = helpers.querysplit(query)
   var results = await this.getByQuery(words)
   let [wordset, wordsjoined] = wordsProcessed(words)
