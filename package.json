@@ -4,7 +4,7 @@
   "description": "A RESTful API for storing/retrieving featured search results.",
   "private": true,
   "dependencies": {
-    "node-api-utils": "txstate-etc/node-api-utils#1.0",
+    "node-api-utils": "txstate-etc/node-api-utils#1.0.6",
     "moment": ">=2.19.3",
     "axios": ">=0.18.0"
   },

@@ -12,7 +12,8 @@ const agent = new https.Agent({
 })
 const api_path = 'https://'+process.env.API_HOST
 const get = async function(endpoint) {
-  return (await axios.get(api_path+endpoint, {httpsAgent: agent})).data
+  const headers = { 'X-Secret-Key': process.env.FEATURED_SECRET }
+  return (await axios.get(api_path+endpoint, {httpsAgent: agent, headers: headers})).data
 }
 const post = async function(endpoint, payload, skipSecret = false) {
   const headers = {}

@@ -16,11 +16,7 @@ services:
     environment:
       DB_HOST: mongodb
       FEATURED_SECRET: mysecret
-    ports:
-      - 443:443
     links:
       - mongodb
   mongodb:
     image: mongo:latest
-    ports:
-      - 27017:27017

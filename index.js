@@ -9,8 +9,8 @@ const Query = require('./models/query')
 
 // authorize based on secret key
 app.use(function (req, res, next) {
-  if (req.method !== 'GET') {
-    if (req.get('X-Secret-Key') !== process.env.FEATURED_SECRET) return res.status(401).send('Secret key required for any non-GET method.')
+  if (!req.path.startsWith('/search')) {
+    if (req.get('X-Secret-Key') !== process.env.FEATURED_SECRET) return res.status(401).send('Secret key required for all endpoints except /search.')
   }
   next()
 })
