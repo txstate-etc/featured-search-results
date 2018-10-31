@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const moment = require('moment')
+const util = require('node-api-utils').util
 const Schema = mongoose.Schema
 
 const QuerySchema = new Schema({
@@ -10,7 +11,7 @@ const QuerySchema = new Schema({
 
 QuerySchema.index({'query': 1})
 
-// we always push later dates on the end of hits, so hits[0] is the minimum and the 
+// we always push later dates on the end of hits, so hits[0] is the minimum and the
 // only index we need - luckily mongo supports this with dot notation
 QuerySchema.index({'hits.0': 1})
 
@@ -25,6 +26,7 @@ QuerySchema.methods.basic = function () {
 
 QuerySchema.statics.record = async function (query, results) {
   const Query = this
+  if (util.isBlank(query)) return
   return await Query.findOneAndUpdate({ query: query }, {$set: {results: results}, $push: {hits: new Date()}}, {upsert: true})
 }
 
