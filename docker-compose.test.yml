@@ -20,3 +20,4 @@ services:
       - mongodb
   mongodb:
     image: mongo:latest
+    command: --logpath /dev/null
