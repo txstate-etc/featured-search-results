@@ -38,7 +38,7 @@ QuerySchema.statics.getAllQueries = async function () {
 QuerySchema.statics.cleanup = async function () {
   const Query = this
   const expires = moment().subtract(6, 'month')
-  await Query.update(
+  await Query.updateMany(
     {'hits.0': {$lte: expires}},
     {$pull: {hits: {$lte: expires}}},
     {multi: true}
