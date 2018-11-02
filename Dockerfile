@@ -5,15 +5,17 @@ RUN apk update && apk upgrade && \
     apk add --no-cache git
 WORKDIR /usr/src/app
 COPY package.json ./
-RUN npm --quiet --production install
-
-FROM node:10-alpine
-WORKDIR /usr/src/app
-COPY --from=keygen /securekeys /securekeys
-COPY --from=npminstall /usr/src/app/node_modules /usr/src/app/node_modules
-COPY package.json ./
 COPY lib lib
 COPY models models
 COPY index.js index.js
-ENTRYPOINT [ "npm" ]
-CMD ["start"]
+RUN npm --quiet --production install
+RUN npm --quiet install -g pkg
+RUN pkg . --output /packaged.js
+
+FROM alpine
+RUN apk update && apk upgrade && \
+    apk add --no-cache libstdc++
+WORKDIR /usr/src/app
+COPY --from=keygen /securekeys /securekeys
+COPY --from=npminstall /packaged.js ./
+CMD ["./packaged.js"]

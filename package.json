@@ -17,6 +17,7 @@
     "test": "mocha test/unit",
     "integration": "mocha --exit test/unit test/integration"
   },
+  "bin": "index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/txstate-etc/search-featured-results"
