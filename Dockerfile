@@ -5,6 +5,7 @@ RUN apk update && apk upgrade && \
     apk add --no-cache git
 RUN npm --quiet install -g pkg
 WORKDIR /usr/src/app
+RUN touch noop.js && pkg noop.js --target=node10-alpine-x64 --output=noop_built.js && rm noop.js noop_built.js
 COPY package.json ./
 RUN npm --quiet --production install
 COPY lib lib
