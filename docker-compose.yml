@@ -2,6 +2,7 @@ version: '3'
 services:
   search-featured-results:
     build: .
+    read_only: true
     environment:
       DB_HOST: mongodb
       NODE_ENV: development

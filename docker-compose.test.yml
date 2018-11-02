@@ -13,6 +13,7 @@ services:
       - mongodb
   search-featured-results:
     build: .
+    read_only: true
     environment:
       DB_HOST: mongodb
       FEATURED_SECRET: mysecret
