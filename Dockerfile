@@ -3,13 +3,13 @@ FROM registry.its.txstate.edu/node-api-utils:latest as keygen
 FROM node:10-alpine as npminstall
 RUN apk update && apk upgrade && \
     apk add --no-cache git
+RUN npm --quiet install -g pkg
 WORKDIR /usr/src/app
 COPY package.json ./
+RUN npm --quiet --production install
 COPY lib lib
 COPY models models
 COPY index.js index.js
-RUN npm --quiet --production install
-RUN npm --quiet install -g pkg
 RUN pkg . --output /packaged.js
 
 FROM alpine
