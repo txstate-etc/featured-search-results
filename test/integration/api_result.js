@@ -73,7 +73,7 @@ describe('integration', function() {
         id = results[0].id
       })
       it('should not require a secret to perform a search', async function() {
-        (await get('/search', true)).status.should.equal(200)
+        (await get('/search', true)).should.be.an.Array
       })
       it('should be case insensitive', async function() {
         (await get('/search?q=bObCAt VILLagE')).length.should.equal(1)
