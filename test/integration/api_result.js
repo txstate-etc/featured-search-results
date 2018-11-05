@@ -11,8 +11,9 @@ const agent = new https.Agent({
   rejectUnauthorized: false
 })
 const api_path = 'https://'+process.env.API_HOST
-const get = async function(endpoint) {
-  const headers = { 'X-Secret-Key': process.env.FEATURED_SECRET }
+const get = async function(endpoint, skipSecret = false) {
+  const headers = {}
+  if (!skipSecret) headers['X-Secret-Key'] = process.env.FEATURED_SECRET
   return (await axios.get(api_path+endpoint, {httpsAgent: agent, headers: headers})).data
 }
 const post = async function(endpoint, payload, skipSecret = false) {
@@ -70,6 +71,9 @@ describe('integration', function() {
         var results = (await get('/results'))
         results.length.should.equal(1)
         id = results[0].id
+      })
+      it('should not require a secret to perform a search', async function() {
+        (await get('/search', true)).status.should.equal(200)
       })
       it('should be case insensitive', async function() {
         (await get('/search?q=bObCAt VILLagE')).length.should.equal(1)

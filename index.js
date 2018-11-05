@@ -8,12 +8,14 @@ const Result = require('./models/result')
 const Query = require('./models/query')
 
 // authorize based on secret key
-app.use(function (req, res, next) {
-  if (!req.path.startsWith('/search')) {
-    if (req.get('X-Secret-Key') !== process.env.FEATURED_SECRET) return res.status(401).send('Secret key required for all endpoints except /search.')
+function authorize(req, res, next) {
+  if (req.get('X-Secret-Key') !== process.env.FEATURED_SECRET) {
+    const message = process.env.NODE_ENV === 'production' ? 'Authentication failure.' : 'Secret key required for all endpoints except /search.'
+    return res.status(401).send(message)
   }
   next()
-})
+}
+
 app.use('/search', function (req, res, next) {
   res.set('Access-Control-Allow-Origin', '*')
   next()
@@ -29,18 +31,18 @@ app.get('/search', async function (req, res) {
   res.json(ret)
   if (!asyoutype) Query.record(query, results)
 })
-app.get('/adminsearch', async function (req, res) {
+app.get('/adminsearch', authorize, async function (req, res) {
   var query = req.query.q
   if (query && query.length > 1024) return res.status(400).send('Query length is limited to 1kB.')
   var results = await Result.findByQuery(query)
   var ret = results.map(result => result.basicPlusId())
   res.json(ret)
 })
-app.get('/results', async function (req, res) {
+app.get('/results', authorize, async function (req, res) {
   var ret = (await Result.getAllWithQueries()).map(result => { return result.fullWithCount() })
   res.json(ret)
 })
-app.post('/result', async function (req, res) {
+app.post('/result', authorize, async function (req, res) {
   var input = req.body
   if (!input) return res.status(400).send('POST body was not parseable JSON.')
   if (util.isBlank(input.url)) return res.status(400).send('Posted result must contain a URL.')
@@ -66,12 +68,12 @@ app.post('/result', async function (req, res) {
   await result.save()
   res.status(200).json(result.full())
 })
-app.get('/result/:id', async function (req, res) {
+app.get('/result/:id', authorize, async function (req, res) {
   if (!util.isHex(req.params.id)) return res.status(400).send('Bad id format. Should be a hex string.')
   var result = await Result.getWithQueries(req.params.id)
   res.json(result.full())
 })
-app.put('/result/:id', async function (req, res) {
+app.put('/result/:id', authorize, async function (req, res) {
   if (!util.isHex(req.params.id)) return res.status(400).send('Bad id format. Should be a hex string.')
   if (!req.body) return res.status(400).send('POST body was not parseable JSON.')
   var result = await Result.findById(req.params.id)
@@ -81,11 +83,11 @@ app.put('/result/:id', async function (req, res) {
   await result.save()
   res.status(200).json(result.full())
 })
-app.delete('/result/:id', async function (req, res) {
+app.delete('/result/:id', authorize, async function (req, res) {
   await Result.findByIdAndRemove(req.params.id)
   res.sendStatus(200)
 })
-app.get('/queries', async function (req, res) {
+app.get('/queries', authorize, async function (req, res) {
   const ret = (await Query.getAllQueries()).map((query) => query.basic())
   res.json(ret)
 })
