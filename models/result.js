@@ -122,8 +122,8 @@ ResultSchema.methods.match = function (words, wordset, wordsjoined) {
 
 ResultSchema.methods.fromJson = function (input) {
   var result = this
-  result.url = input.url
-  result.title = input.title
+  result.url = input.url.trim()
+  result.title = input.title.trim()
   result.priority = input.priority || 1
   result.tags = []
   result.entries = []
@@ -145,7 +145,7 @@ ResultSchema.methods.fromJson = function (input) {
 
 ResultSchema.methods.hasEntry = function (entry) {
   for (const e of this.entries) {
-    if (e.words.join(' ') === entry.words.join(' ') && e.mode == entry.mode) return true
+    if (e.keywords.join(' ') === entry.keywords.join(' ') && e.mode == entry.mode) return true
   }
   return false
 }

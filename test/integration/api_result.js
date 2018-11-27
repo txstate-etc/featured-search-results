@@ -47,9 +47,6 @@ describe('integration', function() {
           },{
             keyphrase: "Texas State Homepage",
             mode: "phrase"
-          },{
-            keyphrase: "Texas State University",
-            mode: "keyword"
           }
         ],
         tags: ["marketing"]
@@ -66,6 +63,12 @@ describe('integration', function() {
       })
       it('should accept our result', async function() {
         (await post('/result', result)).status.should.equal(200)
+      })
+      it('should merge results when trying to post a result with an identical url', async function() {
+        const another = { ...result, entries: [{ keyphrase: "Texas State University", mode: "keyword" }, { keyphrase: 'bobcat village', mode: 'exact' }] }
+        const final = (await post('/result', another)).data
+        final.entries.length.should.equal(3)
+        final.entries[2].keyphrase.should.equal('texas state university')
       })
       it('should return one result on /results', async function() {
         var results = (await get('/results'))
