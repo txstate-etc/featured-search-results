@@ -6,7 +6,9 @@ const Schema = mongoose.Schema
 const QuerySchema = new Schema({
   query: String,
   hits: [Date],
-  results: [{ type: Schema.Types.ObjectId, ref: 'Result' }]
+  results: [{ type: Schema.Types.ObjectId, ref: 'Result' }],
+  hitcount: Number,
+  lasthit: [Date]
 })
 
 QuerySchema.index({'query': 1})
@@ -18,8 +20,8 @@ QuerySchema.index({'hits.0': 1})
 QuerySchema.methods.basic = function () {
   return {
     query: this.query,
-    hits: this.hits.length,
-    lasthit: this.hits[this.hits.length-1],
+    hits: this.hits.length || this.hitcount,
+    lasthit: util.isEmpty(this.lasthit) ? this.hits[this.hits.length-1] : this.lasthit[0],
     results: this.results.map((result) => result.basicPlusId())
   }
 }
@@ -32,7 +34,17 @@ QuerySchema.statics.record = async function (query, results) {
 
 QuerySchema.statics.getAllQueries = async function () {
   const Query = this
-  return await Query.find().populate('results')
+  const queries = (await Query.aggregate([
+    { $project: {
+      query: 1,
+      results: 1,
+      hitcount: { $size: '$hits' },
+      lasthit: { $slice: ['$hits', -1] }
+    } },
+    { $sort: { 'hitcount': -1 } },
+    { $limit: 5000 }
+  ])).map(q => new Query(q))
+  return Query.populate(queries, 'results')
 }
 
 QuerySchema.statics.cleanup = async function () {
