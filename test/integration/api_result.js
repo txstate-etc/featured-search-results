@@ -1,6 +1,6 @@
 require('should')
-const db = require('node-api-utils').db
-const util = require('node-api-utils').util
+const db = require('txstate-node-utils/lib/db')
+const util = require('txstate-node-utils/lib/util')
 const Result = require('../../models/result')
 const Query = require('../../models/query')
 const axios = require('axios')

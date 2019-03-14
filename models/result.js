@@ -1,7 +1,7 @@
 var mongoose = require('mongoose')
 var Schema = mongoose.Schema
 var helpers = require('../lib/helpers')
-var util = require('node-api-utils').util
+const util = require('txstate-node-utils/lib/util')
 const moment = require('moment')
 const axios = require('axios')
 

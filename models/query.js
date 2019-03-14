@@ -1,6 +1,6 @@
 const mongoose = require('mongoose')
 const moment = require('moment')
-const util = require('node-api-utils').util
+const util = require('txstate-node-utils/lib/util')
 const Schema = mongoose.Schema
 
 const QuerySchema = new Schema({

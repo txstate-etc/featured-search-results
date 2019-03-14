@@ -1,6 +1,6 @@
 require('should')
 const moment = require('moment')
-const db = require('node-api-utils').db
+const db = require('txstate-node-utils/lib/db')
 const Query = require('../../models/query')
 
 describe('integration', function() {

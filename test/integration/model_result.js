@@ -1,5 +1,5 @@
 require('should')
-var db = require('node-api-utils').db
+const db = require('txstate-node-utils/lib/db')
 var Result = require('../../models/result')
 
 describe('integration', function() {
