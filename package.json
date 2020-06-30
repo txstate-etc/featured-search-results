@@ -9,8 +9,8 @@
     "axios": ">=0.18.0"
   },
   "devDependencies": {
-    "mocha": "~5",
-    "should": "~13"
+    "mocha": "^8.0.1",
+    "should": "^13.2.3"
   },
   "scripts": {
     "start": "node ./index",

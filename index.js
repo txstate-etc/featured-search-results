@@ -7,7 +7,7 @@ const Result = require('./models/result')
 const Query = require('./models/query')
 
 // authorize based on secret key
-function authorize(req, res, next) {
+function authorize (req, res, next) {
   if (req.get('X-Secret-Key') !== process.env.FEATURED_SECRET) {
     const message = process.env.NODE_ENV === 'production' ? 'Authentication failure.' : 'Secret key required for all endpoints except /search.'
     return res.status(401).send(message)
@@ -24,7 +24,7 @@ app.use('/search', function (req, res, next) {
 app.get('/search', async function (req, res) {
   var query = req.query.q
   if (query && query.length > 1024) return res.status(400).send('Query length is limited to 1kB.')
-  var asyoutype = req.query.asyoutype ? true : false
+  var asyoutype = !!req.query.asyoutype
   var results = await Result.findByQuery(query)
   var ret = results.map(result => result.basic())
   res.json(ret)
@@ -49,7 +49,7 @@ app.post('/result', authorize, async function (req, res) {
   let result = null
   const newresult = new Result()
   newresult.fromJson(input)
-  const oldresult = await Result.findOne({url: input.url})
+  const oldresult = await Result.findOne({ url: input.url })
   if (oldresult) {
     result = oldresult
     if (!util.isBlank(newresult.title)) result.title = input.title

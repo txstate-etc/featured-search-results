@@ -1,17 +1,18 @@
+/* global after, before, describe, it */
 require('should')
 const moment = require('moment')
 const db = require('txstate-node-utils/lib/db')
 const Query = require('../../models/query')
 
-describe('integration', function() {
-  describe('model', function() {
-    describe('query', function() {
+describe('integration', function () {
+  describe('model', function () {
+    describe('query', function () {
       const query = new Query()
       before(async function () {
         await db.connect()
         await Query.deleteMany()
         query.query = 'texas state university'
-        for (i = 12; i > 0; i--) query.hits.push(moment().subtract(i, 'month'))
+        for (let i = 12; i > 0; i--) query.hits.push(moment().subtract(i, 'month'))
       })
       it('should save successfully', function () {
         return query.save()
@@ -35,15 +36,15 @@ describe('integration', function() {
       it('should remove entries that have no hits in the last 6 months upon calling cleanup', async function () {
         const oldquery = new Query()
         oldquery.query = 'bobcats'
-        oldquery.hits.push(moment().subtract(8,'month'))
+        oldquery.hits.push(moment().subtract(8, 'month'))
         await oldquery.save()
         let queries = await Query.find()
         queries.length.should.equal(2)
-        await Query.cleanup();
+        await Query.cleanup()
         queries = await Query.find()
         queries.length.should.equal(1)
       })
-      after(function() {
+      after(function () {
         return db.disconnect()
       })
     })
