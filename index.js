@@ -1,10 +1,17 @@
 const utils = require('txstate-node-utils')
+const cookieparser = require('cookie-parser')
 const app = utils.apiservice.app
 const util = utils.util
+
+utils.apiservice.addDomain(/txstate\.edu$/)
+utils.apiservice.addDomain(/tsus\.edu$/)
+utils.apiservice.addDomain(/tjctc\.org$/)
+app.use(cookieparser())
 
 // models
 const Result = require('./models/result')
 const Query = require('./models/query')
+const Counter = require('./models/counter')
 
 // authorize based on secret key
 function authorize (req, res, next) {
@@ -17,6 +24,10 @@ function authorize (req, res, next) {
 
 app.use('/search', function (req, res, next) {
   res.set('Access-Control-Allow-Origin', '*')
+  next()
+})
+app.use('/counter', function (req, res, next) {
+  res.set('Access-Control-Allow-Credentials', 'true')
   next()
 })
 
@@ -89,6 +100,22 @@ app.delete('/result/:id', authorize, async function (req, res) {
 app.get('/queries', authorize, async function (req, res) {
   const ret = (await Query.getAllQueries()).map((query) => query.basic())
   res.json(ret)
+})
+app.post('/counter/:id', async function (req, res) {
+  const cookiename = 'sfr_counter_' + req.params.id
+  if (req.cookies[cookiename] !== 'false') {
+    const count = await Counter.get(req.params.id)
+    return res.json({ count })
+  }
+  const count = await Counter.increment(req.params.id)
+  res.cookie(cookiename, 'true', { sameSite: 'None', secure: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 }).json({ count })
+})
+app.get('/counter/:id', async function (req, res) {
+  const cookiename = 'sfr_counter_' + req.params.id
+  let voted = req.cookies[cookiename]
+  if (voted !== 'true') voted = 'false'
+  const count = await Counter.get(req.params.id)
+  res.cookie(cookiename, voted, { sameSite: 'None', secure: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 }).json({ count })
 })
 
 utils.apiservice.start().then(() => {

@@ -4,6 +4,7 @@
   "description": "A RESTful API for storing/retrieving featured search results.",
   "private": true,
   "dependencies": {
+    "cookie-parser": "^1.4.5",
     "txstate-node-utils": "^2.4.8",
     "moment": ">=2.19.3",
     "axios": ">=0.18.0"

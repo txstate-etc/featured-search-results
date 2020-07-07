@@ -4,6 +4,7 @@ const db = require('txstate-node-utils/lib/db')
 const util = require('txstate-node-utils/lib/util')
 const Result = require('../../models/result')
 const Query = require('../../models/query')
+const Counter = require('../../models/counter')
 const axios = require('axios')
 const https = require('https')
 const moment = require('moment')
@@ -11,16 +12,16 @@ const moment = require('moment')
 const agent = new https.Agent({
   rejectUnauthorized: false
 })
-const apipath = 'https://' + process.env.API_HOST
+const client = axios.create({ httpsAgent: agent, baseURL: 'https://' + process.env.API_HOST })
 const get = async function (endpoint, skipSecret = false) {
   const headers = {}
   if (!skipSecret) headers['X-Secret-Key'] = process.env.FEATURED_SECRET
-  return (await axios.get(apipath + endpoint, { httpsAgent: agent, headers: headers })).data
+  return (await client.get(endpoint, { headers: headers })).data
 }
 const post = async function (endpoint, payload, skipSecret = false) {
   const headers = {}
   if (!skipSecret) headers['X-Secret-Key'] = process.env.FEATURED_SECRET
-  return axios.post(apipath + endpoint, payload, { httpsAgent: agent, headers: headers })
+  return client.post(endpoint, payload, { headers: headers })
 }
 const holdUntilServiceUp = async function (endpoint) {
   for (var i = 0; i < 100; i++) {
@@ -56,6 +57,7 @@ describe('integration', function () {
         await db.connect()
         await Result.deleteMany()
         await Query.deleteMany()
+        await Counter.deleteMany()
         await db.disconnect()
         await holdUntilServiceUp('/results')
       })
@@ -143,6 +145,28 @@ describe('integration', function () {
         for (const entry of result.entries) {
           entry.count.should.be.greaterThan(0)
         }
+      })
+    })
+    describe('counter', function () {
+      let currentcount
+      it('should return a count', async function () {
+        const result = await client.get('/counter/test')
+        currentcount = result.data.count
+        currentcount.should.be.type('number')
+      })
+      it('should be able to increment the count with the cookie given by the GET endpoint', async function () {
+        const result = await client.post('/counter/test', {}, { headers: { Cookie: 'sfr_counter_test=false' } })
+        result.data.count.should.equal(currentcount + 1)
+        const savedresult = await client.get('/counter/test')
+        savedresult.data.count.should.equal(currentcount + 1)
+      })
+      it('should not be able to increment the count without the cookie given by the GET endpoint', async function () {
+        const result = await client.post('/counter/test', {})
+        result.data.count.should.equal(currentcount + 1)
+      })
+      it('should not be able to increment the count with the cookie given by the POST endpoint', async function () {
+        const result = await client.post('/counter/test', {}, { headers: { Cookie: 'sfr_counter_test=true' } })
+        result.data.count.should.equal(currentcount + 1)
       })
     })
   })
