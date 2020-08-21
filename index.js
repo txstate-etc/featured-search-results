@@ -1,5 +1,6 @@
 const utils = require('txstate-node-utils')
 const cookieparser = require('cookie-parser')
+const db = require('mysql2-async/db').default
 const app = utils.apiservice.app
 const util = utils.util
 
@@ -32,6 +33,23 @@ app.use('/counter', function (req, res, next) {
 })
 
 // add endpoints
+app.get('/peoplesearch', async function (req, res) {
+  //res.json({hello: 'Howdy Folks!'});
+  // I need to figure out how to add the mysql2-async to the project. For now I'm filling in MySQL ref.
+  /* I'll also need to send back what jwt.pl sends back (json response).
+     There may also be some referrer handling that needs to be done.
+  */
+  // Tokenize the query into a model. I need to see what kind of things can be sent to tokenize.
+  
+  // Parse the query translating peopleSearchLib.pm to do so.
+  /*
+  ....
+  */
+  var people = await db.getall('SELECT * from swtpeople limit 10')
+  res.json(people)
+  //res.json({Hello: "Howdy"})
+
+})
 app.get('/search', async function (req, res) {
   var query = req.query.q
   if (query && query.length > 1024) return res.status(400).send('Query length is limited to 1kB.')

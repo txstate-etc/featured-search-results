@@ -9,6 +9,11 @@ services:
       DB_HOST: mongodb
       NODE_ENV: development
       FEATURED_SECRET: mysecret
+      MYSQL_HOST: phrixos2.its.txstate.edu
+      MYSQL_DATABASE: peoplesearch
+      MYSQL_USER: dbread
+      MYSQL_PASS: set in docker-compose.override.yml
+      MYSQL_SKIPTZFIX: 'true'
     volumes:
       - ./lib:/usr/src/app/lib
       - ./models:/usr/src/app/models

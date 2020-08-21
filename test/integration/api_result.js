@@ -147,6 +147,12 @@ describe('integration', function () {
         }
       })
     })
+    describe('howdy', function(){
+      it('should return a string', async function() {
+        const result = await client.get('/peoplesearch')
+        result.data.hello.should.match(/Howdy/)
+      })
+    })
     describe('counter', function () {
       let currentcount
       it('should return a count', async function () {
