@@ -4,11 +4,12 @@ FROM node:14-alpine as npminstall
 RUN apk update && apk upgrade
 WORKDIR /usr/src/app
 COPY package.json ./
-RUN npm --quiet --production install
+RUN npm --quiet install
+RUN npm --quiet install -g nodemon
 COPY --from=keygen /securekeys /securekeys
 COPY lib lib
 COPY models models
 COPY index.js index.js
 
-ENTRYPOINT [ "npm" ]
+ENTRYPOINT [ "nodemon", "--signal", "SIGTERM", "--exec", "npm" ]
 CMD [ "start" ]

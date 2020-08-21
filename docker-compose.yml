@@ -1,12 +1,18 @@
 version: '3'
 services:
   search-featured-results:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     read_only: true
     environment:
       DB_HOST: mongodb
       NODE_ENV: development
       FEATURED_SECRET: mysecret
+    volumes:
+      - ./lib:/usr/src/app/lib
+      - ./models:/usr/src/app/models
+      - ./index.js:/usr/src/app/index.js
     ports:
       - 80:80
     links:
