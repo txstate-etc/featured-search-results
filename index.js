@@ -44,11 +44,11 @@ app.get('/peoplesearch', async function (req, res) {
   const whereClause = Helpers.getWhereClause(hash,params.q)
   const countSQL = 'select count(*) from swtpeople'+whereClause
   const listingSQL = 'select * from swtpeople'+whereClause + Helpers.getSortClause(hash,params.sort) + Helpers.getLimitClause(params.n)
+  console.log(listingSQL)
   const [hitCount, people] = await Promise.all( [ // Careful with Promise.all that has lots of concurrent queries.
     db.getval(countSQL),  // Returns the value instead of the 
     db.getall(listingSQL)
   ]) // Returns an array of results I can inspect. All these fail together if any fails.
-  //console.log(listingSQL)
   const response = {
     count: hitCount,
     lastpage: 1,  // Count of pages of results. Can calculate from params.num and hitCount

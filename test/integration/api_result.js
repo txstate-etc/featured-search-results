@@ -158,9 +158,10 @@ describe('integration', function () {
       /*it('should convert binaries to base 10 when given a binary num', async function() {
         (await get('/peoplesearch?q=lastname beginswith P&num=0b11'))//.find a way to count the resultset size as 2.
         const [newResult,oldResult] = await Promise.all( [
-          get(''),
-          get('')
+          get('/peoplesearch?q=p&n=100'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=p&n=100')
         ])
+        // Use fast-deep-equal library to compare newResult vs. oldResult
       })
       it('should convert octals to base 10 when given octal num', async function() {
         (await get('/peoplesearch?q=lastname beginswith P&num=0o7'))//.find a way to count the resultset size as 2.
