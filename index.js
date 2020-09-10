@@ -38,26 +38,23 @@ app.use('/counter', function (req, res, next) {
 // ====================================================================================================================================
 app.get('/peoplesearch', async function (req, res) {
   const params = req.query
-  if (params.q) {
-    const hash = Helpers.getPeopleHash()
-    const whereClause = Helpers.getWhereClause(hash,params.q)
-    const countSQL = 'select count(*) from swtpeople'+whereClause
-    const listingSQL = 'select * from swtpeople'+whereClause + Helpers.getSortClause(hash,params.sort) + Helpers.getLimitClause(params.n)
-    const [hitCount, people] = await Promise.all( [ // Careful with Promise.all that has lots of concurrent queries.
-      db.getval(countSQL),  // Returns the value instead of the 
-      db.getall(listingSQL)
-    ]) // Returns an array of results I can inspect. All these fail together if any fails.
-    //console.log(listingSQL)
-    const response = {
-      count: hitCount,//[0].count,
-      lastpage: 1,  // Count of pages of results. Can calculate from params.num and hitCount
-      results: people
-    }
-    res.json(response)
+  if (!params.q) return res.json({count: 0, lastpage: 1, results: []} )
+  
+  const hash = Helpers.getPeopleHash()
+  const whereClause = Helpers.getWhereClause(hash,params.q)
+  const countSQL = 'select count(*) from swtpeople'+whereClause
+  const listingSQL = 'select * from swtpeople'+whereClause + Helpers.getSortClause(hash,params.sort) + Helpers.getLimitClause(params.n)
+  const [hitCount, people] = await Promise.all( [ // Careful with Promise.all that has lots of concurrent queries.
+    db.getval(countSQL),  // Returns the value instead of the 
+    db.getall(listingSQL)
+  ]) // Returns an array of results I can inspect. All these fail together if any fails.
+  //console.log(listingSQL)
+  const response = {
+    count: hitCount,
+    lastpage: 1,  // Count of pages of results. Can calculate from params.num and hitCount
+    results: people
   }
-  else {
-    res.json(params)
-  }
+  res.json(response)
   // Don't forget to update api_results.js to send requests to this endpoint making sure it handles all situations.
   // We'll also need a departments endpoint that will mirror dept.pl code.
   // We'll revisit to paginate.
@@ -70,7 +67,7 @@ app.get('/peoplesearch', async function (req, res) {
 // ====================================================================================================================================
 app.get('/search', async function (req, res) {
   var query = req.query.q
-  if (query && query.length > 1024) return res.status(400).send('Query length is limited to 1kB.')
+  if (query && query.length > 1024) return 
   var asyoutype = !!req.query.asyoutype
   var results = await Result.findByQuery(query)
   var ret = results.map(result => result.basic())

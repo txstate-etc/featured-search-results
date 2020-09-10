@@ -150,16 +150,17 @@ describe('integration', function () {
     // ======================================================================================================
     describe('peoplesearch', async function() {
       it('should not return a result if nothing is passed', async function () {
-        (await get('/peoplesearch'))//.length.should.equal(0)
+        (await get('/peoplesearch')).count.should.equal(0)
       })
-      it('should convert decimals to integers when given decimal num', async function () {
-        const result = (await get('/peoplesearch?q=lastname beginswith P&num=2.8'))//.find a way to count the resultset size as 2.
-        /*for (const entry of result.entries) {
-          entry
-        }*/
+      it('should convert decimals to integers when given decimal n', async function () {
+        (await get('/peoplesearch?q=lastname beginswith P&n=2.8')).results.length.should.equal(3)
       })
       /*it('should convert binaries to base 10 when given a binary num', async function() {
         (await get('/peoplesearch?q=lastname beginswith P&num=0b11'))//.find a way to count the resultset size as 2.
+        const [newResult,oldResult] = await Promise.all( [
+          get(''),
+          get('')
+        ])
       })
       it('should convert octals to base 10 when given octal num', async function() {
         (await get('/peoplesearch?q=lastname beginswith P&num=0o7'))//.find a way to count the resultset size as 2.
@@ -185,7 +186,11 @@ describe('integration', function () {
       it('should handle non-valid wildCardOps gracefully', async function() {
         (await get('/peoplesearch?q=lastname begornswith P'))//.find a way to test how it handles non-valid wildCardOps in q
       })*/
-      
+      // Add test for when none of the advanced search terms are sent. Just Wing is sent for q as an example.
+      it('should handle single argument (non-advanced)', async function() {
+
+      })
+      // Add comparisons that the above return the same as the old peoplesearch.
 
     })
      // ======================================================================================================
