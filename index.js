@@ -3,6 +3,7 @@ const cookieparser = require('cookie-parser')
 const db = require('mysql2-async/db').default
 const app = utils.apiservice.app
 const util = utils.util
+const Helpers = require('./lib/helpers')
 
 utils.apiservice.addDomain(/txstate\.edu$/)
 utils.apiservice.addDomain(/tsus\.edu$/)
@@ -13,6 +14,7 @@ app.use(cookieparser())
 const Result = require('./models/result')
 const Query = require('./models/query')
 const Counter = require('./models/counter')
+const { getSortClause } = require('./lib/helpers')
 
 // authorize based on secret key
 function authorize (req, res, next) {
@@ -33,23 +35,39 @@ app.use('/counter', function (req, res, next) {
 })
 
 // add endpoints
+// ====================================================================================================================================
 app.get('/peoplesearch', async function (req, res) {
-  //res.json({hello: 'Howdy Folks!'});
-  // I need to figure out how to add the mysql2-async to the project. For now I'm filling in MySQL ref.
-  /* I'll also need to send back what jwt.pl sends back (json response).
-     There may also be some referrer handling that needs to be done.
-  */
-  // Tokenize the query into a model. I need to see what kind of things can be sent to tokenize.
-  
-  // Parse the query translating peopleSearchLib.pm to do so.
-  /*
-  ....
-  */
-  var people = await db.getall('SELECT * from swtpeople limit 10')
-  res.json(people)
-  //res.json({Hello: "Howdy"})
+  const params = req.query
+  if (params.q) {
+    const hash = Helpers.getPeopleHash()
+    const whereClause = Helpers.getWhereClause(hash,params.q)
+    const countSQL = 'select count(*) from swtpeople'+whereClause
+    const listingSQL = 'select * from swtpeople'+whereClause + Helpers.getSortClause(hash,params.sort) + Helpers.getLimitClause(params.n)
+    const [hitCount, people] = await Promise.all( [ // Careful with Promise.all that has lots of concurrent queries.
+      db.getval(countSQL),  // Returns the value instead of the 
+      db.getall(listingSQL)
+    ]) // Returns an array of results I can inspect. All these fail together if any fails.
+    //console.log(listingSQL)
+    const response = {
+      count: hitCount,//[0].count,
+      lastpage: 1,  // Count of pages of results. Can calculate from params.num and hitCount
+      results: people
+    }
+    res.json(response)
+  }
+  else {
+    res.json(params)
+  }
+  // Don't forget to update api_results.js to send requests to this endpoint making sure it handles all situations.
+  // We'll also need a departments endpoint that will mirror dept.pl code.
+  // We'll revisit to paginate.
 
+  //start=?
+  //num=?   -- Regardless of what they pass as the num to return, we need to get a count of how many matches there were and display it?
+  //q=gato-search-input[text]
+  //sort=?
 })
+// ====================================================================================================================================
 app.get('/search', async function (req, res) {
   var query = req.query.q
   if (query && query.length > 1024) return res.status(400).send('Query length is limited to 1kB.')

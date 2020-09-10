@@ -8,6 +8,8 @@ services:
       API_HOST: search-featured-results
       DB_HOST: mongodb
       FEATURED_SECRET: mysecret
+    volumes:
+      - ./test/integration/api_result.js:/usr/src/app/test/integration/api_result.js
     links:
       - search-featured-results
       - mongodb
@@ -17,8 +19,25 @@ services:
     environment:
       DB_HOST: mongodb
       FEATURED_SECRET: mysecret
+      MYSQL_HOST: phrixos2.its.txstate.edu
+      MYSQL_DATABASE: peoplesearch
+      MYSQL_USER: dbread
+      MYSQL_PASS: set in docker-compose.override.yml
+      MYSQL_SKIPTZFIX: 'true'
+    volumes:
+      - ./lib:/usr/src/app/lib
+      - ./models:/usr/src/app/models
+      - ./index.js:/usr/src/app/index.js
+    ports:
+      - 80:80
     links:
       - mongodb
   mongodb:
     image: mongo:latest
     command: --logpath /dev/null
+    ports:
+      - 27017:27017
+    volumes:
+      - featureddb:/data/db
+volumes:
+  featureddb: {}

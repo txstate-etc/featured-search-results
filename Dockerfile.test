@@ -1,9 +1,8 @@
+FROM txstatemws/keygenerator:latest as keygen
+
 FROM node:14-alpine
-
 RUN apk update && apk upgrade
-
 WORKDIR /usr/src/app
-
 COPY package.json ./
 
 RUN npm --development --quiet install

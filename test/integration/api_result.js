@@ -147,13 +147,49 @@ describe('integration', function () {
         }
       })
     })
-    describe('howdy', function(){
-      it('should return a string', async function() {
-        const result = await client.get('/peoplesearch')
-        result.data.hello.should.match(/Howdy/)
+    // ======================================================================================================
+    describe('peoplesearch', async function() {
+      it('should not return a result if nothing is passed', async function () {
+        (await get('/peoplesearch'))//.length.should.equal(0)
       })
+      it('should convert decimals to integers when given decimal num', async function () {
+        const result = (await get('/peoplesearch?q=lastname beginswith P&num=2.8'))//.find a way to count the resultset size as 2.
+        /*for (const entry of result.entries) {
+          entry
+        }*/
+      })
+      /*it('should convert binaries to base 10 when given a binary num', async function() {
+        (await get('/peoplesearch?q=lastname beginswith P&num=0b11'))//.find a way to count the resultset size as 2.
+      })
+      it('should convert octals to base 10 when given octal num', async function() {
+        (await get('/peoplesearch?q=lastname beginswith P&num=0o7'))//.find a way to count the resultset size as 2.
+      })
+      it('should convert hexadecimals to base 10 when given hexidecimal num', async function() {
+        (await get('/peoplesearch?q=lastname beginswith P&num=0xf'))//.find a way to count the resultset size as 2.
+      })
+      it('should default to all results when given non-numeric num', async function() {
+        (await get('/peoplesearch?q=lastname beginswith P&num=a17'))//.find a way to count the resultset size as 10.
+      })
+      it('should default to all results when given num <= 0', async function() {
+        (await get('/peoplesearch?q=lastname beginswith P&num=-1'))//.find a way to count the resultset size as 10.
+      })
+      it('should default to lastname when given an invalid sort', async function() {
+        (await get('/peoplesearch?q=lastname beginswith P&sort=fwirstname'))//.find a way to test for lastname sorted. Perhaps use a known lastname group.
+      })
+      it('should handle non-valid terms gracefully', async function() {
+        (await get('/peoplesearch?q=lorstname beginswith P'))//.find a way to test how it handles non-valid terms in q
+      })
+      it('should handle non-valid likeOps gracefully', async function() {
+        (await get('/peoplesearch?q=nor lastname beginswith P'))//.find a way to test how it handles non-valid likeOps in q
+      })
+      it('should handle non-valid wildCardOps gracefully', async function() {
+        (await get('/peoplesearch?q=lastname begornswith P'))//.find a way to test how it handles non-valid wildCardOps in q
+      })*/
+      
+
     })
-    describe('counter', function () {
+     // ======================================================================================================
+    /*describe('counter', function () {
       let currentcount
       it('should return a count', async function () {
         const result = await client.get('/counter/test')
@@ -174,6 +210,6 @@ describe('integration', function () {
         const result = await client.post('/counter/test', {}, { headers: { Cookie: 'sfr_counter_test=true' } })
         result.data.count.should.equal(currentcount + 1)
       })
-    })
+    })*/
   })
 })
