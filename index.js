@@ -40,10 +40,10 @@ app.get('/peoplesearch', async function (req, res) {
   const params = req.query
   if (!params.q) return res.json({ count: 0, lastpage: 1, results: [] })
 
-  const hash = Helpers.getPeopleHash()
-  const whereClause = Helpers.getWhereClause(hash, params.q)
+  const peopleDef = Helpers.getPeopleDef()
+  const whereClause = Helpers.getWhereClause(peopleDef, params.q)
   const countSQL = 'select count(*) from swtpeople' + whereClause
-  const listingSQL = 'select * from swtpeople' + whereClause + Helpers.getSortClause(hash, params.sort) + Helpers.getLimitClause(params.n)
+  const listingSQL = 'select * from swtpeople' + whereClause + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.n)
   console.log(listingSQL)
   const [hitCount, people] = await Promise.all([ // Careful with Promise.all that has lots of concurrent queries.
     db.getval(countSQL), // Returns the value instead of the
