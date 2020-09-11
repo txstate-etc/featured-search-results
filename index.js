@@ -38,7 +38,7 @@ app.use('/counter', function (req, res, next) {
 // ====================================================================================================================================
 app.get('/peoplesearch', async function (req, res) {
   const params = req.query
-  if (!params.q) return res.json({ count: 0, lastpage: 1, results: [] })
+  if (!params.q) return res.json({ count: 0, lastpage: 0, results: [] })
 
   const peopleDef = Helpers.getPeopleDef()
   const whereClause = Helpers.getWhereClause(peopleDef, params.q)
@@ -51,16 +51,15 @@ app.get('/peoplesearch', async function (req, res) {
   ]) // Returns an array of results I can inspect. All these fail together if any fails.
   const response = {
     count: hitCount,
-    lastpage: 1, // Count of pages of results. Can calculate from params.num and hitCount
+    lastpage: Math.ceil(hitCount / params.n || hitCount / 10), // Number of pages of results. Default = 10.
     results: people
   }
   res.json(response)
-  // Don't forget to update api_results.js to send requests to this endpoint making sure it handles all situations.
   // We'll also need a departments endpoint that will mirror dept.pl code.
   // We'll revisit to paginate.
 
   // start=?
-  // num=?   -- Regardless of what they pass as the num to return, we need to get a count of how many matches there were and display it?
+  // lastpage=?   -- Regardless of what they pass as the num to return, we need to get a count of how many matches there were and display it?
   // q=gato-search-input[text]
   // sort=?
 })
