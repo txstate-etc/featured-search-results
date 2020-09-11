@@ -14,7 +14,7 @@ app.use(cookieparser())
 const Result = require('./models/result')
 const Query = require('./models/query')
 const Counter = require('./models/counter')
-const { getSortClause } = require('./lib/helpers')
+// const { getSortClause } = require('./lib/helpers')
 
 // authorize based on secret key
 function authorize (req, res, next) {
@@ -38,20 +38,20 @@ app.use('/counter', function (req, res, next) {
 // ====================================================================================================================================
 app.get('/peoplesearch', async function (req, res) {
   const params = req.query
-  if (!params.q) return res.json({count: 0, lastpage: 1, results: []} )
-  
+  if (!params.q) return res.json({ count: 0, lastpage: 1, results: [] })
+
   const hash = Helpers.getPeopleHash()
-  const whereClause = Helpers.getWhereClause(hash,params.q)
-  const countSQL = 'select count(*) from swtpeople'+whereClause
-  const listingSQL = 'select * from swtpeople'+whereClause + Helpers.getSortClause(hash,params.sort) + Helpers.getLimitClause(params.n)
+  const whereClause = Helpers.getWhereClause(hash, params.q)
+  const countSQL = 'select count(*) from swtpeople' + whereClause
+  const listingSQL = 'select * from swtpeople' + whereClause + Helpers.getSortClause(hash, params.sort) + Helpers.getLimitClause(params.n)
   console.log(listingSQL)
-  const [hitCount, people] = await Promise.all( [ // Careful with Promise.all that has lots of concurrent queries.
-    db.getval(countSQL),  // Returns the value instead of the 
+  const [hitCount, people] = await Promise.all([ // Careful with Promise.all that has lots of concurrent queries.
+    db.getval(countSQL), // Returns the value instead of the
     db.getall(listingSQL)
   ]) // Returns an array of results I can inspect. All these fail together if any fails.
   const response = {
     count: hitCount,
-    lastpage: 1,  // Count of pages of results. Can calculate from params.num and hitCount
+    lastpage: 1, // Count of pages of results. Can calculate from params.num and hitCount
     results: people
   }
   res.json(response)
@@ -59,15 +59,15 @@ app.get('/peoplesearch', async function (req, res) {
   // We'll also need a departments endpoint that will mirror dept.pl code.
   // We'll revisit to paginate.
 
-  //start=?
-  //num=?   -- Regardless of what they pass as the num to return, we need to get a count of how many matches there were and display it?
-  //q=gato-search-input[text]
-  //sort=?
+  // start=?
+  // num=?   -- Regardless of what they pass as the num to return, we need to get a count of how many matches there were and display it?
+  // q=gato-search-input[text]
+  // sort=?
 })
 // ====================================================================================================================================
 app.get('/search', async function (req, res) {
   var query = req.query.q
-  if (query && query.length > 1024) return 
+  if (query && query.length > 1024) return
   var asyoutype = !!req.query.asyoutype
   var results = await Result.findByQuery(query)
   var ret = results.map(result => result.basic())
