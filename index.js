@@ -43,11 +43,12 @@ app.get('/peoplesearch', async function (req, res) {
   const peopleDef = Helpers.getPeopleDef()
   const whereClause = Helpers.getWhereClause(peopleDef, params.q)
   const countSQL = 'select count(*) from swtpeople' + whereClause
-  const listingSQL = 'select * from swtpeople' + whereClause + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.n)
+  const listingSQL = 'select * from swtpeople' + whereClause.sql + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.n)
   console.log(listingSQL)
+  console.log(whereClause.binds)
   const [hitCount, people] = await Promise.all([ // Careful with Promise.all that has lots of concurrent queries.
     db.getval(countSQL), // Returns the value instead of the
-    db.getall(listingSQL)
+    db.getall(listingSQL, whereClause.binds)
   ]) // Returns an array of results I can inspect. All these fail together if any fails.
   const response = {
     count: hitCount,
