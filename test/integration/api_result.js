@@ -8,6 +8,21 @@ const Counter = require('../../models/counter')
 const axios = require('axios')
 const https = require('https')
 const moment = require('moment')
+/* I'm not sure why fast-deep-equal being called here isn't catching what I need it to.
+|  It returns false when I run it against the two objects but asserts true? I need to dig into it more.
+|  Making use of should's native deepEqual in the mean time.
+const fdeepequal = require('fast-deep-equal')
+should.Assertion.add('fdequal', function (compare) {
+  this.params = { operator: 'to be fast-deep-equal to' }
+  fdeepequal(this.obj, compare)
+}) */
+should.Assertion.add('sortedOn', function (property) {
+  const arrayOfProperty = []
+  const sorter = []
+  this.obj.forEach(value => arrayOfProperty.push(value[property]) && sorter.push(value[property]))
+  sorter.sort()
+  arrayOfProperty.should.deepEqual(sorter)
+})
 
 const agent = new https.Agent({
   rejectUnauthorized: false
@@ -152,44 +167,133 @@ describe('integration', function () {
       it('should not return a result if nothing is passed', async function () {
         (await get('/peoplesearch')).count.should.equal(0)
       })
-      it('should convert decimals to integers when given decimal n', async function () {
-        (await get('/peoplesearch?q=lastname beginswith P&n=2.8')).results.length.should.equal(3)
-      })
-      /* it('should convert binaries to base 10 when given a binary num', async function() {
-        (await get('/peoplesearch?q=lastname beginswith P&num=0b11'))//.find a way to count the resultset size as 2.
-        const [newResult,oldResult] = await Promise.all( [
-          get('/peoplesearch?q=p&n=100'),
-          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=p&n=100')
+      it('should return the same result as current if nothing is passed', async function () {
+        const [me, current] = await Promise.all([
+          get('/peoplesearch'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl')
         ])
-        // Use fast-deep-equal library to compare newResult vs. oldResult
+        me.should.deepEqual(current)
       })
-      it('should convert octals to base 10 when given octal num', async function() {
-        (await get('/peoplesearch?q=lastname beginswith P&num=0o7'))//.find a way to count the resultset size as 2.
+      it('should convert decimals to integers when given decimal n', async function () {
+        (await get('/peoplesearch?q=last%20beginswith%20pil&n=1.8')).results.length.should.equal(2)
       })
-      it('should convert hexadecimals to base 10 when given hexidecimal num', async function() {
-        (await get('/peoplesearch?q=lastname beginswith P&num=0xf'))//.find a way to count the resultset size as 2.
+      it('should return the same-ish result as current if n is a decimal value', async function () {
+        const [me, current] = await Promise.all([
+          get('/peoplesearch?q=last%20beginswith%20pil&n=1.8'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=last%20beginswith%20pil&n=1.8')
+        ])
+        // me.should.deepEqual(current)
+        // Can't run above since NodeJS version returns nulls instead of empty strings and uses single quotes in places where perl strictly uses double quotes.
+        Object.keys(me).should.deepEqual(Object.keys(current))
+        me.count.should.equal(current.count)
+        me.lastpage.should.equal(current.lastpage - 1)
+        /* Current version doesn't round n, it floors n.
+        me.results.length.should.equal(current.results.length)
+        */
       })
-      it('should default to all results when given non-numeric num', async function() {
-        (await get('/peoplesearch?q=lastname beginswith P&num=a17'))//.find a way to count the resultset size as 10.
+      it('should convert binaries to base 10 when given a binary n', async function () {
+        (await get('/peoplesearch?q=last%20beginswith%20pil&n=0b10')).results.length.should.equal(2)
       })
-      it('should default to all results when given num <= 0', async function() {
-        (await get('/peoplesearch?q=lastname beginswith P&num=-1'))//.find a way to count the resultset size as 10.
+      it('should return the same-ish result as current if n is a binary value', async function () {
+        const [me, current] = await Promise.all([
+          get('/peoplesearch?q=last%20beginswith%20pil&n=0b10'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=last%20beginswith%20pil&n=0b10')
+        ])
+        Object.keys(me).should.deepEqual(Object.keys(current))
+        me.count.should.equal(current.count)
+        me.lastpage.should.equal(current.lastpage + 1)
+        /* Current version doesn't understand 0b00 syntax. It defaults to 10 results a page. This affects lastpage returned by it.
+        me.results.length.should.equal(current.results.length)
+        */
       })
-      it('should default to lastname when given an invalid sort', async function() {
-        (await get('/peoplesearch?q=lastname beginswith P&sort=fwirstname'))//.find a way to test for lastname sorted. Perhaps use a known lastname group.
+      it('should convert octals to base 10 when given octal n', async function () {
+        (await get('/peoplesearch?q=last%20beginswith%20pil&n=0o2')).results.length.should.equal(2)
       })
-      it('should handle non-valid terms gracefully', async function() {
-        (await get('/peoplesearch?q=lorstname beginswith P'))//.find a way to test how it handles non-valid terms in q
+      it('should return the same-ish result as current if n is an octal value', async function () {
+        const [me, current] = await Promise.all([
+          get('/peoplesearch?q=last%20beginswith%20pil&n=0o2'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=last%20beginswith%20pil&n=0o2')
+        ])
+        Object.keys(me).should.deepEqual(Object.keys(current))
+        me.count.should.equal(current.count)
+        me.lastpage.should.equal(current.lastpage + 1)
+        /* Current version doesn't understand 0b00 syntax. It defaults to 10 results a page. This affects lastpage returned by it.
+        me.results.length.should.equal(current.results.length)
+        */
       })
-      it('should handle non-valid likeOps gracefully', async function() {
-        (await get('/peoplesearch?q=nor lastname beginswith P'))//.find a way to test how it handles non-valid likeOps in q
+      it('should convert hexadecimals to base 10 when given hexidecimal n', async function () {
+        (await get('/peoplesearch?q=last%20beginswith%20pi&n=0x2')).results.length.should.equal(2)
       })
-      it('should handle non-valid wildCardOps gracefully', async function() {
-        (await get('/peoplesearch?q=lastname begornswith P'))//.find a way to test how it handles non-valid wildCardOps in q
-      }) */
+      it('should return the same-ish result as current if n is a binary value', async function () {
+        const [me, current] = await Promise.all([
+          get('/peoplesearch?q=last%20beginswith%20pil&n=0x2'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=last%20beginswith%20pil&n=0x2')
+        ])
+        Object.keys(me).should.deepEqual(Object.keys(current))
+        me.count.should.equal(current.count)
+        me.lastpage.should.equal(current.lastpage + 1)
+        /* Current version doesn't understand 0b00 syntax. It defaults to 10 results a page. This affects lastpage returned by it.
+        me.results.length.should.equal(current.results.length)
+        */
+      })
+      it('should default to all results when given non-numeric n', async function () {
+        (await get('/peoplesearch?q=last%20beginswith%20pil&n=a17')).results.length.should.equal(3)
+      })
+      it('should return the same result as current if n is given a non-numeric value', async function () {
+        const [me, current] = await Promise.all([
+          get('/peoplesearch?q=last%20beginswith%20pil&n=a17'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=last%20beginswith%20pil&n=a17')
+        ])
+        Object.keys(me).should.deepEqual(Object.keys(current))
+        me.count.should.equal(current.count)
+        me.lastpage.should.equal(current.lastpage)
+        me.results.length.should.equal(current.results.length) // Current version defaults to 10 results a page, as does me.
+      })
+      it('should default to all results when given n <= 0', async function () {
+        (await get('/peoplesearch?q=last%20beginswith%20pil&n=-1')).results.length.should.equal(3)
+      })
+      it('should return the same-ish result as current if n <= 0', async function () {
+        const [me, current] = await Promise.all([
+          get('/peoplesearch?q=last%20beginswith%20pil&n=-1'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=last%20beginswith%20pil&n=-1')
+        ])
+        Object.keys(me).should.deepEqual(Object.keys(current))
+        me.count.should.equal(current.count)
+        // Current version doesn't handle negative n and usues negative value to ciel(hitCount/n).
+        me.lastpage.should.equal(current.lastpage + 3) // Since 3/-1 is -3 ciel'd to -2 we need to offset to get same-ish of 1.
+        me.results.length.should.equal(current.results.length)
+      })
+      it('should not default to lastname when given a valid sort option', async function () {
+        (await get('/peoplesearch?q=last%20beginswith%20pil&sort=firstname')).results.should.not.be.sortedOn('lastname')
+      })
+      it('should return the same result as current when given the same sort option', async function () {
+        const [me, current] = await Promise.all([
+          get('/peoplesearch?q=last%20beginswith%20pil&sort=firstname'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=last%20beginswith%20pil&sort=firstname')
+        ])
+        Object.keys(me).should.deepEqual(Object.keys(current))
+        me.count.should.equal(current.count)
+        me.lastpage.should.equal(current.lastpage)
+        me.results.length.should.equal(current.results.length)
+        // Current doesn't accept sort option.
+        // me.results.should.be.sortedOn('firstname').should.be.equal(current.results.should.be.sortedOn('firstname'))
+      })
+      it('should default to lastname when given an invalid sort', async function () {
+        (await get('/peoplesearch?q=last%20beginswith%20pil&sort=fwirstname')).results.should.be.sortedOn('lastname')
+      })
+      it('should handle non-valid terms gracefully', async function () {
+        (await get('/peoplesearch?q=lorstname%20beginswith%20pil')).results.length.should.equal(0)
+        // I noticed our current system returns lastpage:0 for this but 1 for no query.
+      })
+      it('should handle non-valid likeOps gracefully', async function () {
+        (await get('/peoplesearch?q=nor%20lastname%20beginswith%20pil')).results.length.should.equal(0)
+      })
+      it('should handle non-valid wildCardOps gracefully', async function () {
+        (await get('/peoplesearch?q=lastname%20begornswith%20pil')).results.length.should.equal(0)
+      })
       // Add test for when none of the advanced search terms are sent. Just Wing is sent for q as an example.
       it('should handle single argument (non-advanced)', async function () {
-
+        (await get('/peoplesearch?q=Wing')).results.length.should.equal(1)
       })
       // Add comparisons that the above return the same as the old peoplesearch.
     })

@@ -38,21 +38,24 @@ app.use('/counter', function (req, res, next) {
 // ====================================================================================================================================
 app.get('/peoplesearch', async function (req, res) {
   const params = req.query
-  if (!params.q) return res.json({ count: 0, lastpage: 0, results: [] })
+  // Handle empty request.
+  if (!params.q) return res.json({ count: 0, lastpage: 1, results: [] })
+  // Normalize the n number of results defaulting to 10 if n sent doesn't make sense.
+  params.n = (params.n > 0) ? parseInt(Math.round(params.n), 10) : 10
 
   const peopleDef = Helpers.getPeopleDef()
   const whereClause = Helpers.getWhereClause(peopleDef, params.q)
   const countSQL = 'select count(*) from swtpeople' + whereClause.sql
   const listingSQL = 'select * from swtpeople' + whereClause.sql + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.n)
-  console.log(listingSQL)
-  console.log(whereClause.binds)
+  // console.log(listingSQL)
+  // console.log(whereClause.binds)
   const [hitCount, people] = await Promise.all([ // Careful with Promise.all that has lots of concurrent queries.
     db.getval(countSQL, whereClause.binds), // Returns the value instead of the
     db.getall(listingSQL, whereClause.binds)
   ]) // Returns an array of results I can inspect. All these fail together if any fails.
   const response = {
     count: hitCount,
-    lastpage: Math.ceil(hitCount / params.n || hitCount / 10), // Number of pages of results. Default = 10.
+    lastpage: Math.ceil(hitCount / Math.abs(params.n) || hitCount / 10), // Number of pages of results. Default = 10.
     results: people
   }
   res.json(response)
