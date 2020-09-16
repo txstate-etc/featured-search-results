@@ -336,6 +336,27 @@ describe('integration', function () {
         me.lastpage.should.equal(current.lastpage)
         me.results.length.should.equal(current.results.length)
       })
+      it('should handle searches for q case insensitively', async function () {
+        const [me, meToo] = await Promise.all([
+          get('/peoplesearch?q=Nick Wing'),
+          get('/peoplesearch?q=nICK wING')
+        ])
+        me.should.deepEqual(meToo)
+      })
+      it('should return the same result as current when given non-advanced, multiple word, q to search for', async function () {
+        const [me, meToo, current, currentToo] = await Promise.all([
+          get('/peoplesearch?q=Nick%20Wing'),
+          get('/peoplesearch?q=Wing%20Nick'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=Nick%20Wing'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=Wing%20Nick')
+        ])
+        me.should.deepEqual(meToo)
+        current.should.deepEqual(currentToo)
+        Object.keys(me).should.deepEqual(Object.keys(current))
+        me.count.should.equal(current.count)
+        me.lastpage.should.equal(current.lastpage)
+        me.results.length.should.equal(current.results.length)
+      })
     })
     // ======================================================================================================
     /* describe('counter', function () {

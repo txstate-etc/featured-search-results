@@ -47,8 +47,6 @@ app.get('/peoplesearch', async function (req, res) {
   const whereClause = Helpers.getWhereClause(peopleDef, params.q)
   const countSQL = 'select count(*) from swtpeople' + whereClause.sql
   const listingSQL = 'select * from swtpeople' + whereClause.sql + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.n)
-  // console.log(listingSQL)
-  // console.log(whereClause.binds)
   const [hitCount, people] = await Promise.all([ // Careful with Promise.all that has lots of concurrent queries.
     db.getval(countSQL, whereClause.binds), // Returns the value instead of the
     db.getall(listingSQL, whereClause.binds)
