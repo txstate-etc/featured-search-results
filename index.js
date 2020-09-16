@@ -51,6 +51,8 @@ app.get('/peoplesearch', async function (req, res) {
     db.getval(countSQL, whereClause.binds), // Returns the value instead of the
     db.getall(listingSQL, whereClause.binds)
   ]) // Returns an array of results I can inspect. All these fail together if any fails.
+  // eslint-disable-next-line no-return-assign
+  people.map(entry => { delete entry.plid && Object.keys(entry).forEach(property => entry[property] = (entry[property]) ? entry[property].toString() : '') })
   const response = {
     count: hitCount,
     lastpage: Math.ceil(hitCount / Math.abs(params.n) || hitCount / 10), // Number of pages of results. Default = 10.

@@ -11,17 +11,15 @@ const moment = require('moment')
 /* I'm not sure why fast-deep-equal being called here isn't catching what I need it to.
 |  It returns false when I run it against the two objects but asserts true? I need to dig into it more.
 |  Making use of should's native deepEqual in the mean time.
-const fdeepequal = require('fast-deep-equal')
-should.Assertion.add('fdequal', function (compare) {
+const fDeepEqual = require('fast-deep-equal')
+should.Assertion.add('fDeepEqual', function (compare) {
   this.params = { operator: 'to be fast-deep-equal to' }
-  fdeepequal(this.obj, compare)
+  fDeepEqual(this.obj, compare)
 }) */
 should.Assertion.add('sortedOn', function (property) {
-  const arrayOfProperty = []
-  const sorter = []
-  this.obj.forEach(value => arrayOfProperty.push(value[property]) && sorter.push(value[property]))
-  sorter.sort()
-  arrayOfProperty.should.deepEqual(sorter)
+  for (let current = 1, previous = 0; current < this.obj.length; previous = current++) {
+    this.obj[current][property].should.be.aboveOrEqual(this.obj[previous][property])
+  }
 })
 
 const agent = new https.Agent({
@@ -356,6 +354,13 @@ describe('integration', function () {
         me.count.should.equal(current.count)
         me.lastpage.should.equal(current.lastpage)
         me.results.length.should.equal(current.results.length)
+      })
+      it('should show me differences in result sets like single vs. double quotes and nulls vs. empty strings', async function () {
+        const [me, current] = await Promise.all([
+          get('/peoplesearch?q=Wing'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=Wing')
+        ])
+        me.should.deepEqual(current)
       })
     })
     // ======================================================================================================
