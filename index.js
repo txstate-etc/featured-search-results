@@ -38,34 +38,26 @@ app.use('/counter', function (req, res, next) {
 // ====================================================================================================================================
 app.get('/peoplesearch', async function (req, res) {
   const params = req.query
-  // Handle empty request.
-  if (!params.q) return res.json({ count: 0, lastpage: 1, results: [] })
-  // Normalize the n number of results defaulting to 10 if n sent doesn't make sense.
-  params.n = (params.n > 0) ? parseInt(Math.round(params.n), 10) : 10
+  const response = { count: 0, lastpage: 1, results: [] }
+  if (!params.q) return res.json(response)// Handle empty request.
+  params.n = (params.n > 0) ? parseInt(Math.round(params.n), 10) : 10// Normalize the n results returned/page. default = 10
 
   const peopleDef = Helpers.getPeopleDef()
   const whereClause = Helpers.getWhereClause(peopleDef, params.q)
   const countSQL = 'select count(*) from swtpeople' + whereClause.sql
   const listingSQL = 'select * from swtpeople' + whereClause.sql + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.n)
-  const [hitCount, people] = await Promise.all([ // Careful with Promise.all that has lots of concurrent queries.
-    db.getval(countSQL, whereClause.binds), // Returns the value instead of the
+  const [hitCount, people] = await Promise.all([
+    db.getval(countSQL, whereClause.binds),
     db.getall(listingSQL, whereClause.binds)
-  ]) // Returns an array of results I can inspect. All these fail together if any fails.
+  ])
   // eslint-disable-next-line no-return-assign
-  people.map(entry => { delete entry.plid && Object.keys(entry).forEach(property => entry[property] = (entry[property]) ? entry[property].toString() : '') })
-  const response = {
-    count: hitCount,
-    lastpage: Math.ceil(hitCount / Math.abs(params.n) || hitCount / 10), // Number of pages of results. Default = 10.
-    results: people
-  }
+  people.map(entry => { delete entry.plid && Object.keys(entry).forEach(property => entry[property] = (entry[property] ? entry[property].toString() : '')) })
+  response.count = hitCount
+  response.lastpage = Math.ceil(response.count / params.n)
+  response.results = people
   res.json(response)
-  // We'll also need a departments endpoint that will mirror dept.pl code.
-  // We'll revisit to paginate.
-
-  // start=?
-  // lastpage=?   -- Regardless of what they pass as the num to return, we need to get a count of how many matches there were and display it?
-  // q=gato-search-input[text]
-  // sort=?
+})
+app.get('/departments', async function (req, res) { // We'll also need a departments endpoint that will mirror dept.pl code.
 })
 // ====================================================================================================================================
 app.get('/search', async function (req, res) {

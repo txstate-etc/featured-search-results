@@ -91,7 +91,6 @@ describe('integration', function () {
         results.length.should.equal(1)
         id = results[0].id
       })
-      /*
       it('should not require a secret to perform a search', async function () {
         // eslint-disable-next-line no-unused-expressions
         (await get('/search', true)).should.be.an.Array
@@ -159,7 +158,7 @@ describe('integration', function () {
         for (const entry of result.entries) {
           entry.count.should.be.greaterThan(0)
         }
-      }) */
+      })
     })
     // ======================================================================================================
     describe('peoplesearch', async function () {
@@ -243,12 +242,9 @@ describe('integration', function () {
           get('/peoplesearch?q=last%20beginswith%20pil&n=a17'),
           get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=last%20beginswith%20pil&n=a17')
         ])
-        Object.keys(me).should.deepEqual(Object.keys(current))
-        me.count.should.equal(current.count)
-        me.lastpage.should.equal(current.lastpage)
-        me.results.length.should.equal(current.results.length) // Current version defaults to 10 results a page, as does me.
+        me.should.deepEqual(current)
       })
-      it('should default to all results when given n <= 0', async function () {
+      it('should default to all results in sets of 10 when given n <= 0', async function () {
         (await get('/peoplesearch?q=last%20beginswith%20pil&n=-1')).results.length.should.equal(3)
       })
       it('should return the same-ish result as current if n <= 0', async function () {
@@ -274,7 +270,7 @@ describe('integration', function () {
         me.count.should.equal(current.count)
         me.lastpage.should.equal(current.lastpage)
         me.results.length.should.equal(current.results.length)
-        // Current doesn't accept sort option.
+        // Current doesn't accept sort option so no to me.should.deepEqual(current)
         // me.results.should.be.sortedOn('firstname').should.be.equal(current.results.should.be.sortedOn('firstname'))
       })
       it('should default to lastname when given an invalid sort', async function () {
@@ -290,10 +286,7 @@ describe('integration', function () {
           get('/peoplesearch?q=lorst%20beginswith%20pil'),
           get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=lorst%20beginswith%20pil')
         ])
-        Object.keys(me).should.deepEqual(Object.keys(current))
-        me.count.should.equal(current.count)
-        me.lastpage.should.equal(current.lastpage)
-        me.results.length.should.equal(current.results.length)
+        me.should.deepEqual(current)
       })
       it('should handle non-valid likeOps gracefully', async function () {
         (await get('/peoplesearch?q=nor%20lastname%20beginswith%20pil')).results.length.should.equal(0)
@@ -303,10 +296,7 @@ describe('integration', function () {
           get('/peoplesearch?q=nor%20last%20beginswith%20pil'),
           get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=nor%20last%20beginswith%20pil')
         ])
-        Object.keys(me).should.deepEqual(Object.keys(current))
-        me.count.should.equal(current.count)
-        me.lastpage.should.equal(current.lastpage)
-        me.results.length.should.equal(current.results.length)
+        me.should.deepEqual(current)
       })
       it('should handle non-valid wildCardOps gracefully', async function () {
         (await get('/peoplesearch?q=lastname%20begornswith%20pil')).results.length.should.equal(0)
@@ -316,10 +306,7 @@ describe('integration', function () {
           get('/peoplesearch?q=last%20begornswith%20pil'),
           get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=last%20begornswith%20pil')
         ])
-        Object.keys(me).should.deepEqual(Object.keys(current))
-        me.count.should.equal(current.count)
-        me.lastpage.should.equal(current.lastpage)
-        me.results.length.should.equal(current.results.length)
+        me.should.deepEqual(current)
       })
       it('should handle single argument (non-advanced)', async function () {
         (await get('/peoplesearch?q=Wing')).results.length.should.equal(1)
@@ -329,10 +316,7 @@ describe('integration', function () {
           get('/peoplesearch?q=Wing'),
           get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=Wing')
         ])
-        Object.keys(me).should.deepEqual(Object.keys(current))
-        me.count.should.equal(current.count)
-        me.lastpage.should.equal(current.lastpage)
-        me.results.length.should.equal(current.results.length)
+        me.should.deepEqual(current)
       })
       it('should handle searches for q case insensitively', async function () {
         const [me, meToo] = await Promise.all([
@@ -350,21 +334,11 @@ describe('integration', function () {
         ])
         me.should.deepEqual(meToo)
         current.should.deepEqual(currentToo)
-        Object.keys(me).should.deepEqual(Object.keys(current))
-        me.count.should.equal(current.count)
-        me.lastpage.should.equal(current.lastpage)
-        me.results.length.should.equal(current.results.length)
-      })
-      it('should show me differences in result sets like single vs. double quotes and nulls vs. empty strings', async function () {
-        const [me, current] = await Promise.all([
-          get('/peoplesearch?q=Wing'),
-          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=Wing')
-        ])
         me.should.deepEqual(current)
       })
     })
     // ======================================================================================================
-    /* describe('counter', function () {
+    describe('counter', function () {
       let currentcount
       it('should return a count', async function () {
         const result = await client.get('/counter/test')
@@ -385,6 +359,6 @@ describe('integration', function () {
         const result = await client.post('/counter/test', {}, { headers: { Cookie: 'sfr_counter_test=true' } })
         result.data.count.should.equal(currentcount + 1)
       })
-    }) */
+    })
   })
 })
