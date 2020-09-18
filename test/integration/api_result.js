@@ -338,6 +338,14 @@ describe('integration', function () {
       })
     })
     // ======================================================================================================
+    describe('departments', async function () {
+      it('should return a result of departments referenced by name if nothing is passed', async function () {
+        const depts = (await get('/departments'))
+        depts.count.should.not.equal(0)
+        depts.results[0].should.have.property('name')
+      })
+    })
+    // ======================================================================================================
     describe('counter', function () {
       let currentcount
       it('should return a count', async function () {

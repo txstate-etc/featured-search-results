@@ -14,6 +14,7 @@ app.use(cookieparser())
 const Result = require('./models/result')
 const Query = require('./models/query')
 const Counter = require('./models/counter')
+const { count } = require('./models/result')
 // const { getSortClause } = require('./lib/helpers')
 
 // authorize based on secret key
@@ -44,20 +45,28 @@ app.get('/peoplesearch', async function (req, res) {
 
   const peopleDef = Helpers.getPeopleDef()
   const whereClause = Helpers.getWhereClause(peopleDef, params.q)
-  const countSQL = 'select count(*) from swtpeople' + whereClause.sql
   const listingSQL = 'select * from swtpeople' + whereClause.sql + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.n)
-  const [hitCount, people] = await Promise.all([
-    db.getval(countSQL, whereClause.binds),
-    db.getall(listingSQL, whereClause.binds)
-  ])
+  const [people] = await Promise.all([db.getall(listingSQL, whereClause.binds)])
   // eslint-disable-next-line no-return-assign
   people.map(entry => { delete entry.plid && Object.keys(entry).forEach(property => entry[property] = (entry[property] ? entry[property].toString() : '')) })
-  response.count = hitCount
-  response.lastpage = Math.ceil(response.count / params.n)
   response.results = people
+  response.count = response.results.length
+  response.lastpage = Math.ceil(response.count / params.n)
   res.json(response)
 })
-app.get('/departments', async function (req, res) { // We'll also need a departments endpoint that will mirror dept.pl code.
+app.get('/departments', async function (req, res) {
+/* I'm not really sure how this gets called and thus, what it's supposed to do beyond return a list of all distinct department values stored in swtpeople.
+*/
+  const params = req.query
+  const response = { count: 0, lastpage: 1, results: [] }
+  params.n = (params.n > 0) ? parseInt(Math.round(params.n), 10) : 10
+  const departmentsSQL = 'select distinct department as name from swtpeople order by department asc'
+  const departments = await db.getall(departmentsSQL)
+  for (let entry = 0; entry < departments.length; entry++) { if (!departments[entry].name) departments.splice(entry--, 1) }
+  response.results = departments
+  response.count = response.results.length
+  response.lastpage = Math.ceil(response.count / params.n)
+  res.json(response)
 })
 // ====================================================================================================================================
 app.get('/search', async function (req, res) {
