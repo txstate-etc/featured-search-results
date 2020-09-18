@@ -45,13 +45,17 @@ app.get('/peoplesearch', async function (req, res) {
 
   const peopleDef = Helpers.getPeopleDef()
   const whereClause = Helpers.getWhereClause(peopleDef, params.q)
+  const countSQL = 'select count(*) from swtpeople' + whereClause.sql
   const listingSQL = 'select * from swtpeople' + whereClause.sql + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.n)
-  const [people] = await Promise.all([db.getall(listingSQL, whereClause.binds)])
+  const [hitCount, people] = await Promise.all([
+    db.getval(countSQL, whereClause.binds),
+    db.getall(listingSQL, whereClause.binds)
+  ])
   // eslint-disable-next-line no-return-assign
   people.map(entry => { delete entry.plid && Object.keys(entry).forEach(property => entry[property] = (entry[property] ? entry[property].toString() : '')) })
-  response.results = people
-  response.count = response.results.length
+  response.count = hitCount
   response.lastpage = Math.ceil(response.count / params.n)
+  response.results = people
   res.json(response)
 })
 app.get('/departments', async function (req, res) {
