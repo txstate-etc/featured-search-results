@@ -336,6 +336,20 @@ describe('integration', function () {
         current.should.deepEqual(currentToo)
         me.should.deepEqual(current)
       })
+      it('should return the same result as current when given advanced, single phrase, q to search for', async function () {
+        const [me, current] = await Promise.all([
+          get('/peoplesearch?q=last%20beginswith%20Pil'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=last%20beginswith%20Pil')
+        ])
+        me.should.deepEqual(current)
+      })
+      it('should return the same result as current when given advanced, multiple phrase, q to search for', async function () {
+        const [me, current] = await Promise.all([
+          get('/peoplesearch?q=last%20beginswith%20Pil%20not%20last%20endswith%20g'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=last%20beginswith%20Pil%20not%20last%20endswith%20g')
+        ])
+        me.should.deepEqual(current)
+      })
     })
     // ======================================================================================================
     describe('departments', async function () {

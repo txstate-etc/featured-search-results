@@ -42,11 +42,12 @@ app.get('/peoplesearch', async function (req, res) {
   const response = { count: 0, lastpage: 1, results: [] }
   if (!params.q) return res.json(response)// Handle empty request.
   params.n = (params.n > 0) ? parseInt(Math.round(params.n), 10) : 10// Normalize the n results returned/page. default = 10
+  // params.p = // Page number requested. (p-1)*n
 
   const peopleDef = Helpers.getPeopleDef()
   const whereClause = Helpers.getWhereClause(peopleDef, params.q)
   const countSQL = 'select count(*) from swtpeople' + whereClause.sql
-  const listingSQL = 'select * from swtpeople' + whereClause.sql + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.n)
+  const listingSQL = 'select * from swtpeople' + whereClause.sql + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.n) // limit offset, 10
   const [hitCount, people] = await Promise.all([
     db.getval(countSQL, whereClause.binds),
     db.getall(listingSQL, whereClause.binds)
@@ -66,8 +67,7 @@ app.get('/departments', async function (req, res) {
   params.n = (params.n > 0) ? parseInt(Math.round(params.n), 10) : 10
   const departmentsSQL = 'select distinct department as name from swtpeople order by department asc'
   const departments = await db.getall(departmentsSQL)
-  for (let entry = 0; entry < departments.length; entry++) { if (!departments[entry].name) departments.splice(entry--, 1) }
-  response.results = departments
+  response.results = departments.filter(element => element.name)
   response.count = response.results.length
   response.lastpage = Math.ceil(response.count / params.n)
   res.json(response)
