@@ -48,7 +48,6 @@ app.get('/peoplesearch', async function (req, res) {
   const whereClause = Helpers.getWhereClause(peopleDef, params.q)
   const countSQL = 'select count(*) from swtpeople' + whereClause.sql
   const listingSQL = 'select * from swtpeople' + whereClause.sql + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.p, params.n)
-  console.log(listingSQL)
   const [hitCount, people] = await Promise.all([
     db.getval(countSQL, whereClause.binds),
     db.getall(listingSQL, whereClause.binds)
