@@ -350,6 +350,22 @@ describe('integration', function () {
         ])
         me.should.deepEqual(current)
       })
+      it('should take a page number p to specify the page offset of results size n to return', async function () {
+        const [fullSet, firstHalf, secondHalf] = await Promise.all([
+          get('/peoplesearch?q=last%20beginswith%20P&p=1&n=6'),
+          get('/peoplesearch?q=last%20beginswith%20P&p=1&n=3'),
+          get('/peoplesearch?q=last%20beginswith%20P&p=2&n=3')
+        ])
+        fullSet.results.slice(0, 3).should.deepEqual(firstHalf.results)
+        fullSet.results.slice(3).should.deepEqual(secondHalf.results)
+      })
+      it('should return the same results as current when given p for page number', async function () {
+        const [me, current] = await Promise.all([
+          get('/peoplesearch?q=last%20beginswith%20P&p=8'),
+          get('https://secure.its.txstate.edu/iphone/people/jwt.pl?q=last%20beginswith%20P&p=8&n=10') // Current defaults to 50 n and returns empty [] if no n with p.
+        ])
+        me.should.deepEqual(current)
+      })
     })
     // ======================================================================================================
     describe('departments', async function () {

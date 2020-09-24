@@ -14,7 +14,7 @@ app.use(cookieparser())
 const Result = require('./models/result')
 const Query = require('./models/query')
 const Counter = require('./models/counter')
-const { count } = require('./models/result')
+// const { count } = require('./models/result')
 // const { getSortClause } = require('./lib/helpers')
 
 // authorize based on secret key
@@ -42,12 +42,13 @@ app.get('/peoplesearch', async function (req, res) {
   const response = { count: 0, lastpage: 1, results: [] }
   if (!params.q) return res.json(response)// Handle empty request.
   params.n = (params.n > 0) ? parseInt(Math.round(params.n), 10) : 10// Normalize the n results returned/page. default = 10
-  // params.p = // Page number requested. (p-1)*n
+  params.p = (params.p > 0) ? parseInt(Math.round(params.p), 10) : 1// Normalize the p page number requested. default = 1
 
   const peopleDef = Helpers.getPeopleDef()
   const whereClause = Helpers.getWhereClause(peopleDef, params.q)
   const countSQL = 'select count(*) from swtpeople' + whereClause.sql
-  const listingSQL = 'select * from swtpeople' + whereClause.sql + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.n) // limit offset, 10
+  const listingSQL = 'select * from swtpeople' + whereClause.sql + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.p, params.n)
+  console.log(listingSQL)
   const [hitCount, people] = await Promise.all([
     db.getval(countSQL, whereClause.binds),
     db.getall(listingSQL, whereClause.binds)
