@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-expressions */
 /* global before, describe, it, should */
 require('should')
 const db = require('txstate-node-utils/lib/db')
@@ -92,7 +93,6 @@ describe('integration', function () {
         id = results[0].id
       })
       it('should not require a secret to perform a search', async function () {
-        // eslint-disable-next-line no-unused-expressions
         (await get('/search', true)).should.be.an.Array
       })
       it('should be case insensitive', async function () {
@@ -162,6 +162,9 @@ describe('integration', function () {
     })
     // ======================================================================================================
     describe('peoplesearch', async function () {
+      it('should not require a secret to perform a search', async function () {
+        (await get('/peoplesearch', true)).should.be.an.Array
+      })
       it('should not return a result if nothing is passed', async function () {
         (await get('/peoplesearch')).count.should.equal(0)
       })
