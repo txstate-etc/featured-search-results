@@ -60,17 +60,13 @@ app.get('/peoplesearch', async function (req, res) {
   res.json(response)
 })
 app.get('/departments', async function (req, res) {
-/* I'm not really sure how this gets called and thus, what it's supposed to do beyond return a list of all distinct department values stored in swtpeople.
-*/
-  const params = req.query
-  const response = { count: 0, lastpage: 1, results: [] }
-  params.n = (params.n > 0) ? parseInt(Math.round(params.n), 10) : 10
-  const departmentsSQL = 'select distinct department as name from swtpeople order by department asc'
+  const departmentsSQL = 'select distinct department as name from swtpeople WHERE department is not null AND department != "" order by department asc'
   const departments = await db.getall(departmentsSQL)
-  response.results = departments.filter(element => element.name)
-  response.count = response.results.length
-  response.lastpage = Math.ceil(response.count / params.n)
-  res.json(response)
+  res.json({
+    count: departments.length,
+    lastpage: 1,
+    results: departments
+  })
 })
 // ====================================================================================================================================
 app.get('/search', async function (req, res) {
