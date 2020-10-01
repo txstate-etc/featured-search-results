@@ -67,7 +67,7 @@ app.get('/departments', async function (req, res) {
     lastpage: 1,
     results: departments
   })
-
+})
 // ====================================================================================================================================
 app.get('/search', async function (req, res) {
   var query = req.query.q
