@@ -258,7 +258,7 @@ describe('integration', function () {
       it('should default to all results in sets of 10 when given n <= 0', async function () {
         (await get(`${localBase}?q=last%20beginswith%20pil&n=-1`)).results.length.should.equal(3)
       })
-      it('should return the same-ish result as current if n <= 0', async function () {
+      it('should return the same result as current if n <= 0', async function () {
         const [me, current] = await Promise.all([
           get(`${localBase}?q=last%20beginswith%20pil&n=-1`),
           get(`${texasBase}?q=last%20beginswith%20pil&n=-1`)
@@ -275,17 +275,20 @@ describe('integration', function () {
       it('should not default to lastname when given a valid sort option', async function () {
         (await get(`${localBase}?q=last%20beginswith%20pil&sort=firstname`)).results.should.not.be.sortedOn('lastname')
       })
-      it('should return the same-ish result as current when given the same sort option', async function () {
+      it('should return the same result as current when given the same sort option', async function () {
         const [me, current] = await Promise.all([
           get(`${localBase}?q=last%20beginswith%20pil&sort=firstname`),
           get(`${texasBase}?q=last%20beginswith%20pil&sort=firstname`)
         ])
+        me.should.deepEqual(current)
+        /* <- Transitioned to new deployment.
         Object.keys(me).should.deepEqual(Object.keys(current))
         me.count.should.equal(current.count)
         me.lastpage.should.equal(current.lastpage)
         me.results.length.should.equal(current.results.length)
-        // Current doesn't accept sort option so no to me.should.deepEqual(current)
+        // Previous didn't accept sort option so no to me.should.deepEqual(current)
         // me.results.should.be.sortedOn('firstname').should.be.equal(current.results.should.be.sortedOn('firstname'))
+        */
       })
       it('should default to lastname when given an invalid sort', async function () {
         (await get(`${localBase}?q=last%20beginswith%20pil&sort=fwirstname`)).results.should.be.sortedOn('lastname')
