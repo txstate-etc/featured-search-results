@@ -53,7 +53,7 @@ app.get('/peoplesearch', async function (req, res) {
     db.getall(listingSQL, whereClause.binds)
   ])
   // eslint-disable-next-line no-return-assign
-  people.map(entry => { delete entry.plid && Object.keys(entry).forEach(property => entry[property] = (entry[property] ? entry[property].toString() : '')) })
+  people.map(person => { delete person.plid && Object.keys(person).forEach(property => person[property] = (person[property] ? person[property].toString() : '')) })
   response.count = hitCount
   response.lastpage = Math.ceil(response.count / params.n)
   response.results = people
@@ -67,7 +67,7 @@ app.get('/departments', async function (req, res) {
     lastpage: 1,
     results: departments
   })
-})
+
 // ====================================================================================================================================
 app.get('/search', async function (req, res) {
   var query = req.query.q
