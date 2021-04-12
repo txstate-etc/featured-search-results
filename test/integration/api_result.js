@@ -163,7 +163,6 @@ describe('integration', function () {
     // ======================================================================================================
     describe('peoplesearch', async function () {
       const localBase = '/peoplesearch'
-      const texasBase = 'https://featured.search.txstate.edu/peoplesearch'
 
       it('should not require a secret to perform a search', async function () {
         (await get(localBase, true)).should.be.an.Array
@@ -171,124 +170,26 @@ describe('integration', function () {
       it('should not return a result if nothing is passed', async function () {
         (await get(localBase)).count.should.equal(0)
       })
-      it('should return the same result as current if nothing is passed', async function () {
-        const [me, current] = await Promise.all([
-          get(localBase),
-          get(texasBase)
-        ])
-        me.should.deepEqual(current)
-      })
       it('should convert decimals to integers when given decimal n', async function () {
         (await get(`${localBase}?q=last%20beginswith%20pil&n=1.8`)).results.length.should.equal(2)
-      })
-      it('should return the same result as current if n is a decimal value', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=last%20beginswith%20pil&n=1.8`),
-          get(`${texasBase}?q=last%20beginswith%20pil&n=1.8`)
-        ])
-        me.should.deepEqual(current)
-        /* <- Transitioned to new deployment.
-        Object.keys(me).should.deepEqual(Object.keys(current))
-        me.count.should.equal(current.count)
-        //me.lastpage.should.equal(current.lastpage - 1) //Previous version doesn't round n, it floored n.
-        me.results.length.should.equal(current.results.length)
-        */
       })
       it('should convert binaries to base 10 when given a binary n', async function () {
         (await get(`${localBase}?q=last%20beginswith%20pil&n=0b10`)).results.length.should.equal(2)
       })
-      it('should return the same result as current if n is a binary value', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=last%20beginswith%20pil&n=0b10`),
-          get(`${texasBase}?q=last%20beginswith%20pil&n=0b10`)
-        ])
-        me.should.deepEqual(current)
-        /* <- Transitioned to new deployment.
-        Object.keys(me).should.deepEqual(Object.keys(current))
-        me.count.should.equal(current.count)
-        me.lastpage.should.equal(current.lastpage + 1)
-        /* Previous version didn't understand 0b00 syntax. It defaulted to 10 results a page. This affected lastpage returned by it.
-        me.results.length.should.equal(current.results.length)
-        */
-      })
       it('should convert octals to base 10 when given octal n', async function () {
         (await get(`${localBase}?q=last%20beginswith%20pil&n=0o2`)).results.length.should.equal(2)
-      })
-      it('should return the same result as current if n is an octal value', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=last%20beginswith%20pil&n=0o2`),
-          get(`${texasBase}?q=last%20beginswith%20pil&n=0o2`)
-        ])
-        me.should.deepEqual(current)
-        /* <- Transitioned to new deployment.
-        Object.keys(me).should.deepEqual(Object.keys(current))
-        me.count.should.equal(current.count)
-        me.lastpage.should.equal(current.lastpage + 1)
-        /* Previous version didn't understand 0o00 syntax. It defaulted to 10 results a page. This affected lastpage returned by it.
-        me.results.length.should.equal(current.results.length)
-        */
       })
       it('should convert hexadecimals to base 10 when given hexidecimal n', async function () {
         (await get(`${localBase}?q=last%20beginswith%20pi&n=0x2`)).results.length.should.equal(2)
       })
-      it('should return the same result as current if n is a hexidecimal value', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=last%20beginswith%20pil&n=0x2`),
-          get(`${texasBase}?q=last%20beginswith%20pil&n=0x2`)
-        ])
-        me.should.deepEqual(current)
-        /* <- Transitioned to new deployment.
-        Object.keys(me).should.deepEqual(Object.keys(current))
-        me.count.should.equal(current.count)
-        me.lastpage.should.equal(current.lastpage + 1)
-        /* Previous version didn't understand 0x00 syntax. It defaulted to 10 results a page. This affected lastpage returned by it.
-        me.results.length.should.equal(current.results.length)
-        */
-      })
       it('should default to all results when given non-numeric n', async function () {
         (await get(`${localBase}?q=last%20beginswith%20pil&n=a17`)).results.length.should.equal(3)
-      })
-      it('should return the same result as current if n is given a non-numeric value', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=last%20beginswith%20pil&n=a17`),
-          get(`${texasBase}?q=last%20beginswith%20pil&n=a17`)
-        ])
-        me.should.deepEqual(current)
       })
       it('should default to all results in sets of 10 when given n <= 0', async function () {
         (await get(`${localBase}?q=last%20beginswith%20pil&n=-1`)).results.length.should.equal(3)
       })
-      it('should return the same result as current if n <= 0', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=last%20beginswith%20pil&n=-1`),
-          get(`${texasBase}?q=last%20beginswith%20pil&n=-1`)
-        ])
-        me.should.deepEqual(current)
-        /* <- Transitioned to new deployment.
-        Object.keys(me).should.deepEqual(Object.keys(current))
-        me.count.should.equal(current.count)
-        // Previous version didn't handle negative n and usues negative value to ciel(hitCount/n).
-        me.lastpage.should.equal(current.lastpage + 3) // Since 3/-1 is -3 ciel'd to -2 we need to offset to get same-ish of 1.
-        // me.results.length.should.equal(current.results.length) // No results returned by current due to negative n passed.
-        */
-      })
       it('should not default to lastname when given a valid sort option', async function () {
         (await get(`${localBase}?q=last%20beginswith%20pil&sort=firstname`)).results.should.not.be.sortedOn('lastname')
-      })
-      it('should return the same result as current when given the same sort option', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=last%20beginswith%20pil&sort=firstname`),
-          get(`${texasBase}?q=last%20beginswith%20pil&sort=firstname`)
-        ])
-        me.should.deepEqual(current)
-        /* <- Transitioned to new deployment.
-        Object.keys(me).should.deepEqual(Object.keys(current))
-        me.count.should.equal(current.count)
-        me.lastpage.should.equal(current.lastpage)
-        me.results.length.should.equal(current.results.length)
-        // Previous didn't accept sort option so no to me.should.deepEqual(current)
-        // me.results.should.be.sortedOn('firstname').should.be.equal(current.results.should.be.sortedOn('firstname'))
-        */
       })
       it('should default to lastname when given an invalid sort', async function () {
         (await get(`${localBase}?q=last%20beginswith%20pil&sort=fwirstname`)).results.should.be.sortedOn('lastname')
@@ -298,42 +199,14 @@ describe('integration', function () {
         (await get(`${localBase}?q=lorstname%20beginswith%20pil`)).results.length.should.equal(0)
         // I noticed our current system returns lastpage:0 for this but 1 for no query.
       })
-      it('should return the same result as current when given non-valid terms to search for', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=lorst%20beginswith%20pil`),
-          get(`${texasBase}?q=lorst%20beginswith%20pil`)
-        ])
-        me.should.deepEqual(current)
-      })
       it('should handle non-valid likeOps gracefully', async function () {
         (await get(`${localBase}?q=nor%20lastname%20beginswith%20pil`)).results.length.should.equal(0)
-      })
-      it('should return the same result as current when given non-valid likeOps to search for', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=nor%20last%20beginswith%20pil`),
-          get(`${texasBase}?q=nor%20last%20beginswith%20pil`)
-        ])
-        me.should.deepEqual(current)
       })
       it('should handle non-valid wildCardOps gracefully', async function () {
         (await get(`${localBase}?q=lastname%20begornswith%20pil`)).results.length.should.equal(0)
       })
-      it('should return the same result as current when given non-valid wildCardOps to search for', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=last%20begornswith%20pil`),
-          get(`${texasBase}?q=last%20begornswith%20pil`)
-        ])
-        me.should.deepEqual(current)
-      })
       it('should handle single argument (non-advanced)', async function () {
         (await get(`${localBase}?q=Wing`)).results.length.should.equal(1)
-      })
-      it('should return the same result as current when given non-advanced, single word, q to search for', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=Wing`),
-          get(`${texasBase}?q=Wing`)
-        ])
-        me.should.deepEqual(current)
       })
       it('should handle searches for q case insensitively', async function () {
         const [me, meToo] = await Promise.all([
@@ -341,31 +214,6 @@ describe('integration', function () {
           get(`${localBase}?q=nICK wING`)
         ])
         me.should.deepEqual(meToo)
-      })
-      it('should return the same result as current when given non-advanced, multiple word, q to search for', async function () {
-        const [me, meToo, current, currentToo] = await Promise.all([
-          get(`${localBase}?q=Nick%20Wing`),
-          get(`${localBase}?q=Wing%20Nick`),
-          get(`${texasBase}?q=Nick%20Wing`),
-          get(`${texasBase}?q=Wing%20Nick`)
-        ])
-        me.should.deepEqual(meToo)
-        current.should.deepEqual(currentToo)
-        me.should.deepEqual(current)
-      })
-      it('should return the same result as current when given advanced, single phrase, q to search for', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=last%20beginswith%20Pil`),
-          get(`${texasBase}?q=last%20beginswith%20Pil`)
-        ])
-        me.should.deepEqual(current)
-      })
-      it('should return the same result as current when given advanced, multiple phrase, q to search for', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=last%20beginswith%20Pil%20not%20last%20endswith%20g`),
-          get(`${texasBase}?q=last%20beginswith%20Pil%20not%20last%20endswith%20g`)
-        ])
-        me.should.deepEqual(current)
       })
       it('should take a page number p to specify the page offset of results size n to return', async function () {
         const [fullSet, firstHalf, secondHalf] = await Promise.all([
@@ -375,13 +223,6 @@ describe('integration', function () {
         ])
         fullSet.results.slice(0, 3).should.deepEqual(firstHalf.results)
         fullSet.results.slice(3).should.deepEqual(secondHalf.results)
-      })
-      it('should return the same results as current when given p for page number', async function () {
-        const [me, current] = await Promise.all([
-          get(`${localBase}?q=last%20beginswith%20P&p=8`),
-          get(`${texasBase}?q=last%20beginswith%20P&p=8&n=10`) // Current defaults to 50 n and returns empty [] if no n with p.
-        ])
-        me.should.deepEqual(current)
       })
     })
     // ======================================================================================================
