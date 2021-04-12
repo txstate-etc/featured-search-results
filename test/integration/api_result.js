@@ -38,7 +38,7 @@ const post = async function (endpoint, payload, skipSecret = false) {
   return client.post(endpoint, payload, { headers: headers })
 }
 const holdUntilServiceUp = async function (endpoint) {
-  for (var i = 0; i < 100; i++) {
+  for (let i = 0; i < 100; i++) {
     try {
       await get(endpoint)
       break
@@ -52,8 +52,8 @@ const holdUntilServiceUp = async function (endpoint) {
 describe('integration', function () {
   describe('api', function () {
     describe('result', function () {
-      var id
-      var result = {
+      let id
+      const result = {
         url: 'http://txstate.edu',
         title: 'Texas State University Homepage',
         entries: [
@@ -88,7 +88,7 @@ describe('integration', function () {
         final.entries[2].keyphrase.should.equal('texas state university')
       })
       it('should return one result on /results', async function () {
-        var results = (await get('/results'))
+        const results = (await get('/results'))
         results.length.should.equal(1)
         id = results[0].id
       })
