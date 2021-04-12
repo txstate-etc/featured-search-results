@@ -35,12 +35,14 @@ QuerySchema.statics.record = async function (query, results) {
 QuerySchema.statics.getAllQueries = async function () {
   const Query = this
   const queries = (await Query.aggregate([
-    { $project: {
-      query: 1,
-      results: 1,
-      hitcount: { $size: '$hits' },
-      lasthit: { $slice: ['$hits', -1] }
-    } },
+    {
+      $project: {
+        query: 1,
+        results: 1,
+        hitcount: { $size: '$hits' },
+        lasthit: { $slice: ['$hits', -1] }
+      }
+    },
     { $sort: { hitcount: -1 } },
     { $limit: 5000 }
   ])).map(q => new Query(q))
