@@ -1,14 +1,15 @@
-var mongoose = require('mongoose')
-var Schema = mongoose.Schema
-var helpers = require('../lib/helpers')
+const mongoose = require('mongoose')
+const Schema = mongoose.Schema
+const helpers = require('../lib/helpers')
 const util = require('txstate-node-utils/lib/util')
 const moment = require('moment')
 const axios = require('axios')
+const { sortby } = require('txstate-utils')
 
-var ResultSchema = new Schema({
+const ResultSchema = new Schema({
   url: String,
   title: String,
-  priority: { type: Number, get: function (num) { return num || 1 } },
+  priority: Number,
   currency: {
     broken: Boolean,
     tested: Date,
@@ -19,7 +20,8 @@ var ResultSchema = new Schema({
     mode: {
       type: String,
       enum: ['keyword', 'phrase', 'exact']
-    }
+    },
+    priority: { type: Number }
   }],
   tags: [String]
 })
@@ -33,11 +35,10 @@ ResultSchema.index({ 'entries.keywords': 1 })
 ResultSchema.index({ 'currency.tested': 1 })
 
 ResultSchema.methods.basic = function () {
-  var info = {
+  return {
     url: this.url,
     title: this.title
   }
-  return info
 }
 
 ResultSchema.methods.basicPlusId = function () {
@@ -47,8 +48,8 @@ ResultSchema.methods.basicPlusId = function () {
 }
 
 ResultSchema.methods.outentries = function () {
-  var outentries = []
-  for (var entry of this.entries) {
+  const outentries = []
+  for (const entry of this.entries) {
     outentries.push({
       keyphrase: entry.keywords.join(' '),
       mode: entry.mode
@@ -96,14 +97,14 @@ const entryMatch = function (entry, words, wordset, wordsjoined) {
   if (entry.mode === 'exact') {
     if (wordsjoined === entry.keywords.join(' ')) return true
   } else if (entry.mode === 'phrase') {
-    var index = 0
-    for (var word of words) {
+    let index = 0
+    for (const word of words) {
       if (word === entry.keywords[index]) index++
     }
     if (index === entry.keywords.length) return true
   } else { // entry.mode == 'keyword'
-    var count = 0
-    for (var keyword of entry.keywords) {
+    let count = 0
+    for (const keyword of entry.keywords) {
       if (wordset.has(keyword)) count++
     }
     if (count === entry.keywords.length) return true
@@ -112,29 +113,34 @@ const entryMatch = function (entry, words, wordset, wordsjoined) {
   return false
 }
 
+ResultSchema.methods.sortedEntries = function () {
+  this._sortedEntries ??= sortby([...this.entries], 'priority', true)
+  return this._sortedEntries
+}
+
 ResultSchema.methods.match = function (words, wordset, wordsjoined) {
   [wordset, wordsjoined] = wordsProcessed(words, wordset, wordsjoined)
-  for (var entry of this.entries) {
-    if (entryMatch(entry, words, wordset, wordsjoined)) return true
+  for (const entry of this.sortedEntries()) {
+    if (entryMatch(entry, words, wordset, wordsjoined)) return entry.priority
   }
-  return false
+  return undefined
 }
 
 ResultSchema.methods.fromJson = function (input) {
-  var result = this
+  const result = this
   result.url = input.url.trim()
   result.title = input.title.trim()
-  result.priority = input.priority || 1
   result.tags = []
   result.entries = []
-  for (var entry of input.entries) {
-    var lcmode = entry.mode.toLowerCase()
-    var mode = ['keyword', 'phrase', 'exact'].includes(lcmode) ? lcmode : 'keyword'
-    var words = helpers.querysplit(entry.keyphrase)
+  for (const entry of input.entries) {
+    const lcmode = entry.mode.toLowerCase()
+    const mode = ['keyword', 'phrase', 'exact'].includes(lcmode) ? lcmode : 'keyword'
+    const words = helpers.querysplit(entry.keyphrase)
     if (words.length > 0) {
       result.entries.push({
         keywords: words,
-        mode: mode
+        mode,
+        priority: entry.priority || 1 - (input.priority || 1)
       })
     }
   }
@@ -179,13 +185,9 @@ ResultSchema.statics.findByQuery = async function (query) {
   const words = helpers.querysplit(query)
   const results = await this.getByQuery(words)
   const [wordset, wordsjoined] = wordsProcessed(words)
-  return results.filter(result => result.match(words, wordset, wordsjoined)).sort(function (a, b) {
-    if (a.priority > b.priority) return 1
-    if (b.priority > a.priority) return -1
-    if (a.title > b.title) return 1
-    if (b.title > a.title) return -1
-    return 0
-  })
+  for (const r of results) r.priority = r.match(words, wordset, wordsjoined)
+  const filteredresults = results.filter(r => r.priority != null)
+  return sortby(filteredresults, 'priority', true, 'title')
 }
 
 ResultSchema.methods.currencyTest = async function () {
@@ -225,6 +227,17 @@ ResultSchema.statics.currencyTestLoop = async function () {
     console.log(e)
   }
   setTimeout(function () { Result.currencyTestLoop() }, 600000)
+}
+
+ResultSchema.statics.migratePriority = async function () {
+  const results = await this.find({ priority: { $exists: true } })
+  for (const result of results) {
+    for (const entry of result.entries) {
+      entry.priority = 1 - (result.priority || 1)
+    }
+    delete result.priority
+    await result.save()
+  }
 }
 
 module.exports = mongoose.model('Result', ResultSchema)

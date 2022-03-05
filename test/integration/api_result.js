@@ -206,7 +206,7 @@ describe('integration', function () {
         (await get(`${localBase}?q=lastname%20begornswith%20pil`)).results.length.should.equal(0)
       })
       it('should handle single argument (non-advanced)', async function () {
-        (await get(`${localBase}?q=Wing`)).results.length.should.equal(1)
+        (await get(`${localBase}?q=Wing`)).results.length.should.be.greaterThan(0)
       })
       it('should handle searches for q case insensitively', async function () {
         const [me, meToo] = await Promise.all([

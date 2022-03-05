@@ -16,7 +16,8 @@ describe('integration', function () {
           entries: [
             {
               keyphrase: 'Bobcat Village',
-              mode: 'exact'
+              mode: 'exact',
+              priority: 2
             }, {
               keyphrase: 'Texas State Homepage',
               mode: 'phrase'
@@ -110,23 +111,23 @@ describe('integration', function () {
         secondresult.fromJson({
           url: 'http://google.com',
           title: 'Google',
-          priority: 2,
           entries: [
             {
               keyphrase: 'Bobcat Village',
+              priority: 3,
               mode: 'exact'
             }
           ]
         })
         await secondresult.save()
         let results = await Result.findByQuery('bobcat village')
-        results[0].title.should.not.equal('Google')
-        results[1].title.should.equal('Google')
-        secondresult.priority = 0
+        results[0].title.should.equal('Google')
+        results[1].title.should.not.equal('Google')
+        secondresult.entries[0].priority = 1
         await secondresult.save()
         results = await Result.findByQuery('bobcat village')
-        results[1].title.should.not.equal('Google')
-        results[0].title.should.equal('Google')
+        results[0].title.should.not.equal('Google')
+        results[1].title.should.equal('Google')
       })
       after(function () {
         return db.disconnect()

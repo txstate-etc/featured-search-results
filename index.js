@@ -52,11 +52,9 @@ app.get('/peoplesearch', async function (req, res) {
     db.getval(countSQL, whereClause.binds),
     db.getall(listingSQL, whereClause.binds)
   ])
-  // eslint-disable-next-line no-return-assign
-  people.map(person => { delete person.plid && Object.keys(person).forEach(property => person[property] = (person[property] ? person[property].toString() : '')) })
+  response.results = people.map(person => ({ ...Object.keys(person).reduce((p, key) => ({ ...p, [key]: person[key] || '' }), {}), plid: undefined }))
   response.count = hitCount
   response.lastpage = Math.ceil(response.count / params.n)
-  response.results = people
   res.json(response)
 })
 app.get('/departments', async function (req, res) {
@@ -155,7 +153,8 @@ app.get('/counter/:id', async function (req, res) {
   res.cookie(cookiename, voted, { sameSite: 'None', secure: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 }).json({ count })
 })
 
-utils.apiservice.start().then(() => {
+utils.apiservice.start().then(async () => {
+  await Result.migratePriority()
   Result.currencyTestLoop()
   Query.cleanupLoop()
 })
