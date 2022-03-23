@@ -10,6 +10,18 @@ utils.apiservice.addDomain(/tsus\.edu$/)
 utils.apiservice.addDomain(/tjctc\.org$/)
 app.use(cookieparser())
 
+// Migrate and data Load tasks. May be best putting this closer to the service start at the bottom?
+const migrate = require('./lib/migrations')
+const loadPeople = require('./lib/loadPeople')
+try {
+  Promise.all([migrate(), loadPeople()])
+} catch (e) {
+  // Not sure what error handling we should add here yet but threw this around
+  // the migrate and load so we can continue gracefully with the assumption
+  // changes were rolled back on error.
+  console.log(e)
+}
+
 // models
 const Result = require('./models/result')
 const Query = require('./models/query')
@@ -26,11 +38,11 @@ function authorize (req, res, next) {
   next()
 }
 
-app.use('/counter', function (req, res, next) {
-  res.set('Access-Control-Allow-Credentials', 'true')
+app.use('/search', function (req, res, next) {
+  res.set('Access-Control-Allow-Origin', '*')
   next()
 })
-app.use('/peoplesearch', function (req, res, next) {
+app.use('/counter', function (req, res, next) {
   res.set('Access-Control-Allow-Credentials', 'true')
   next()
 })
@@ -52,9 +64,11 @@ app.get('/peoplesearch', async function (req, res) {
     db.getval(countSQL, whereClause.binds),
     db.getall(listingSQL, whereClause.binds)
   ])
-  response.results = people.map(person => ({ ...Object.keys(person).reduce((p, key) => ({ ...p, [key]: person[key] || '' }), {}), plid: undefined }))
+  // eslint-disable-next-line no-return-assign
+  people.map(person => { delete person.plid && Object.keys(person).forEach(property => person[property] = (person[property] ? person[property].toString() : '')) })
   response.count = hitCount
   response.lastpage = Math.ceil(response.count / params.n)
+  response.results = people
   res.json(response)
 })
 app.get('/departments', async function (req, res) {
@@ -153,8 +167,7 @@ app.get('/counter/:id', async function (req, res) {
   res.cookie(cookiename, voted, { sameSite: 'None', secure: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 }).json({ count })
 })
 
-utils.apiservice.start().then(async () => {
-  await Result.migratePriority()
+utils.apiservice.start().then(() => {
   Result.currencyTestLoop()
   Query.cleanupLoop()
 })

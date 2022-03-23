@@ -17,9 +17,13 @@ services:
     environment:
       DB_HOST: mongodb
       FEATURED_SECRET: mysecret
-      MYSQL_HOST: phrixos2.its.txstate.edu
+      #MYSQL_HOST: phrixos2.its.txstate.edu
+      MYSQL_HOST: itsdbqa-mysql.its.qual.txstate.edu
+      #MYSQL_HOST: 0.0.0.0
       MYSQL_DATABASE: peoplesearch
-      MYSQL_USER: dbread
+      MYSQL_PORT: 3307
+      #MYSQL_USER: dbread
+      MYSQL_USER: peoplesearch
       MYSQL_PASS: set in docker-compose.override.yml
       MYSQL_SKIPTZFIX: 'true'
     links:
