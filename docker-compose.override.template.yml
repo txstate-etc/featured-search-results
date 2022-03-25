@@ -1,0 +1,11 @@
+version: '3'
+services:
+  search-featured-results:
+    environment:
+      MOTION_TOKEN: bearer token for app to query motion 
+      MYSQL_PASS: password for primary MYSQL connection
+      WAREHOUSE_PASS: password for warehouse MYSQL connection
+networks:
+  default:
+    external:
+      name: txst-tunnel_default

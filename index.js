@@ -12,13 +12,9 @@ app.use(cookieparser())
 
 // Migrate and data Load tasks. May be best putting this closer to the service start at the bottom?
 const migrate = require('./lib/migrations')
-const loadPeople = require('./lib/loadPeople')
 try {
-  Promise.all([migrate(), loadPeople()])
+  Promise.all([migrate()])
 } catch (e) {
-  // Not sure what error handling we should add here yet but threw this around
-  // the migrate and load so we can continue gracefully with the assumption
-  // changes were rolled back on error.
   console.log(e)
 }
 
