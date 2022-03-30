@@ -3,7 +3,7 @@ services:
   search-featured-results:
     environment:
       MOTION_TOKEN: bearer token for app to query motion 
-      MYSQL_PASS: password for primary MYSQL connection
+      #MYSQL_PASS: password for primary MYSQL connection <- Commented out for local instance.
       WAREHOUSE_PASS: password for warehouse MYSQL connection
 networks:
   default:

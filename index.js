@@ -10,14 +10,6 @@ utils.apiservice.addDomain(/tsus\.edu$/)
 utils.apiservice.addDomain(/tjctc\.org$/)
 app.use(cookieparser())
 
-// Migrate and data Load tasks. May be best putting this closer to the service start at the bottom?
-const migrate = require('./lib/migrations')
-try {
-  Promise.all([migrate()])
-} catch (e) {
-  console.log(e)
-}
-
 // models
 const Result = require('./models/result')
 const Query = require('./models/query')
@@ -163,7 +155,13 @@ app.get('/counter/:id', async function (req, res) {
   res.cookie(cookiename, voted, { sameSite: 'None', secure: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 }).json({ count })
 })
 
-utils.apiservice.start().then(() => {
+// Migrate tables and check for DDL updates.
+// Then load `people` and `searchids` tables.
+// Then start the web service.
+// Then execute our maintenance tasks.
+const migrate = require('./lib/migrations')
+const loadPeople = require('./lib/loadPeople')
+migrate().then(loadPeople).then(utils.apiservice.start().then(() => {
   Result.currencyTestLoop()
   Query.cleanupLoop()
-})
+}))
