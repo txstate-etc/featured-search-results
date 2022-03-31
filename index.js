@@ -46,8 +46,8 @@ app.get('/peoplesearch', async function (req, res) {
 
   const peopleDef = Helpers.getPeopleDef()
   const whereClause = Helpers.getWhereClause(peopleDef, params.q)
-  const countSQL = 'select count(*) from swtpeople' + whereClause.sql
-  const listingSQL = 'select * from swtpeople' + whereClause.sql + Helpers.getSortClause(peopleDef, params.sort) + Helpers.getLimitClause(params.p, params.n)
+  const countSQL = 'select count(*) from people_search' + whereClause.sql
+  const listingSQL = `select * from people_search ${whereClause.sql} ${Helpers.getSortClause(peopleDef, params.sort)} ${Helpers.getLimitClause(params.p, params.n)}`
   const [hitCount, people] = await Promise.all([
     db.getval(countSQL, whereClause.binds),
     db.getall(listingSQL, whereClause.binds)
@@ -60,7 +60,7 @@ app.get('/peoplesearch', async function (req, res) {
   res.json(response)
 })
 app.get('/departments', async function (req, res) {
-  const departmentsSQL = 'select distinct department as name from swtpeople WHERE department is not null AND department != "" order by department asc'
+  const departmentsSQL = 'select distinct department as name from people WHERE department is not null AND department != "" order by department asc'
   const departments = await db.getall(departmentsSQL)
   res.json({
     count: departments.length,
@@ -155,13 +155,15 @@ app.get('/counter/:id', async function (req, res) {
   res.cookie(cookiename, voted, { sameSite: 'None', secure: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 }).json({ count })
 })
 
-// Migrate tables and check for DDL updates.
-// Then load `people` and `searchids` tables.
+// Migrate tables and check for DDL updates. Load `searchids` table from warehouse if empty.
+// Then load `people` table.
+// Then start cron schedule to reload the `people` table every 20th minute of the hour.
 // Then start the web service.
-// Then execute our maintenance tasks.
+// Then execute our intervaled status checks (10 min) and query cache cleanup (27 min).
 const migrate = require('./lib/migrations')
 const loadPeople = require('./lib/loadPeople')
-migrate().then(loadPeople).then(utils.apiservice.start().then(() => {
+const reloadPeopleCron = require('./lib/loadPeople_Cron')
+migrate().then(loadPeople).then(reloadPeopleCron.start()).then(utils.apiservice.start().then(() => {
   Result.currencyTestLoop()
   Query.cleanupLoop()
 }))
