@@ -163,7 +163,12 @@ app.get('/counter/:id', async function (req, res) {
 const migrate = require('./lib/migrations')
 const loadPeople = require('./lib/loadPeople')
 const reloadPeopleCron = require('./lib/loadPeople_Cron')
-migrate().then(loadPeople).then(reloadPeopleCron.start()).then(utils.apiservice.start().then(() => {
-  Result.currencyTestLoop()
-  Query.cleanupLoop()
-}))
+migrate()
+  .then(loadPeople)
+  .then(reloadPeopleCron.start())
+  .then(utils.apiservice.start()
+    .then(() => {
+      Result.currencyTestLoop()
+      Query.cleanupLoop()
+    })
+  )
