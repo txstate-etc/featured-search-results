@@ -60,7 +60,12 @@ app.get('/peoplesearch', async function (req, res) {
   res.json(response)
 })
 app.get('/departments', async function (req, res) {
-  const departmentsSQL = 'select distinct department as name from people WHERE department is not null AND department != "" order by department asc'
+  const departmentsSQL = `
+    SELECT DISTINCT department AS name from people 
+     WHERE department is not null
+       AND department != ""
+       AND category != "Retired"
+     ORDER BY department ASC`
   const departments = await db.getall(departmentsSQL)
   res.json({
     count: departments.length,

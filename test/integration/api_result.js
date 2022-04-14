@@ -1,6 +1,8 @@
 /* eslint-disable no-unused-expressions */
 /* global before, describe, it, should */
 require('should')
+// Got fed up with should's documentation not matching what's supported and generally being vague. Importing expect from chai.
+const expect = require('chai').expect
 const db = require('txstate-node-utils/lib/db')
 const util = require('txstate-node-utils/lib/util')
 const Result = require('../../models/result')
@@ -224,6 +226,62 @@ describe('integration', function () {
         fullSet.results.slice(0, 3).should.deepEqual(firstHalf.results)
         fullSet.results.slice(3).should.deepEqual(secondHalf.results)
       })
+      it('should return pronouns for a person with them set', async function () {
+        const withPronouns = (await get(`${localBase}?q=userid%20begins%20with%20ad13`)).results[0]
+        expect(withPronouns.pronouns).to.be.a('string').lengthOf.greaterThan(4)
+      })
+      it('should not return pronouns for a person without them set', async function () {
+        const withoutPronouns = (await get(`${localBase}?q=lastname%20begins%20with%20pill`)).results[0]
+        expect(withoutPronouns.pronouns).to.be.a('string').that.is.empty
+      })
+      it('should return a properly formatted office address when just the building is known', async function () {
+        const addressCheckers = await get(`${localBase}?q=address%20is%20ppa`)
+        expect(addressCheckers.results).to.be.an('array').lengthOf.greaterThan(0)
+      })
+      it('should return a properly formatted office address when building and room are known', async function () {
+        const addressCheckers = await get(`${localBase}?q=address%20contains%20'%20'%20and%20address%20begins%20with%20ppa`)
+        expect(addressCheckers.results).to.be.an('array').lengthOf.greaterThan(0)
+      })
+      it('should return a properly formatted office address when no office info is known', async function () {
+        const addressCheckers = await get(`${localBase}?q=userid%20is%20gc07`)
+        expect(addressCheckers.results[0].address).to.be.a('string').that.is.empty
+      })
+      it('should return results that include staff', async function () {
+        const categoriesTest = await get(`${localBase}?q=category%20begins%20with%20STA`)
+        expect(categoriesTest.results).to.be.an('array').lengthOf.greaterThan(0)
+      })
+      it('should return results that include faculty', async function () {
+        const categoriesTest = await get(`${localBase}?q=category%20begins%20with%20FA`)
+        expect(categoriesTest.results).to.be.an('array').lengthOf.greaterThan(0)
+      })
+      it('should return results that include retired', async function () {
+        const categoriesTest = await get(`${localBase}?q=category%20begins%20with%20RE`)
+        expect(categoriesTest.results).to.be.an('array').lengthOf.greaterThan(0)
+      })
+      it('should not return results that include student', async function () {
+        const categoriesTest = await get(`${localBase}?q=category%20begins%20with%20STU`)
+        expect(categoriesTest.results).to.be.an('array').that.is.empty
+      })
+      it('should return results with a phone value for active staff', async function () {
+        const categoriesTest = await get(`${localBase}?q=category%20begins%20with%20STA`)
+        expect(categoriesTest.results[0].phone).to.be.a('string').that.is.not.empty
+      })
+      it('should return results without a phone value for someone not likely to have one (retired)', async function () {
+        const categoriesTest = await get(`${localBase}?q=category%20begins%20with%20RE`)
+        expect(categoriesTest.results[0].phone).to.be.a('string').that.is.empty
+      })
+      it('should return results without an office address for someone retired', async function () {
+        const categoriesTest = await get(`${localBase}?q=category%20begins%20with%20RE`)
+        expect(categoriesTest.results[0].address).to.be.a('string').that.is.empty
+      })
+      it('should return results with the last known title of someone retired if there is still a record', async function () {
+        const categoriesTest = await get(`${localBase}?q=last%20beginswith%20pil%20category%20begins%20with%20RE`)
+        expect(categoriesTest.results[0].title).to.be.a('string').that.is.not.empty
+      })
+      it('should return results with the last known department of someone retired if there is still a record', async function () {
+        const categoriesTest = await get(`${localBase}?q=last%20beginswith%20pil%20category%20begins%20with%20RE`)
+        expect(categoriesTest.results[0].department).to.be.a('string').that.is.not.empty
+      })
     })
     // ======================================================================================================
     describe('departments', async function () {
@@ -231,6 +289,10 @@ describe('integration', function () {
         const depts = (await get('/departments'))
         depts.count.should.not.equal(0)
         depts.results[0].should.have.property('name')
+      })
+      it('should not return a result of departments only belonging to retired entries', async function () {
+        const depts = (await get('/departments'))
+        expect(depts.results).to.not.deep.include({ name: 'Classroom Technology Support' })
       })
     })
     // ======================================================================================================

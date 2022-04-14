@@ -1,6 +1,9 @@
 version: '3'
 services:
   search-featured-results:
+# Optional toggle to make test output cleaner when running tests. Toggle and configure as you see fit.
+#    logging:
+#      driver: none
     environment:
       MOTION_TOKEN: bearer token for app to query motion 
       #MYSQL_PASS: password for primary MYSQL connection <- Commented out for local instance.
