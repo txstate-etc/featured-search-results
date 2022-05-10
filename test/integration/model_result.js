@@ -1,12 +1,12 @@
 /* global after, before, describe, it */
 require('should')
 const db = require('txstate-node-utils/lib/db')
-var Result = require('../../models/result')
+const Result = require('../../models/result')
 
 describe('integration', function () {
   describe('model', function () {
     describe('result', function () {
-      var result = new Result()
+      const result = new Result()
       before(async function () {
         await db.connect()
         await Result.deleteMany()

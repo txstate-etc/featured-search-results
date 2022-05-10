@@ -1,10 +1,10 @@
 /* global before, describe, it, should */
 require('should')
-var Result = require('../../models/result')
+const Result = require('../../models/result')
 
 describe('model', function () {
   describe('result', function () {
-    var result = new Result()
+    const result = new Result()
     before(function () {
       result.fromJson({
         url: 'http://txstate.edu',
