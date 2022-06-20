@@ -121,7 +121,7 @@ ResultSchema.methods.sortedEntries = function () {
 ResultSchema.methods.match = function (words, wordset, wordsjoined) {
   [wordset, wordsjoined] = wordsProcessed(words, wordset, wordsjoined)
   for (const entry of this.sortedEntries()) {
-    if (entryMatch(entry, words, wordset, wordsjoined)) return entry.priority
+    if (entryMatch(entry, words, wordset, wordsjoined)) return entry.priority ?? 0
   }
   return undefined
 }
@@ -235,7 +235,7 @@ ResultSchema.statics.migratePriority = async function () {
     for (const entry of result.entries) {
       entry.priority = 1 - (result.priority || 1)
     }
-    delete result.priority
+    result.priority = undefined
     await result.save()
   }
 }

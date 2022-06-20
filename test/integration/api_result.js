@@ -40,19 +40,29 @@ const post = async function (endpoint, payload, skipSecret = false) {
   return client.post(endpoint, payload, { headers: headers })
 }
 const holdUntilServiceUp = async function (endpoint) {
-  for (let i = 0; i < 100; i++) {
+  while (true) {
     try {
       await get(endpoint)
       break
     } catch (e) {
       // keep trying until we get to 100
-      await util.sleep(50)
+      await util.sleep(150)
     }
   }
 }
 
 describe('integration', function () {
   describe('api', function () {
+    before(async function () {
+      this.timeout(30000)
+      await db.connect()
+      await Result.deleteMany()
+      await Query.deleteMany()
+      await Counter.deleteMany()
+      await db.disconnect()
+      await holdUntilServiceUp('/results')
+    })
+
     describe('result', function () {
       let id
       const result = {
@@ -69,14 +79,6 @@ describe('integration', function () {
         ],
         tags: ['marketing']
       }
-      before(async function () {
-        await db.connect()
-        await Result.deleteMany()
-        await Query.deleteMany()
-        await Counter.deleteMany()
-        await db.disconnect()
-        await holdUntilServiceUp('/results')
-      })
       it('should return 401 instead of accepting our result if X-Secret-Key header is absent', async function () {
         await post('/result', result, true).should.be.rejectedWith({ response: { status: 401 } })
       })
@@ -281,6 +283,14 @@ describe('integration', function () {
       it('should return results with the last known department of someone retired if there is still a record', async function () {
         const categoriesTest = await get(`${localBase}?q=last%20beginswith%20pil%20category%20begins%20with%20RE`)
         expect(categoriesTest.results[0].department).to.be.a('string').that.is.not.empty
+      })
+      it('should be able to sort by first name', async function () {
+        const sortTest = await get(`${localBase}?q=last%20beginswith%20P&n=5&sort=firstname`)
+        let last = sortTest.results[0]
+        for (const person of sortTest.results) {
+          expect(person.firstname.localeCompare(last.firstname)).to.be.greaterThan(-1)
+          last = person
+        }
       })
     })
     // ======================================================================================================

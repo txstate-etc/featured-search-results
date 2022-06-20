@@ -17,7 +17,7 @@ services:
     environment:
       DB_HOST: mongodb
       FEATURED_SECRET: mysecret
-      MOTION_URL: https://motion.tr.qual.txstate.edu/v2/api
+      MOTION_URL: https://motion.tr.qual.txstate.edu/v2/graphql
       MOTION_TOKEN: set this in docker-compose.override.yml
       #MYSQL_HOST: phrixos2.its.txstate.edu
       #MYSQL_HOST: itsdbqa-mysql.its.qual.txstate.edu
@@ -33,7 +33,7 @@ services:
       MYSQL_PASS: secret
       WAREHOUSE_HOST: phrixos2.its.txstate.edu
       WAREHOUSE_USER: dbread
-      WAREHOUSE_PASS: 
+      WAREHOUSE_PASS:
       WAREHOUSE_DATABASE: peoplesearch
     depends_on:
       - mongodb

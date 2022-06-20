@@ -65,7 +65,7 @@ app.get('/peoplesearch', async function (req, res) {
 })
 app.get('/departments', async function (req, res) {
   const departmentsSQL = `
-    SELECT DISTINCT department AS name from people 
+    SELECT DISTINCT department AS name from people
      WHERE department is not null
        AND department != ""
        AND category != "Retired"
@@ -172,12 +172,20 @@ app.get('/counter/:id', async function (req, res) {
 const migrate = require('./lib/migrations')
 const loadPeople = require('./lib/loadPeople')
 const reloadPeopleCron = require('./lib/loadPeople_Cron')
-migrate()
-  .then(loadPeople)
-  .then(reloadPeopleCron.start())
-  .then(utils.apiservice.start()
-    .then(() => {
-      Result.currencyTestLoop()
-      Query.cleanupLoop()
-    })
-  )
+
+async function main () {
+  await utils.apiservice.start(async () => {
+    await migrate()
+    await Result.migratePriority()
+    try {
+      await loadPeople()
+    } catch (e) {
+      console.error(e)
+    }
+  })
+  reloadPeopleCron.start()
+  Result.currencyTestLoop()
+  Query.cleanupLoop()
+}
+
+main().catch(e => { console.error(e); process.exit(1) })
