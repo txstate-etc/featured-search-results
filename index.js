@@ -80,7 +80,7 @@ app.get('/departments', async function (req, res) {
 // ====================================================================================================================================
 app.get('/search', async function (req, res) {
   const query = req.query.q
-  if (query && query.length > 1024) return
+  if (!query?.length || query.length < 3 || query.length > 1024) return res.json([])
   const asyoutype = !!req.query.asyoutype
   const results = await Result.findByQuery(query)
   const ret = results.map(result => result.basic())

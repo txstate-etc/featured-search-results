@@ -38,18 +38,6 @@ describe('integration', function () {
       it('should not get anything from database when no matching words are present', async function () {
         (await Result.getByQuery(['oklahoma'])).length.should.equal(0)
       })
-      it('should not get anything from database when one of three matching words is present', async function () {
-        (await Result.getByQuery(['texas'])).length.should.equal(0)
-      })
-      it('should not get anything from database when two of three matching words are present', async function () {
-        (await Result.getByQuery(['university', 'state'])).length.should.equal(0)
-      })
-      it('should not get anything from database when two words are present and only one matches', async function () {
-        (await Result.getByQuery(['oklahoma', 'state'])).length.should.equal(0)
-      })
-      it('should not get anything from database when three words are present and only two match', async function () {
-        (await Result.getByQuery(['university', 'state', 'oklahoma'])).length.should.equal(0)
-      })
       it('should be case insensitive', async function () {
         (await Result.findByQuery('bObCAt VILLagE')).length.should.equal(1)
       })

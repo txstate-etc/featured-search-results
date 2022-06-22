@@ -95,19 +95,26 @@ const entryMatch = function (entry, words, wordset, wordsjoined) {
   // after accounting for mode
   [wordset, wordsjoined] = wordsProcessed(words, wordset, wordsjoined)
   if (entry.mode === 'exact') {
-    if (wordsjoined === entry.keywords.join(' ')) return true
+    if (entry.keywords.length === words.length && entry.keywords.join(' ').startsWith(wordsjoined)) return true
   } else if (entry.mode === 'phrase') {
-    let index = 0
-    for (const word of words) {
-      if (word === entry.keywords[index]) index++
+    let count = 0
+    let prefixcount = 0
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i]
+      if (word === entry.keywords[count]) {
+        count++
+        prefixcount = 0
+      } else if (i === words.length - 1 && entry.keywords[count]?.startsWith(word)) prefixcount++
     }
-    if (index === entry.keywords.length) return true
+    if (count === entry.keywords.length || (count === entry.keywords.length - 1 && prefixcount === 1)) return true
   } else { // entry.mode == 'keyword'
     let count = 0
+    let prefixcount = 0
     for (const keyword of entry.keywords) {
       if (wordset.has(keyword)) count++
+      else if (words.some(w => keyword.startsWith(w))) prefixcount++
     }
-    if (count === entry.keywords.length) return true
+    if (count === entry.keywords.length || (count === entry.keywords.length - 1 && prefixcount === 1)) return true
   }
 
   return false
@@ -177,7 +184,11 @@ ResultSchema.statics.getWithQueries = async function (id) {
 }
 
 ResultSchema.statics.getByQuery = async function (words) {
-  return this.find({ entries: { $elemMatch: { keywords: { $not: { $elemMatch: { $nin: words } } } } } })
+  return await this.find({
+    $or: words.map(w => ({
+      'entries.keywords': { $regex: '^' + w }
+    }))
+  })
 }
 
 ResultSchema.statics.findByQuery = async function (query) {

@@ -117,6 +117,9 @@ describe('integration', function () {
       it('should return results when mode is phrase and query has an extra word at the end', async function () {
         (await get('/search?q=texas state homepage links')).length.should.equal(1)
       })
+      it('should return results when mode is phrase and query has a partial word at the end', async function () {
+        (await get('/search?q=texas state homepa')).length.should.equal(1)
+      })
       it('should return results when mode is phrase and query has an extra word at the beginning', async function () {
         (await get('/search?q=show texas state homepage')).length.should.equal(1)
       })
@@ -134,6 +137,12 @@ describe('integration', function () {
       })
       it('should return results when mode is keyword and query is out of order with extra words', async function () {
         (await get('/search?q=show texas full university bobcats state')).length.should.equal(1)
+      })
+      it('should return results when mode is keyword and query has a partial word at the end', async function () {
+        (await get('/search?q=texas state univ')).length.should.equal(1)
+      })
+      it('should return results when mode is keyword and query has a partial word at the end out of order', async function () {
+        (await get('/search?q=texas university sta')).length.should.equal(1)
       })
       it('should be able to retrieve a record by id', async function () {
         (await get('/result/' + id)).id.should.equal(id)
