@@ -53,7 +53,7 @@ ResultSchema.methods.outentries = function () {
     outentries.push({
       keyphrase: entry.keywords.join(' '),
       mode: entry.mode,
-      priority: entry.priority
+      priority: entry.priority ?? 0
     })
   }
   return outentries
@@ -62,8 +62,8 @@ ResultSchema.methods.outentries = function () {
 ResultSchema.methods.full = function () {
   const info = this.basicPlusId()
   info.brokensince = this.currency.brokensince
-  info.priority = this.priority
   info.entries = this.outentries()
+  info.priority = this.priority ?? Math.max(...info.entries.map(e => e.priority))
   info.tags = this.tags
   return info
 }
