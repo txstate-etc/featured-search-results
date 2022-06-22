@@ -49,10 +49,11 @@ ResultSchema.methods.basicPlusId = function () {
 
 ResultSchema.methods.outentries = function () {
   const outentries = []
-  for (const entry of this.entries) {
+  for (const entry of this.sortedEntries()) {
     outentries.push({
       keyphrase: entry.keywords.join(' '),
-      mode: entry.mode
+      mode: entry.mode,
+      priority: entry.priority
     })
   }
   return outentries
