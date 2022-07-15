@@ -32,6 +32,7 @@ app.use('/search', function (req, res, next) {
 })
 app.use('/peoplesearch', function (req, res, next) {
   res.set('Access-Control-Allow-Credentials', 'true')
+  res.set('Access-Control-Allow-Origin', '*')
   next()
 })
 app.use('/counter', function (req, res, next) {
