@@ -4,7 +4,7 @@ const helpers = require('../lib/helpers')
 const util = require('txstate-node-utils/lib/util')
 const moment = require('moment')
 const axios = require('axios')
-const { sortby } = require('txstate-utils')
+const { sortby, mapConcurrent } = require('txstate-utils')
 
 const ResultSchema = new Schema({
   url: String,
@@ -205,7 +205,18 @@ ResultSchema.statics.findByQuery = async function (query) {
 ResultSchema.methods.currencyTest = async function () {
   const result = this
   try {
-    await axios.get(result.url, { timeout: 5000 })
+    let alreadypassed = false
+    if (result.url.includes('txstate.edu')) {
+      try {
+        const newUrl = result.url.replace(/txstate\.edu/, 'txst.edu')
+        await axios.get(newUrl, { timeout: 5000 })
+        result.url = newUrl
+        alreadypassed = true
+      } catch (e) {
+        // can't switch to txst.edu yet
+      }
+    }
+    if (!alreadypassed) await axios.get(result.url, { timeout: 5000 })
     result.currency.broken = false
     result.currency.brokensince = null
   } catch (e) {
@@ -228,7 +239,7 @@ ResultSchema.statics.currencyTestAll = async function () {
       'currency.tested': { $exists: false }
     }]
   })
-  await Promise.all(results.map((result) => result.currencyTest()))
+  await mapConcurrent(results, result => result.currencyTest())
 }
 
 ResultSchema.statics.currencyTestLoop = async function () {

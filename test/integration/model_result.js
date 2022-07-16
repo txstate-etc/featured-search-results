@@ -94,6 +94,24 @@ describe('integration', function () {
         const goodresult = (await Result.findByQuery('texas university state'))[0]
         goodresult.currency.broken.should.be.false()
       })
+      it('should migrate txstate.edu links to txst.edu', async function () {
+        const result = new Result()
+        result.fromJson({
+          url: 'https://www.txstate.edu',
+          title: 'Texas State University Homepage',
+          entries: [
+            {
+              keyphrase: 'txst test',
+              mode: 'exact'
+            }
+          ],
+          tags: ['broken']
+        })
+        await result.save()
+        await Result.currencyTestAll()
+        const badresult = (await Result.findByQuery('txst test'))[0]
+        badresult.url.should.equal('https://www.txst.edu')
+      })
       it('should sort search results by priority', async function () {
         const secondresult = new Result()
         secondresult.fromJson({

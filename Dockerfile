@@ -1,6 +1,6 @@
 FROM txstatemws/keygenerator:latest as keygen
 
-FROM node:16-alpine as npminstall
+FROM node:18-alpine as npminstall
 RUN apk update && apk upgrade
 WORKDIR /usr/src/app
 COPY package.json ./

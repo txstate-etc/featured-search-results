@@ -13,7 +13,6 @@ services:
       - mongodb
   search-featured-results:
     build: .
-    read_only: true
     environment:
       DB_HOST: mongodb
       FEATURED_SECRET: mysecret
@@ -40,7 +39,6 @@ services:
       - mysql
   mongodb:
     image: mongo:latest
-    command: --logpath /dev/null
   mysql:
     # Switched to using local instance of mysql for development so we can
     # docker-compose down -v to reset when we want to rebuild a table.
