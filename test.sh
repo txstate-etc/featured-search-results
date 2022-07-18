@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 if [ $# -eq 0 ]; then
   # --attach to suppress logging output from other containers.
   docker compose -f docker-compose.test.yml \
