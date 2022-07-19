@@ -10,5 +10,4 @@ COPY lib lib
 COPY models models
 COPY index.js index.js
 
-ENV NPM_CONFIG_UPDATE_NOTIFIER=false
 CMD ["node", "index.js"]
