@@ -26,13 +26,8 @@
     "should": "^13.2.3"
   },
   "scripts": {
-    "start": "node ./index",
     "test": "mocha test/unit",
-    "integration": "mocha --exit test/unit test/integration",
-    "qual": "docker build --no-cache -t registry.its.txstate.edu/search-featured-results:qual .",
-    "push": "npm run qual && docker push registry.its.txstate.edu/search-featured-results:qual",
-    "deployENV": "func() { ansible-playbook -i ../Ansible/inventories/$1/inventory.ini -K ../Ansible/search-featured-results.yml $2 ; }; func",
-    "checkENV": "func() { npm run deployENV -- $1 \"--check --diff\" ; }; func"
+    "integration": "mocha --exit test/unit test/integration"
   },
   "bin": "index.js",
   "repository": {
