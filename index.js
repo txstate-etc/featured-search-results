@@ -91,7 +91,7 @@ app.get('/search', async function (req, res) {
 app.get('/linkcheck', async function (req, res) {
   const results = await Result.getAllWithQueries()
   const output = `${
-    results.map(r => `<a href="${r.url}">${r.entries.map(e => e.keywords.join(' ')).join(', ')}</a>`)
+    results.map(r => `<a href="${r.url}">${r.entries.map(e => e.keywords.join(' ')).join(', ')}</a>`).join('<br>')
   }`
   res.set('content-type', 'text/html')
   res.set('content-length', Buffer.byteLength(output, 'utf-8'))
