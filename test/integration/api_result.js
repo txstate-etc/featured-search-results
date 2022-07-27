@@ -172,6 +172,11 @@ describe('integration', function () {
           entry.count.should.be.greaterThan(0)
         }
       })
+      it('should return links on the /linkcheck endpoint', async function () {
+        const { data } = await client.get('/linkcheck')
+        const m = data.matchAll(/<a href/g)
+        expect(Array.from(m).length).to.be.greaterThan(0)
+      })
     })
     // ======================================================================================================
     describe('peoplesearch', async function () {

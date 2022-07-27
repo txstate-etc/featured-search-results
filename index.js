@@ -88,6 +88,15 @@ app.get('/search', async function (req, res) {
   res.json(ret)
   if (!asyoutype) Query.record(query, results)
 })
+app.get('/linkcheck', async function (req, res) {
+  const results = await Result.getAllWithQueries()
+  const output = `${
+    results.map(r => `<a href="${r.url}">${r.entries.map(e => e.keywords.join(' ')).join(', ')}</a>`)
+  }`
+  res.set('content-type', 'text/html')
+  res.set('content-length', Buffer.byteLength(output, 'utf-8'))
+  res.send(output)
+})
 app.get('/adminsearch', authorize, async function (req, res) {
   const query = req.query.q
   if (query && query.length > 1024) return res.status(400).send('Query length is limited to 1kB.')
