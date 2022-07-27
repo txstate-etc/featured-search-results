@@ -3,7 +3,6 @@ services:
   search-featured-results:
     environment:
       MOTION_TOKEN: bearer token for app to query motion
-      WAREHOUSE_PASS: password for warehouse MYSQL connection
 networks:
   default:
     external:

@@ -165,11 +165,6 @@ app.get('/counter/:id', async function (req, res) {
   res.cookie(cookiename, voted, { sameSite: 'None', secure: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 }).json({ count })
 })
 
-// Migrate tables and check for DDL updates. Load `searchids` table from warehouse if empty.
-// Then load `people` table.
-// Then start cron schedule to reload the `people` table every 20th minute of the hour.
-// Then start the web service.
-// Then execute our intervaled status checks (10 min) and query cache cleanup (27 min).
 const migrate = require('./lib/migrations')
 const loadPeople = require('./lib/loadPeople')
 const reloadPeopleCron = require('./lib/loadPeople_Cron')
