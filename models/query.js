@@ -29,7 +29,7 @@ QuerySchema.methods.basic = function () {
 QuerySchema.statics.record = async function (query, results) {
   const Query = this
   if (util.isBlank(query)) return
-  return Query.findOneAndUpdate({ query: query.toLowerCase().trim() }, { $set: { results: results }, $push: { hits: new Date() } }, { upsert: true })
+  return Query.findOneAndUpdate({ query: query.toLowerCase().trim() }, { $set: { results }, $push: { hits: new Date() } }, { upsert: true })
 }
 
 QuerySchema.statics.getAllQueries = async function () {

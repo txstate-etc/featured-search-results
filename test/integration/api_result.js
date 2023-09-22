@@ -11,14 +11,7 @@ const Counter = require('../../models/counter')
 const axios = require('axios')
 const https = require('https')
 const moment = require('moment')
-/* I'm not sure why fast-deep-equal being called here isn't catching what I need it to.
-|  It returns false when I run it against the two objects but asserts true? I need to dig into it more.
-|  Making use of should's native deepEqual in the mean time.
-const fDeepEqual = require('fast-deep-equal')
-should.Assertion.add('fDeepEqual', function (compare) {
-  this.params = { operator: 'to be fast-deep-equal to' }
-  fDeepEqual(this.obj, compare)
-}) */
+
 should.Assertion.add('sortedOn', function (property) {
   for (let current = 1, previous = 0; current < this.obj.length; previous = current++) {
     this.obj[current][property].should.be.aboveOrEqual(this.obj[previous][property])
@@ -32,12 +25,12 @@ const client = axios.create({ httpsAgent: agent, baseURL: 'https://' + process.e
 const get = async function (endpoint, skipSecret = false) {
   const headers = {}
   if (!skipSecret) headers['X-Secret-Key'] = process.env.FEATURED_SECRET
-  return (await client.get(endpoint, { headers: headers })).data
+  return (await client.get(endpoint, { headers })).data
 }
 const post = async function (endpoint, payload, skipSecret = false) {
   const headers = {}
   if (!skipSecret) headers['X-Secret-Key'] = process.env.FEATURED_SECRET
-  return client.post(endpoint, payload, { headers: headers })
+  return client.post(endpoint, payload, { headers })
 }
 const holdUntilServiceUp = async function (endpoint) {
   while (true) {
@@ -247,7 +240,7 @@ describe('integration', function () {
         expect(withPronouns.pronouns).to.be.a('string').lengthOf.greaterThan(4)
       })
       it('should not return pronouns for a person without them set', async function () {
-        const withoutPronouns = (await get(`${localBase}?q=lastname%20begins%20with%20pill`)).results[0]
+        const withoutPronouns = (await get(`${localBase}?q=lastname%20begins%20with%20nickell`)).results[0]
         expect(withoutPronouns.pronouns).to.be.a('string').that.is.empty
       })
       it('should return a properly formatted office address when just the building is known', async function () {
@@ -258,8 +251,8 @@ describe('integration', function () {
         const addressCheckers = await get(`${localBase}?q=address%20contains%20'%20'%20and%20address%20begins%20with%20ppa`)
         expect(addressCheckers.results).to.be.an('array').lengthOf.greaterThan(0)
       })
-      it('should return a properly formatted office address when no office info is known', async function () {
-        const addressCheckers = await get(`${localBase}?q=userid%20is%20gc07`)
+      it('should return undefined when no office info is known', async function () {
+        const addressCheckers = await get(`${localBase}?q=userid%20is%20jr15`)
         expect(addressCheckers.results[0].address).to.be.a('string').that.is.empty
       })
       it('should return results that include staff', async function () {

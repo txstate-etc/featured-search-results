@@ -28,7 +28,7 @@ services:
   mysql:
     # Switched to using local instance of mysql for development so we can
     # docker-compose down -v to reset when we want to rebuild a table.
-    image: percona:5
+    image: mariadb
     environment:
       MYSQL_ROOT_PASSWORD: secret
       MYSQL_DATABASE: peoplesearch
