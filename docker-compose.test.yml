@@ -19,7 +19,6 @@ services:
       FEATURED_SECRET: mysecret
       MOTION_URL: https://motion.tr.qual.txstate.edu/v2/graphql
       MOTION_TOKEN: set this in docker-compose.override.yml
-      MYSQL_SKIPTZFIX: 'true'
       MYSQL_HOST: mysql
       MYSQL_DATABASE: peoplesearch
       MYSQL_PASS: secret

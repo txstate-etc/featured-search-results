@@ -35,3 +35,13 @@ Include JSON in the body, set Content-Type header on the request to `application
 # authorization
 * `GET /search` is open to the public
 * All other endpoints secured by single secret key for server-to-server editing
+
+# run tests
+`./test.sh` in the root directory
+
+Use `./test.sh show` to show all the logs from the other containers (useful for debugging)
+
+# run development environment
+Add a motion token to docker-compose.override.yml, then
+
+`docker compose up --build`

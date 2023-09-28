@@ -1,9 +1,0 @@
-version: '3'
-services:
-  search-featured-results:
-    environment:
-      MOTION_TOKEN: bearer token for app to query motion
-networks:
-  default:
-    external:
-      name: txst-tunnel_default

@@ -4,7 +4,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    read_only: true
     environment:
       DB_HOST: mongodb
       NODE_ENV: development
@@ -15,11 +14,8 @@ services:
       MYSQL_DATABASE: peoplesearch
       MYSQL_PORT: 3306
       MYSQL_PASS: secret
-      MYSQL_SKIPTZFIX: 'true'
     volumes:
-      - ./lib:/usr/src/app/lib
-      - ./models:/usr/src/app/models
-      - ./index.js:/usr/src/app/index.js
+      - ./src:/usr/app/src
     ports:
       - 80:80
     depends_on:

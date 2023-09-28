@@ -1,12 +1,10 @@
-FROM node:20-alpine
-RUN apk update && apk upgrade
-WORKDIR /usr/src/app
+FROM mcr.microsoft.com/playwright:v1.38.0-jammy
+
 COPY package.json ./
+COPY package-lock.json ./
+COPY tsconfig.json ./
+COPY playwright.config.ts ./
+COPY tests tests
 
-RUN npm --development --quiet install
-
-COPY lib lib
-COPY models models
-COPY test test
-
-CMD ["npm", "run-script", "integration"]
+RUN npm --quiet install
+CMD npm test
