@@ -32,7 +32,7 @@ const editorGroupCache = new Cache(async () => {
         canLogin
       }
     }
-  `)
+  `, { groupName: process.env.EDITOR_GROUP_NAME })
   return new Set(accounts.filter(a => a.canLogin).map(a => a.netid))
 })
 
@@ -43,7 +43,10 @@ export async function handle ({ event, resolve }) {
   const token = event.cookies.get('token')
   if (token?.length) {
     const payload = await authenticator.get(token)
-    if (payload?.sub?.length) event.locals.isEditor = (await editorGroupCache.get()).has(payload.sub)
+    if (payload?.sub?.length) {
+      event.locals.login = payload.sub
+      event.locals.isEditor = (await editorGroupCache.get()).has(payload.sub)
+    }
   }
 
   if (event.request.method === 'OPTIONS' && (
