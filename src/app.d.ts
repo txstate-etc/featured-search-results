@@ -5,6 +5,7 @@ declare global {
 		// interface Error {}
 		interface Locals {
 			login?: string
+			/** Boolean - Result of request hooks determining if this request is from someone allowed to manage SFRs. */
 			isEditor?: boolean
 		}
 		// interface PageData {}

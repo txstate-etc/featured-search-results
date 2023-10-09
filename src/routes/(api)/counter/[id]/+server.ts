@@ -1,12 +1,13 @@
 import { Counter, Result, type ResultDocument } from '$lib/models'
 import { error, json } from '@sveltejs/kit'
-import { isBlank } from 'txstate-utils'
+// import { isBlank } from 'txstate-utils'
+import { idFromUrl } from '$lib/util'
 
-function idFromUrl (url: URL) {
+/* function idFromUrl (url: URL) {
   const id = (url.searchParams.get('id') ?? undefined)?.trim()
   if (isBlank(id)) throw error(400, { message: 'id is required.' })
   return id
-}
+} */
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET ({ url, locals, cookies }) {

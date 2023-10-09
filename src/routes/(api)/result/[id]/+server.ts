@@ -1,12 +1,6 @@
 import { Result, type ResultDocument } from '$lib/models'
 import { error, json } from '@sveltejs/kit'
-import { isBlank } from 'txstate-utils'
-
-function idFromUrl (url: URL) {
-  const id = (url.searchParams.get('id') ?? undefined)?.trim()
-  if (isBlank(id) || !/^[a-f0-9]+$/i.test(id)) throw error(400, { message: 'Bad id format. Should be a hex string.' })
-  return id
-}
+import { idFromUrl } from '$lib/util'
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET ({ url, locals }) {
@@ -19,9 +13,9 @@ export async function GET ({ url, locals }) {
 /** @type {import('./$types').RequestHandler} */
 export async function PUT ({ url, request, locals }) {
   if (!locals.isEditor) throw error(401)
-  const id = idFromUrl(url)
   const body = await request.json()
   if (!body) throw error(400, { message: 'POST body was not parseable JSON.' })
+  const id = idFromUrl(url)
   const result = await Result.findById(id) as ResultDocument | undefined
   if (!result) throw error(404, { message: 'That result id does not exist.' })
   result.fromJson(body)

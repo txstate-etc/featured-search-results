@@ -1,21 +1,37 @@
 /* eslint-disable quote-props */
+import { isBlank } from 'txstate-utils'
+import { error } from '@sveltejs/kit'
 
+/** "Cleans" `query` to all lowercase, with all whitespaces reduced to single space, and trims that result.
+ * If there's anything left the result is returned as a tokenized string array split on the spaces. Else an
+ * empty array is returned. */
 export function querysplit (query: string) {
   const clean = query.toLowerCase().replace(/[^\w-]+/g, ' ').trim()
   if (clean.length === 0) return []
   return clean.split(' ')
 }
 
-export function getFields (hash: any) { // Get the values from the hash as the field names in a SQL table.
-  return new Set(Object.values(hash)) // Set() to just the distinct field names.
+interface SearchMappings {
+  /** A mapping of search aliases to the table field they correspond to. */
+  hash: Record<string, string>,
+  /** The default fields to compare search values against when none are specified. */
+  defaults: string[],
+  /** Convenience reference of distinct table fields available to compare against. */
+  fields: Set<string>
 }
 
-export function getAliases (hash: any) { // Get the keys from the hash as the aliases to the field names in a SQL table.
+/** Get the distinct values from `hash` as the field names in an SQL table. */
+export function getFields (hash: any) {
+  return new Set<string>(Object.values(hash)) // Set() to just the distinct field names.
+}
+/** Get the keys from `hash` as the aliases to the field names in an SQL table. */
+export function getAliases (hash: Record<string,string>) {
   return Object.keys(hash)
 }
-
-export function getPeopleDef () {
-  const hash = {
+/** Returns an object reference to a utility representation of the relationship between search
+ *  terms and the underlying `people` table. */
+export function getPeopleDef (): SearchMappings {
+  const hash: Record<string,string> = {
     'lastname': 'lastname',
     'last name': 'lastname',
     'last': 'lastname',
@@ -44,24 +60,32 @@ export function getPeopleDef () {
     'searchid': 'searchid',
     'category': 'category'
   }
+  const defaults: string[] = ['lastname', 'firstname', 'phone', 'email']
   return {
     hash,
-    defaults: ['lastname', 'firstname', 'phone', 'email'],
+    defaults,
     fields: getFields(hash)
-  }
+  } as const
 }
 
-export function getWhereClause (tableDef: any, search: string) {
-  /* Takes tableDef and parsable search string as parameters.
-  |    tableDef must define:
-  |      - hash: An object that maps alias strings as keys to field names as values.
-  |      - defaults: Array of default fields to compare on.
-  |    search must be:
-  |      - A string that will be parsed for tokens of simple search terms, tokens of advanced search phrases, or combos of the two.
-  |      - Advanced search phrases consist of the following RegEx-ish form.
-  |          (and |not |+|-)?((tableDef hash's Alias keys) *(contains|(ends|begins|starts) with|is|:|=|<|>) *)?(["']*|[,; ]+)what to search for\5+[,;]? *
-  |          <   likeops   >  <         aliases          >  <                 wildcardops                 >   <<     \5     >      whatfor       >
-  |  Returns an object of {sql: string, binds: [string]}. Example: {sql: ' where field like ?', binds: ['%whatfor%']}
+/** Returns an SQL `where` clause using `tableDef` and parsable `search` string as parameters.
+ * @param {SearchMappings} tableDef - A utility object used to associate search aliases and defaults to table fields.
+ * @param {string} search
+ * * A string that will be parsed for tokens of simple search terms, tokens of advanced search phrases, or combos of the two.
+ * @returns
+ * ```
+ *   { sql: string, binds: [string] }
+ * ```
+ * @example
+ * ```
+ *   getWhereClause(someTableDef,'alias1 is a, alias2 begins with b')
+ *   // Returns:
+ *   { sql: ' where field1 like ? and field2 like ?', binds: ['a', 'b%'] }
+ * ``` */
+export function getWhereClause (tableDef: SearchMappings, search: string) {
+  /* Advanced search phrases consist of the following RegEx-ish form.
+  (and |not |+|-)?((tableDef.hash.keys) *(contains|(ends|begins|starts) with|is|:|=|<|>) *)?(["']*|[,; ]+)<what to search for>\5+[,;]? *
+  <   likeops   >  <     aliases      >  <                 wildcardops                 >   <<     \5     >      whatfor      >
   */
   const binds = []
   const fieldAliases = getAliases(tableDef.hash).join('|')
@@ -88,22 +112,26 @@ export function getWhereClause (tableDef: any, search: string) {
     else /*  /^(?:and\s+|\+)$/ or !likeop */ clause = `like ${clause}`
     // Prepend our alias's SQL field name, if alias was parsed, else default to tableDef.defaults.
     if (alias) binds.push(wildcardbind) && (clause = `${tableDef.hash[alias]} ${clause}`)
-    else clause = tableDef.defaults.map((field: any) => (binds.push(wildcardbind) && `(${field} ${clause})`)).join(' or ')
+    else clause = tableDef.defaults.map((field: string) => (binds.push(wildcardbind) && `(${field} ${clause})`)).join(' or ')
     whereClause.push(`(${clause})`)
   }
   return { sql: ' where ' + whereClause.join(' and '), binds }
 }
 
-export function getSortClause (tableDef: any, ...sortOptions: any[]) {
-  /* Takes multiple sortOption parameters after tableDef.
-  |    tableDef must define:
-  |      - defaults: Array of default fields to compare on. First value is the sort default.
-  |      - fields: Set of field names the table can be sorted on.
-  |    sortOptions can be:
-  |      - object pairs with {fields: (comma delimited string) and order: (d|desc)} - and/or
-  |      - a comma delimited string of one or more options that will get a default order of asc(ending).
-  |  Returns a string. Example: 'order by field1 desc, field2 asc'
-  */
+type SortOptions = string | { fields: string, order: 'd'|'desc' } | undefined
+/** Takes multiple sortOption parameters after tableDef.
+ * @param {SearchMappings} tableDef - A utility object used to associate search aliases and defaults to table fields.
+ * @param {any[]} sortOptions
+ * * object pairs of `{fields: 'comma, delimited, string' order: 'd'|'desc'}`
+ * * AND/OR a `'comma, delimited, string'` of one or more fields that will get a default order of asc(ending).
+ * @returns {string} an SQL sort clause as a string with `tableDef` defaults if no valid fields are specified in `sortOptions` array.
+ * @example
+   ```
+     getSortClause(someTableDef, [{ fields: 'field1', order: 'desc'}, 'field2, field3'])
+     // Returns:
+     'order by field1 desc, field2 asc, field3 asc'
+   ``` */
+export function getSortClause (tableDef: SearchMappings, ...sortOptions: SortOptions[]) {
   const sortDefault = tableDef.defaults.join(', ')
   if (sortOptions.length === 0) return ` order by ${sortDefault}`
 
@@ -120,20 +148,37 @@ export function getSortClause (tableDef: any, ...sortOptions: any[]) {
       for (const fieldOp of fieldOps) {
         if (tableDef.fields.has(fieldOp)) sortClause.push(fieldOp + ((optionToken.order?.match(/^(?:d|desc)/i)) ? ' desc' : ' asc'))
       }
-    } else throw new TypeError('getSortClause(tableDef, ...sortOptions): sortOptions must be object pairs of fields and order or comma delimited strings.')
+    } else throw new TypeError('getSortClause(tableDef, ...sortOptions): sortOptions must be object pairs of `fields` and `order` or comma delimited strings.')
   }
   return 'order by ' + (sortClause.length === 0 ? sortDefault + ' asc' : sortClause.join(', ')) + ', email'
 }
 
+/** Generates an SQL limit clause from base 10 numeric parameters.
+ * @param {number} pageNum The page number of the result subset for subsets of size = or rounded up to `pageSizes`.
+ * - Sanity checked for truthy greater than 0, else defaults to 0 by way of an empty string.
+ * @param {number} pageSizes The maximum number of results allowed per page.
+ * - Sanity checked for truthy greater than 0, else defaults to all results by way of an emptry string.
+ * @returns an SQL limit clause as string.
+ * @example
+   ```
+   getLimitClause(3, 6)
+   // Returns:
+   ' limit 12, 6'
+   ``` */
 export function getLimitClause (pageNum: number, pageSizes: number) {
-  /* Takes base 10 numeric parameters pageNum and pageSizes.
-  |    pageNum: The page number of the result subset for subsets of size = or rounded up to pageSizes.
-  |      - Sanity checked for truthy greater than 0, else defaults to 0 by way of an empty string.
-  |    pageSizes: The maximum number of results allowed per page.
-  |      - Sanity checked for truthy greater than 0, else defaults to all results by way of an emptry string.
-  |  Returns a string. Example: ' limit 12, 3'
-  */
   const limitDefault = ''
   const offset = (pageNum > 1) ? `${(pageNum - 1) * pageSizes}, ` : ''
   return (pageSizes > 0) ? ` limit ${offset}${pageSizes}` : limitDefault
+}
+
+/** Extracts and returns the `id` prameter from `url`.
+ * @param {URL} url - The URL to extract id from.
+ * @throws error(400, {message: 'id is required.' }) - if `id` is blank or missing.
+ * @throws error(400, {message: 'Bad id format...' }) - if `id` is not a hexadecimal.
+*/
+export function idFromUrl (url: URL) {
+  const id = (url.searchParams.get('id') ?? undefined)?.trim()
+  if (isBlank(id)) throw error(400, { message: 'id is requried.' })
+  if (!/^[a-f0-9]+$/i.test(id)) throw error(400, { message: 'Bad id format. Should be a hex string.' })
+  return id
 }

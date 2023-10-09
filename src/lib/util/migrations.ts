@@ -88,7 +88,7 @@ const exclusionsTableDDL = `
 function cleanDDL (ddl: string) {
   // Make sure all :table-options: in the DDL above have = between key value pairs. Example: COMMENT='Some comment for table.'
   // Not nessary for :column-options:.
-  return ddl.replace(/`/g, '').replace(/\s\s+/g, ' ').replace(/\n/g, ' ').replace(/ UNSIGNED /g, ' unsigned ').trim()
+  return ddl.replace(/`/g, '').replace(/\s\s+/g, ' ').replace(/\n/g, ' ').replace(/ UNSIGNED /g, ' unsigned ').replace(/ (CHARSET=utf8mb4).*COMMENT=/, ' $1 COMMENT=').trim()
 }
 
 /** Returns the current time in a compact format suitable for a table name.

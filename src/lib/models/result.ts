@@ -1,3 +1,15 @@
+/** In the parlance of Search-Featured-Results a `result` is an associative object that searches
+ * can be compared against for correlated url:title pairs to be ranked and returned. The search
+ * queries are compared against `result` objects' lists of corresponding `entries` (or "alias"
+ * associations) and ranked based on how strongly the `priority` of the associations correlate
+ * the query to their parent `result` record.
+ *
+ * Below we model two primary interface paths for result objects. One is the Mongoose model
+ * for storage and efficient retrieval from a Mongo database. These interfaces begin their names
+ * with the letter 'I'. The second interface path is for the front end API to be able to recieve
+ * and manipulate the result data for API consumers. We do duplicate fields between the two paths
+ * and we are fine with that as we want the Mongoose needs decoupled from the front end needs. */
+
 import axios from 'axios'
 import { DateTime } from 'luxon'
 import { type Model, model, Schema, type Document, type ObjectId } from 'mongoose'
@@ -7,22 +19,16 @@ import type { QueryDocument } from './query.js'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
 
-interface IResult {
-  url: string
-  title: string
-  currency: {
-    broken: boolean
-    tested: Date
-    brokensince: Date
-  }
-  entries: IResultEntry[]
-  tags: string[]
+export interface ResultEntry {
+  /** Space delimited list of words to associate with the URL based on the `mode`. */
+  keyphrase: string
+  mode: ResultModes
+  /** Preferably a percentage, expressed as an integer, of how strongly the keywords associate to the parent featured Result. */
+  priority: number
 }
 
-interface IResultEntry {
-  keywords: string[]
-  mode: ResultModes
-  priority: number
+export interface ResultEntryWithCount extends ResultEntry {
+  count: number
 }
 
 export interface ResultBasic {
@@ -33,17 +39,6 @@ export interface ResultBasic {
 export interface ResultBasicPlusId extends ResultBasic {
   id: string
 }
-
-export interface ResultEntry {
-  keyphrase: string
-  mode: ResultModes
-  priority: number
-}
-
-export interface ResultEntryWithCount extends ResultEntry {
-  count: number
-}
-
 export interface ResultFull extends ResultBasicPlusId {
   brokensince: Date
   entries: ResultEntry[]
@@ -54,12 +49,19 @@ export interface ResultFullWithCount extends ResultFull {
   entries: ResultEntryWithCount[]
 }
 
+export type ResultDocument = Document<ObjectId> & IResult & IResultMethods
+
+export type ResultDocumentWithQueries = ResultDocument & {
+  queries: QueryDocument[]
+}
+
 interface IResultMethods {
   basic: () => ResultBasic
   basicPlusId: () => ResultBasicPlusId
   outentries: () => ResultEntry[]
   full: () => ResultFull
   fullWithCount: () => ResultFullWithCount
+  /** Returns a `result`'s `entries` sorted by their decending `priority`. */
   sortedEntries: () => IResultEntry[]
   match: (words: string[], wordset: Set<string>, wordsjoined: string) => number | undefined
   fromJson: (input: any) => void
@@ -69,23 +71,42 @@ interface IResultMethods {
   currencyTest: () => Promise<void>
 }
 
-export type ResultDocument = Document<ObjectId> & IResult & IResultMethods
-
-export type ResultDocumentWithQueries = ResultDocument & {
-  queries: QueryDocument[]
-}
-
 interface ResultModel extends Model<IResult, any, IResultMethods> {
   getAllWithQueries: () => Promise<ResultDocumentWithQueries[]>
   getWithQueries: (id: string) => Promise<ResultDocumentWithQueries>
+  /** Returns cursor to all results with `keywords` that start with any of the `words`. */
   getByQuery: (words: string[]) => Promise<ResultDocument[]>
   findByQuery: (query?: string) => Promise<ResultDocument[]>
   currencyTestAll: () => Promise<void>
   currencyTestLoop: () => Promise<void>
 }
 
+/** Inteface for MongoDB storage of the `result` collection. */
+interface IResult {
+  url: string
+  title: string
+  /** Currency is whether the URL associated with the `result` doesn't get a 200 response on tests.
+   * TODO - Detect Redirects as well. */
+  currency: {
+    broken: boolean
+    tested: Date
+    brokensince: Date
+    // isRedirect: boolean
+  }
+  entries: IResultEntry[]
+  tags: string[]
+}
+/** Inteface for MongoDB storage of alias `entries` within the MongoDB `result` collection.
+ * Note that the `keyphrase: string` of `ResultEntry` is broken into `keywords: string[]`
+ * to allow for more efficient indexing by Mongoose. */
+interface IResultEntry {
+  keywords: string[]
+  mode: ResultModes
+  priority: number
+}
+
 const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
-  url: String,
+  url: { type: String, unique: true },
   title: String,
   currency: {
     broken: Boolean,
@@ -125,6 +146,7 @@ ResultSchema.methods.basicPlusId = function () {
   }
 }
 
+/** Gets a list of all the alias `entries` of a parent `result` object. */
 ResultSchema.methods.outentries = function () {
   const outentries = []
   for (const entry of this.sortedEntries()) {
@@ -144,7 +166,9 @@ ResultSchema.methods.full = function () {
     ...info,
     brokensince: this.currency.brokensince,
     entries,
-    priority: this.priority ?? Math.max(...entries.map(e => e.priority)),
+    /* Can't find any references to use this so commenting out to cut wasted
+       processing as well as keep it from being a source of crossed references bugs.
+    priority: this.priority ?? Math.max(...entries.map(e => e.priority)), */
     tags: this.tags
   }
 }
@@ -201,7 +225,6 @@ const entryMatch = function (entry: IResultEntry, words: string[], wordset: Set<
     }
     if (count === entry.keywords.length || (count === entry.keywords.length - 1 && prefixcount === 1)) return true
   }
-
   return false
 }
 
@@ -231,6 +254,8 @@ ResultSchema.methods.fromJson = function (input) {
       this.entries.push({
         keywords: words,
         mode,
+        // May want to bring back the rool level priority in `full` above. Seems other services
+        // may depend on being able to pass old root level priority to this API.
         priority: entry.priority || 1 - (input.priority || 1)
       })
     }
@@ -241,8 +266,9 @@ ResultSchema.methods.fromJson = function (input) {
 }
 
 ResultSchema.methods.hasEntry = function (entry) {
+  const eKeys = entry.keywords.join()
   for (const e of this.entries) {
-    if (e.keywords.join(' ') === entry.keywords.join(' ') && e.mode === entry.mode) return true
+    if (e.mode === entry.mode && e.keywords.join() === eKeys) return true
   }
   return false
 }
@@ -268,6 +294,7 @@ ResultSchema.statics.getWithQueries = async function (id) {
 }
 
 ResultSchema.statics.getByQuery = async function (words: string[]) {
+  // TODO: Need to learn `$or` in find query syntax.
   const ret = await this.find({
     $or: words.map(w => ({
       'entries.keywords': { $regex: '^' + w }
