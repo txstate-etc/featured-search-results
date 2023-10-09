@@ -12,8 +12,6 @@
 		"lint": "eslint ."
 	},
 	"dependencies": {
-		"@txstate-mws/svelte-components": "^1.5.6",
-		"@txstate-mws/svelte-forms": "^1.3.16",
 		"axios": "^1.5.1",
 		"cron": "^2.4.4",
 		"jose": "^4.14.6",
@@ -24,6 +22,8 @@
 		"txstate-utils": "^1.8.13"
 	},
 	"devDependencies": {
+		"@txstate-mws/svelte-components": "^1.5.6",
+		"@txstate-mws/svelte-forms": "^1.3.16",
 		"@playwright/test": "^1.28.1",
 		"@sveltejs/adapter-node": "^1.3.1",
 		"@sveltejs/kit": "^1.20.4",
