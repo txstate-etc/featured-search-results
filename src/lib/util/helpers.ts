@@ -42,6 +42,8 @@ export function getPeopleDef (): SearchMappings {
     'pronouns': 'pronouns',
     'userid': 'userid',
     'user id': 'userid',
+    'netid': 'userid',
+    'net id': 'userid',
     'email': 'email',
     'email address': 'email',
     'emailaddress': 'email',

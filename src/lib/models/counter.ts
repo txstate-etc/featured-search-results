@@ -1,3 +1,6 @@
+/** TODO: what are we counting?
+ *  I'm unable to make heads or tails of what this is meant to do between this model and the /counter/[id] endpoint handlers. */
+
 import { model, type Model, Schema } from 'mongoose'
 import { Cache } from 'txstate-utils'
 
@@ -25,7 +28,7 @@ CounterSchema.index({ name: 1 })
 
 const counterCache = new Cache(async (name: string) => {
   const counter = await Counter.findOne({ name })
-  return counter?.hitcount || 0
+  return counter?.hitcount ?? 0
 })
 
 CounterSchema.statics.get = async function (name) {

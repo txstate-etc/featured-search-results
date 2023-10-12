@@ -17,11 +17,11 @@ searches.
 * `GET /result/{id}` : retrieve a single result by `id` - `ResultFull` representation is returned
 * `PUT /result/{id}` : update a result by `id` and return a `ResultFull` representation of what was saved
 * `DELETE /result/{id}` : delete a result by `id` return an `{ ok: true }` response if successful
-* `GET /queries` : a list of recent search queries
-* `GET /adminsearch` : ???
+* `GET /queries` : a list of the top 5000 queries from the past 6 months sorted by their `hitcount` in descending order along with their most recent associated `Result` ids
+* `GET /adminsearch?q={query}` : same as `/search` except results include the `id` of the result and there's no `asyoutype` option
 * `GET /counter/{id}` : ???
 * `POST /counter/{id}` : ???
-* `GET /departments` : a list of departments with non-retired directory affiliations
+* `GET /departments` : a list of distinct departments with non-retired directory affiliations in the person directory
 * `GET /linkcheck` : a list of all `result` urls with all their associated `keywords`
 * `GET /peoplesearch?q={query}` : retrieve directory entries based on a user-provided query string
 

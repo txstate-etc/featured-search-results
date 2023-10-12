@@ -1,3 +1,24 @@
+/* In the parlance of Search-Featured-Result a `Query` is a record of all search requests
+ * submitted for `Result` matching. Each `Query` record is uniquely identified by its
+ * "cleaned" query string:
+ *   - lowercased
+ *   - whitespaces reduced to single space
+ *   - trimmed
+ *
+ * Any time a query is "Submitted" the timestamp of the submission is added to the associated
+ * Query record's `hits` array and any correlated Result's id found by the search are saved
+ * with the Query record in its `results` array. TODO: why are they saved there?
+ *
+ * Queries can be sent to the API as "Non-Submitted" (no Enter|Button-Click|Tap) for 'AsYouType'
+ * or 'Auto-Complete' searches that want results for a query that's not yet fully typed by users
+ * in an input. The requests for results for these "incomplete" queries are not recorded for
+ * obvious reasons.
+ *
+ * CLEANUP:
+ * Query `hits` that are older than 6 months are removed from all Query documents every 27 minutes.
+ * If any Query documents end up with empty `hits` arrays as a result - they are deleted.
+ */
+
 import { type Model, model, Schema, type Document, type ObjectId } from 'mongoose'
 import { DateTime } from 'luxon'
 import { isEmpty, isBlank } from 'txstate-utils'
@@ -13,10 +34,11 @@ interface IQuery {
 export interface QueryBasic {
   /** The string that makes this query. */
   query: string
+  /** The number of times this query's results have been asked for. */
   hits: number
-  /** Last date-time this query was run. */
+  /** Last date-time this query's results were asked for. */
   lasthit: Date
-  /** Reference array to all Results this query matches to. */
+  /** Reference array to all basic Results, with their `id`, this query matches to. */
   results: ResultBasicPlusId
 }
 
@@ -36,14 +58,18 @@ interface QueryModel extends Model<IQuery, any, IQueryMethods> {
   /** Updates or Inserts the corresponding `query` document, setting its `results` to passed in array,
    *  and pushing a `new Date()` to the document's `hits` array. */
   record: (query: string, results: ResultDocument[]) => void
+  /** Returns an array of the top 5000 `Query` objects sorted by their `hitcount` in
+   *  descending order and getting their corresponding `results` array populated. */
   getAllQueries: () => Promise<QueryDocument[]>
+  /** Updates all Query documents removing any `hits` elements older than 6 months and then deletes any
+   * Query documents with no remaining `hits` entries. */
   cleanup: () => Promise<void>
   /** Runs `cleanup()` every 27 minutes after last execution and logs any caught errors. */
   cleanupLoop: () => Promise<void>
 }
 
 const QuerySchema = new Schema<IQuery, QueryModel, IQueryMethods>({
-  query: String,
+  query: { type: String, unique: true },
   hits: [Date],
   results: [{ type: Schema.Types.ObjectId, ref: 'Result' }],
   hitcount: Number
@@ -66,7 +92,7 @@ QuerySchema.methods.basic = function () {
 
 QuerySchema.statics.record = async function (query: string, results: ResultDocument[]) {
   if (isBlank(query)) return
-  await Query.findOneAndUpdate({ query: query.toLowerCase().trim() }, { $set: { results }, $push: { hits: new Date() } }, { upsert: true }).exec()
+  await Query.findOneAndUpdate({ query: query.toLowerCase().replace(/[^\w-]+/g, ' ').trim() }, { $set: { results }, $push: { hits: new Date() } }, { upsert: true }).exec()
 }
 
 QuerySchema.statics.getAllQueries = async function () {

@@ -1,10 +1,18 @@
-/** In the parlance of Search-Featured-Results a `Result` is an associative object that searches
+/* In the parlance of Search-Featured-Results a `Result` is an associative object that searches
  * can be compared against for correlated `url:title` pairs to be ranked and returned. The search
- * queries are compared against the `Result` objects' lists of corresponding `entries` (or "alias"
+ * queries are compared against the Result documents' lists of corresponding `entries` (or "alias"
  * associations) and ranked based on how strongly the `priority` of the associations correlate
- * the query to their parent `Result` record.
+ * the query to the Result document.
  *
- * Below we model two primary interface paths for result objects. One is the Mongoose model
+ * CURRENCY TESTS:
+ * All Result document urls are regularly tested looking for any urls that no longer recieve a
+ * 2xx response on a 5 second timeout. If a the test fails the Result document is updated to
+ * reflect the "broken" state of the url including the timestamp of when it was detected. If a
+ * previously broken url resolves with a 2xx response in less than 5 seconds then the broken
+ * state of the Result document is reset. Regardless the Result document is updated with the
+ * timestamp of the last test. This process is repeated again after a 10 minute interval. */
+
+/* Below we model two primary interface paths for result objects. One is the Mongoose model
  * for storage and efficient retrieval from a Mongo database. These interfaces begin their names
  * with the letter 'I'. The second interface path is for the front end API to be able to recieve
  * and manipulate the result data for API consumers. We do duplicate fields between the two paths
