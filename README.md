@@ -7,12 +7,16 @@ searches.
 ## endpoints
 
 * `GET /search?q={query}` : retrieve results based on a user-provided query string
+  * optionally takes an additional `asyoutype` boolean parameter which causes matching to evaluate with normal matching rules except the last word of the query which is counted as a match if the corresponding keywords start with that word instead of requiring a complete match
+    * `asyoutype` queries are also not recorded in the query histories
   * results include only `url` and `title` - basic result
-* `GET /results` : a list of all results
-* `POST /result` : create a new result, replaces an existing result if there is an identical url
-* `GET /result/{id}` : retrieve result by id
-* `PUT /result/{id}` : update a result
-* `DELETE /result/{id}` : delete a result
+* `GET /results` : an array of ALL results
+  * The json returned is like `/result` below but the alias `entries` include a query hitcount total
+* `POST /result` : create a new result from a `RawJsonResult` or use data to update any existing result with the same `url`
+  * Returns the json object of a `ResultFull` representation of the result
+* `GET /result/{id}` : retrieve a single result by `id` - `ResultFull` representation is returned
+* `PUT /result/{id}` : update a result by `id` and return a `ResultFull` representation of what was saved
+* `DELETE /result/{id}` : delete a result by `id` return an `{ ok: true }` response if successful
 * `GET /queries` : a list of recent search queries
 * `GET /adminsearch` : ???
 * `GET /counter/{id}` : ???

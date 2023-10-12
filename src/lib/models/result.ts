@@ -1,8 +1,8 @@
-/** In the parlance of Search-Featured-Results a `result` is an associative object that searches
- * can be compared against for correlated url:title pairs to be ranked and returned. The search
- * queries are compared against `result` objects' lists of corresponding `entries` (or "alias"
+/** In the parlance of Search-Featured-Results a `Result` is an associative object that searches
+ * can be compared against for correlated `url:title` pairs to be ranked and returned. The search
+ * queries are compared against the `Result` objects' lists of corresponding `entries` (or "alias"
  * associations) and ranked based on how strongly the `priority` of the associations correlate
- * the query to their parent `result` record.
+ * the query to their parent `Result` record.
  *
  * Below we model two primary interface paths for result objects. One is the Mongoose model
  * for storage and efficient retrieval from a Mongo database. These interfaces begin their names
@@ -13,7 +13,7 @@
 import axios from 'axios'
 import { DateTime } from 'luxon'
 import { type Model, model, Schema, type Document, type ObjectId } from 'mongoose'
-import { isBlank, sortby, eachConcurrent } from 'txstate-utils'
+import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
 import { querysplit } from '../util/helpers.js'
 import type { QueryDocument } from './query.js'
 
@@ -80,7 +80,7 @@ interface IResultMethods {
    *  `mode` and returns the highest matching `priority` or `undefined` if no matches.
    *  Prefetch matching permits last word in words to be a `keyword.startsWith()` match
    *  so that matches work for autocomplete suggestions. */
-  prefetchMatch: (words: string[]) => number | undefined
+  prefetchMatch: (words: string[], offset?: number) => number | undefined
   /** Updates the result's values with those passed in via `input`. */
   fromJson: (input: RawJsonResult) => void
   /** Tests if result already has an entry with the same `keywords` and `mode`.
@@ -102,12 +102,14 @@ interface IResultMethods {
 interface ResultModel extends Model<IResult, any, IResultMethods> {
   /** @async Returns an array of all `Result` documents with their associated queries populated in the documents. */
   getAllWithQueries: () => Promise<ResultDocumentWithQueries[]>
-  /** @async Returns the `Result` document identified by `id` with it's associated queries populated in the document. */
+  /** @async Returns the `Result` document identified by `id` with its associated queries populated in the document. */
   getWithQueries: (id: string) => Promise<ResultDocumentWithQueries>
   /** @async Returns array of all `Result` documents with `keywords` that start with any of the `words`. */
   getByQuery: (words: string[]) => Promise<ResultDocument[]>
   /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `match()` on the tokenized `query`. */
   findByQuery: (query?: string) => Promise<ResultDocument[]>
+  /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `prefetchMatch()` on the tokenized `query`. */
+  findByQueryCompletion: (query?: string, offset?: number) => Promise<ResultDocument[]>
   /** @async Concurrently runs currencyTest() on all `Result` documents with an `currency.tested` date older than 1 day or `undefined`. */
   currencyTestAll: () => Promise<void>
   /** @async Runs `currencyTestAll` followed by a 10 minute timeout interval before running it again. */
@@ -237,22 +239,22 @@ function wordsProcessed (words: string[]) {
  * * `phrase` - `searchWords.join(' ').includes(entry.keywords.join(' '))`
  * * `keyword` - ALL `entry.keywords` are found in `searchWords`. */
 const entryMatch = function (entry: IResultEntry, searchWords: string[]) {
-  const [wordset, wordsjoined] = wordsProcessed(searchWords)
+  const [searchSet, searchJoined] = wordsProcessed(searchWords)
   /** Used for short-circuit detections of false conditions. */
   const keysMinusQs = entry.keywords.length - searchWords.length
   if (entry.mode === 'exact') { // "query must match exactly"
-    return (keysMinusQs === 0 && wordsjoined === entry.keywords.join(' '))
+    return (keysMinusQs === 0 && searchJoined === entry.keywords.join(' '))
   } else if (entry.mode === 'phrase') { // "all words must be present, in order"
-    return (keysMinusQs <= 0 && wordsjoined.includes(entry.keywords.join(' ')))
+    return (keysMinusQs <= 0 && searchJoined.includes(entry.keywords.join(' ')))
   } else { // entry.mode === 'keyword' - "all words must be present, but in any order"
-    return (entry.keywords.filter(keyword => wordset.has(keyword)).length === entry.keywords.length)
+    return (keysMinusQs <= 0 && entry.keywords.filter(keyword => searchSet.has(keyword)).length === entry.keywords.length)
   }
 }
 
 /** Implementation of `entryMatch` that's useful for autocomplete suggestion prefetching.
  * Impletements the same rules as entryMatch except the last word of the `searchWords` is
  * compared using `.startsWith()` rather than exact matching. */
-const prefetchEntryMatch = function (entry: IResultEntry, searchWords: string[]) {
+const prefetchEntryMatch = function (entry: IResultEntry, searchWords: string[], offset?: number) {
   // given a query string, determine whether this entry is a match
   // after accounting for mode
   const [searchSet, searchJoined] = wordsProcessed(searchWords)
@@ -301,9 +303,9 @@ ResultSchema.methods.match = function (words) {
   return undefined
 }
 
-ResultSchema.methods.prefetchMatch = function (words) {
+ResultSchema.methods.prefetchMatch = function (words: string[], offset?: number) {
   for (const entry of this.sortedEntries()) {
-    if (prefetchEntryMatch(entry, words)) return entry.priority ?? 0
+    if (prefetchEntryMatch(entry, words, offset)) return entry.priority ?? 0
   }
   return undefined
 }
@@ -383,7 +385,16 @@ ResultSchema.statics.findByQuery = async function (query: string) {
   const words = querysplit(query)
   const results = await this.getByQuery(words) as (ResultDocument & { priority?: number })[]
   for (const r of results) r.priority = r.match(words)
-  const filteredresults = results.filter(r => !r.priority)
+  const filteredresults = results.filter(r => isNotNull(r.priority))
+  return sortby(filteredresults, 'priority', true, 'title')
+}
+
+ResultSchema.statics.findByQueryCompletion = async function (query: string, offset?: number) {
+  if (isBlank(query)) return []
+  const words = querysplit(query)
+  const results = await this.getByQuery(words) as (ResultDocument & { priority?: number })[]
+  for (const r of results) r.priority = r.prefetchMatch(words, offset)
+  const filteredresults = results.filter(r => isNotNull(r.priority))
   return sortby(filteredresults, 'priority', true, 'title')
 }
 
