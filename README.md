@@ -6,30 +6,41 @@ searches.
 
 ## endpoints
 
-* `GET /search?q={query}` : retrieve results based on a user-provided query string
-  * optionally takes an additional `asyoutype` boolean parameter which causes matching to evaluate with normal matching rules except the last word of the query which is counted as a match if the corresponding keywords start with that word instead of requiring a complete match
-    * `asyoutype` queries are also not recorded in the query histories
-  * results include only `url` and `title` - basic result
-* `GET /results` : an array of ALL results
-  * The json returned is like `/result` below but the alias `entries` include a query hitcount total
-* `POST /result` : create a new result from a `RawJsonResult` or use data to update any existing result with the same `url`
-  * Returns the json object of a `ResultFull` representation of the result
-* `GET /result/{id}` : retrieve a single result by `id` - `ResultFull` representation is returned
-* `PUT /result/{id}` : update a result by `id` and return a `ResultFull` representation of what was saved
-* `DELETE /result/{id}` : delete a result by `id` return an `{ ok: true }` response if successful
-* `GET /queries` : a list of the top 5000 queries from the past 6 months sorted by their `hitcount` in descending order along with their most recent associated `Result` ids
-* `GET /adminsearch?q={query}` : same as `/search` except results include the `id` of the result and there's no `asyoutype` option
+### searches
+
+* `GET /search?q={query}` : Returns an array of results based on a user-provided `query` string.
+  * Optionally takes an additional `asyoutype` boolean parameter which causes matching to evaluate with normal matching rules except the last word of the query which is counted as a match if the corresponding keywords start with that word instead of requiring a complete match.
+    * `asyoutype` queries are not recorded in the query histories for obvious reasons.
+  * Results returned from this endpoing include only `url` and `title` - `ResultBasic` representations.
+* `GET /adminsearch?q={query}` : Same as `/search` except results include the `id` of the result and there's no `asyoutype` option.
+* `GET /peoplesearch?q={query}` : Retrieves directory entries based on a user-provided `query` string.
+
+### featured results
+
+* `GET /results` : Returns an array of ALL results similar to `/result` below but the alias `entries` include a query hit`count` total.
+* `POST /result` : Creates a new result from a `RawJsonResult` or uses that data to update any existing result that has the same `url`.
+  * If successful, returns the json object of a `ResultFull` representation of the saved result.
+* `GET /result/{id}` : Retrieves a single result by `id` - `ResultFull` representation is returned.
+* `PUT /result/{id}` : Updates a result by `id` and returns a `ResultFull` representation of what was saved.
+* `DELETE /result/{id}` : Deletes a result by `id` and returns an `{ ok: true }` response if successful.
+
+### query histories
+
+* `GET /queries` : Returns an array of the top 5000 queries from the past 6 months sorted by their `hitcount` in descending order along with their most recent associated `Result` ids.
+
+### other subjects
+
 * `GET /counter/{id}` : ???
 * `POST /counter/{id}` : ???
-* `GET /departments` : a list of distinct departments with non-retired directory affiliations in the person directory
-* `GET /linkcheck` : a list of all `result` urls with all their associated `keywords`
-* `GET /peoplesearch?q={query}` : retrieve directory entries based on a user-provided query string
+* `GET /departments` : Returns an array of ALL distinct departments with non-retired directory affiliations in the person directory.
+* `GET /linkcheck` : Returns an array of all `Result` urls with all their associated `keywords`.
 
 ## create / update operations
 
-Include JSON in the body, set Content-Type header on the request to `application/json`.:w
+Set Content-Type header on the request to `application/json` and include JSON fitting the `RawJsonResult` interface in the body.
 
 ```json
+// RawJsonResult
 {
   "url": string,
   "title": string,

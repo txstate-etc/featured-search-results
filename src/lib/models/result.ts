@@ -318,7 +318,7 @@ ResultSchema.methods.prefetchMatch = function (words: string[], offset?: number)
   return undefined
 }
 
-interface RawJsonResult {
+export interface RawJsonResult {
   url: string
   title: string
   entries: ResultEntry[]
