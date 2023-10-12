@@ -11,7 +11,7 @@ export async function GET ({ cookies }) {
   return new Response('OK', {
     status: 302,
     headers: {
-      'Set-Cookie': `token=deleted; path=${base || '/'}; expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+      'Set-Cookie': `token=deleted; path=${base ?? '/'}; expires=Thu, 01 Jan 1970 00:00:00 GMT`,
       Location: outUrl.toString()
     }
   })

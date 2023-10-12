@@ -13,9 +13,9 @@ export function querysplit (query: string) {
 
 interface SearchMappings {
   /** A mapping of search aliases to the table field they correspond to. */
-  hash: Record<string, string>,
+  hash: Record<string, string>
   /** The default fields to compare search values against when none are specified. */
-  defaults: string[],
+  defaults: string[]
   /** Convenience reference of distinct table fields available to compare against. */
   fields: Set<string>
 }
@@ -25,13 +25,13 @@ export function getFields (hash: any) {
   return new Set<string>(Object.values(hash)) // Set() to just the distinct field names.
 }
 /** Get the keys from `hash` as the aliases to the field names in an SQL table. */
-export function getAliases (hash: Record<string,string>) {
+export function getAliases (hash: Record<string, string>) {
   return Object.keys(hash)
 }
 /** Returns an object reference to a utility representation of the relationship between search
  *  terms and the underlying `people` table. */
 export function getPeopleDef (): SearchMappings {
-  const hash: Record<string,string> = {
+  const hash: Record<string, string> = {
     'lastname': 'lastname',
     'last name': 'lastname',
     'last': 'lastname',
@@ -60,7 +60,7 @@ export function getPeopleDef (): SearchMappings {
     'searchid': 'searchid',
     'category': 'category'
   }
-  const defaults: string[] = ['lastname', 'firstname', 'phone', 'email']
+  const defaults: string[] = ['lastname', 'firstname', 'userid', 'phone', 'email']
   return {
     hash,
     defaults,
@@ -118,7 +118,7 @@ export function getWhereClause (tableDef: SearchMappings, search: string) {
   return { sql: ' where ' + whereClause.join(' and '), binds }
 }
 
-type SortOptions = string | { fields: string, order: 'd'|'desc' } | undefined
+type SortOptions = string | { fields: string, order: 'd' | 'desc' } | undefined
 /** Takes multiple sortOption parameters after tableDef.
  * @param {SearchMappings} tableDef - A utility object used to associate search aliases and defaults to table fields.
  * @param {any[]} sortOptions
@@ -174,8 +174,7 @@ export function getLimitClause (pageNum: number, pageSizes: number) {
 /** Extracts and returns the `id` prameter from `url`.
  * @param {URL} url - The URL to extract id from.
  * @throws error(400, {message: 'id is required.' }) - if `id` is blank or missing.
- * @throws error(400, {message: 'Bad id format...' }) - if `id` is not a hexadecimal.
-*/
+ * @throws error(400, {message: 'Bad id format...' }) - if `id` is not a hexadecimal. */
 export function idFromUrl (url: URL) {
   const id = (url.searchParams.get('id') ?? undefined)?.trim()
   if (isBlank(id)) throw error(400, { message: 'id is requried.' })

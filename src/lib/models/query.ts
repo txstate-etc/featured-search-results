@@ -11,13 +11,21 @@ interface IQuery {
 }
 
 export interface QueryBasic {
+  /** The string that makes this query. */
   query: string
   hits: number
+  /** Last date-time this query was run. */
   lasthit: Date
+  /** Reference array to all Results this query matches to. */
   results: ResultBasicPlusId
 }
 
 interface IQueryMethods {
+/** Returns a basic `Query` record object including:
+ * * `query` - the search query string
+ * * `hits` - number of hits from the length of the `hits` array or coalesc from `hitcount`
+ * * `lasthit` - Date of `lasthit` prop or its coalesc from the last element of `hits`
+ * * `results` - an array of corresponding basicPlusId `result` objects. */
   basic: () => QueryBasic
 }
 
@@ -25,9 +33,12 @@ export type QueryDocument = Document<ObjectId> & IQuery & IQueryMethods
 export type QueryDocumentWithResults = QueryDocument & { results: ResultDocument[] }
 
 interface QueryModel extends Model<IQuery, any, IQueryMethods> {
+  /** Updates or Inserts the corresponding `query` document, setting its `results` to passed in array,
+   *  and pushing a `new Date()` to the document's `hits` array. */
   record: (query: string, results: ResultDocument[]) => void
   getAllQueries: () => Promise<QueryDocument[]>
   cleanup: () => Promise<void>
+  /** Runs `cleanup()` every 27 minutes after last execution and logs any caught errors. */
   cleanupLoop: () => Promise<void>
 }
 
@@ -47,13 +58,13 @@ QuerySchema.index({ 'hits.0': 1 })
 QuerySchema.methods.basic = function () {
   return {
     query: this.query,
-    hits: this.hits.length || this.hitcount,
+    hits: this.hits.length ?? this.hitcount,
     lasthit: isEmpty(this.lasthit) ? this.hits[this.hits.length - 1] : this.lasthit[0],
     results: this.results.map((result: ResultDocument) => result.basicPlusId())
   }
 }
 
-QuerySchema.statics.record = async function (query, results) {
+QuerySchema.statics.record = async function (query: string, results: ResultDocument[]) {
   if (isBlank(query)) return
   await Query.findOneAndUpdate({ query: query.toLowerCase().trim() }, { $set: { results }, $push: { hits: new Date() } }, { upsert: true }).exec()
 }
@@ -93,4 +104,5 @@ QuerySchema.statics.cleanupLoop = async function () {
   setTimeout(() => { Query.cleanupLoop().catch(console.error) }, 27 * 60 * 1000)
 }
 
+/** @interface Query */
 export const Query = model<IQuery, QueryModel>('Query', QuerySchema)

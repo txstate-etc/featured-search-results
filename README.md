@@ -9,7 +9,7 @@ searches.
 * `GET /search?q={query}` : retrieve results based on a user-provided query string
   * results include only `url` and `title` - basic result
 * `GET /results` : a list of all results
-* `POST /result` : create a new result, will replace an existing result if there is an identical url
+* `POST /result` : create a new result, replaces an existing result if there is an identical url
 * `GET /result/{id}` : retrieve result by id
 * `PUT /result/{id}` : update a result
 * `DELETE /result/{id}` : delete a result

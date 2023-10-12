@@ -4,13 +4,15 @@ import { env } from '$env/dynamic/public'
 
 /** @type {import('./$types').LayoutServerLoad} */
 export const load = async (input) => {
+  // TODO: Test if this affects api calls with their custom GET handlers.
+
   // if we are coming back from unified auth, unified auth will have set
   // both 'requestedUrl' and 'unifiedJwt' as parameters
   const requestedUrl = input.url.searchParams.get('requestedUrl')
   const token = input.url.searchParams.get('unifiedJwt')
   if (requestedUrl?.length && token?.length) {
     // set the token unified auth gave us in a local cookie
-    input.cookies.set('token', token, { sameSite: 'strict', path: base || '/', httpOnly: true })
+    input.cookies.set('token', token, { sameSite: 'strict', path: base ?? '/', httpOnly: true })
     // redirect the browser to wherever it was going when the login process began
     throw redirect(302, requestedUrl)
   }
@@ -24,6 +26,8 @@ export const load = async (input) => {
   } catch (e: any) {
     if (e.status !== 401) throw e
   }
+  /* TODO: Might need to provide an auth escape here or above for api endpoints that are
+           public or simple JWT tokens for apps. */
   if (!login && env.PUBLIC_AUTH_REDIRECT_URL) {
     // we are not authenticated, redirect to unified auth to begin login process
     const authRedirect = new URL(env.PUBLIC_AUTH_REDIRECT_URL)

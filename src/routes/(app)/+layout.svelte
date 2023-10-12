@@ -34,11 +34,14 @@
   </nav>
 </header>
 
-<slot />
+<main>
+  <slot />
+</main>
 
 <footer>
   <nav class='footerNav'>
-    <a href='TODO - Link to Online toolkit page, possibly with parameters to get to exact location.'>Manage Access</a>
+    <!-- TODO: Link Manage Access to Online toolkit page, possibly with parameters to get to exact location. -->
+    <a href='TODO'>Manage Access</a>
     <a href='TODO'>Report an Issue</a>
   </nav>
 </footer>

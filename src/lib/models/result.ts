@@ -56,28 +56,61 @@ export type ResultDocumentWithQueries = ResultDocument & {
 }
 
 interface IResultMethods {
+  /** Returns an object of just the `title` and `url` of the `Result`. Useful for efficient search hits. */
   basic: () => ResultBasic
+  /** Returns an object of the Mongoose generated `id` as a string in addition to `Result`'s `title` and `url`. */
   basicPlusId: () => ResultBasicPlusId
+  /** Returns an array of objects sorted by descending `priority` representing all the alias `entries` of
+   *  the `Result` as a `keyphrase` string, `mode`, and `priority`. */
   outentries: () => ResultEntry[]
+  /** Returns an object composite of `basicPlusId` and `outentries` with `tags` and currency's `brokensince` added. */
   full: () => ResultFull
+  /** Returns an object composite of `full` with `entries` getting a `count` property added to them that is the sum
+   * of all associated query hits with that entry's `keyphrase`.
+   * @note Aggregation of query hits for elements in the `entries` array stops for each associated `Query` after the
+   * first matching entry to that `Query` is found. This might not be a problem as that would also be the highest
+   * priority match for that query as well. */
   fullWithCount: () => ResultFullWithCount
   /** Returns a `result`'s `entries` sorted by their decending `priority`. */
   sortedEntries: () => IResultEntry[]
-  match: (words: string[], wordset: Set<string>, wordsjoined: string) => number | undefined
-  fromJson: (input: any) => void
+  /** Tests `entries` of a `Result` for a match against `words` based on the entry's
+   *  `mode` and returns the highest matching `priority` or `undefined` if no matches. */
+  match: (words: string[]) => number | undefined
+  /** Tests `entries` of a `Result` for a match against `words` based on the entry's
+   *  `mode` and returns the highest matching `priority` or `undefined` if no matches.
+   *  Prefetch matching permits last word in words to be a `keyword.startsWith()` match
+   *  so that matches work for autocomplete suggestions. */
+  prefetchMatch: (words: string[]) => number | undefined
+  /** Updates the result's values with those passed in via `input`. */
+  fromJson: (input: RawJsonResult) => void
+  /** Tests if result already has an entry with the same `keywords` and `mode`.
+   * @note `priority` is not tested. */
   hasEntry: (entry: IResultEntry) => boolean
+  /** Tests if result's `tags` array already includes `tag`. */
   hasTag: (tag: string) => boolean
+  /** Tests for non-blank `title` and `url` values, at least one entry, and that the `url` starts with a scheme. */
   valid: () => boolean
+  /** Tests `url` for 2xx response on a 5 second timeout.
+   * * Resets `currency.broken*` values to not broken state if passed.
+   * * Sets `currency.broken*` values to broken state and time detected if newly broken.
+   * * Updates `currency.tested` to `new Date()` and attempts to `this.save()` when done.
+   * @note Will attempt to update 'txstate.edu' urls to 'txst.edu' urls if testing against
+   *       the 'txst.edu' url returns a 2xx response in less than 5 seconds. */
   currencyTest: () => Promise<void>
 }
 
 interface ResultModel extends Model<IResult, any, IResultMethods> {
+  /** @async Returns an array of all `Result` documents with their associated queries populated in the documents. */
   getAllWithQueries: () => Promise<ResultDocumentWithQueries[]>
+  /** @async Returns the `Result` document identified by `id` with it's associated queries populated in the document. */
   getWithQueries: (id: string) => Promise<ResultDocumentWithQueries>
-  /** Returns cursor to all results with `keywords` that start with any of the `words`. */
+  /** @async Returns array of all `Result` documents with `keywords` that start with any of the `words`. */
   getByQuery: (words: string[]) => Promise<ResultDocument[]>
+  /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `match()` on the tokenized `query`. */
   findByQuery: (query?: string) => Promise<ResultDocument[]>
+  /** @async Concurrently runs currencyTest() on all `Result` documents with an `currency.tested` date older than 1 day or `undefined`. */
   currencyTestAll: () => Promise<void>
+  /** @async Runs `currencyTestAll` followed by a 10 minute timeout interval before running it again. */
   currencyTestLoop: () => Promise<void>
 }
 
@@ -146,7 +179,6 @@ ResultSchema.methods.basicPlusId = function () {
   }
 }
 
-/** Gets a list of all the alias `entries` of a parent `result` object. */
 ResultSchema.methods.outentries = function () {
   const outentries = []
   for (const entry of this.sortedEntries()) {
@@ -166,9 +198,9 @@ ResultSchema.methods.full = function () {
     ...info,
     brokensince: this.currency.brokensince,
     entries,
-    /* Can't find any references to use this so commenting out to cut wasted
-       processing as well as keep it from being a source of crossed references bugs.
-    priority: this.priority ?? Math.max(...entries.map(e => e.priority)), */
+    // Rather than run all entries, which are already sorted on priority, through the Math.max() function, just grab the first.
+    /** @deprecated Use `priority` property associated with each entry in `entries`. */
+    priority: this.priority ?? entries[0].priority ?? 0,
     tags: this.tags
   }
 }
@@ -181,51 +213,80 @@ ResultSchema.methods.fullWithCount = function () {
   }
   for (const query of this.queries) {
     const words = querysplit(query.query)
-    const [wordset, wordsjoined] = wordsProcessed(words)
     for (let i = 0; i < info.entries.length; i++) {
-      if (entryMatch(this.entries[i], words, wordset, wordsjoined)) {
+      if (entryMatch(this.entries[i], words)) {
         ret.entries[i].count += query.hits.length
         break
+        /* Commit says each entry but the above breaks the loop after the first matching entry is found.
+           Intended?
+             That would be the highest priority match since info.entries is sorted by priority desc.
+        */
       }
     }
   }
   return ret
 }
 
-function wordsProcessed (words: string[], wordset?: Set<string>, wordsjoined?: string) {
-  return [
-    wordset || new Set(words),
-    wordsjoined || words.join(' ')
-  ] as const
+/** Returns `[ new Set(words), words.join(' ') ] as const` */
+function wordsProcessed (words: string[]) {
+  return [new Set(words), words.join(' ')] as const
 }
 
-const entryMatch = function (entry: IResultEntry, words: string[], wordset: Set<string>, wordsjoined: string) {
+/** Tests `entry` for a match against `searchWords` based on the entry's `mode`:
+ * * `exact` - `entry.keywords.join(' ')` EXACTLY matches `searchWords.join(' ')`
+ * * `phrase` - `searchWords.join(' ').includes(entry.keywords.join(' '))`
+ * * `keyword` - ALL `entry.keywords` are found in `searchWords`. */
+const entryMatch = function (entry: IResultEntry, searchWords: string[]) {
+  const [wordset, wordsjoined] = wordsProcessed(searchWords)
+  /** Used for short-circuit detections of false conditions. */
+  const keysMinusQs = entry.keywords.length - searchWords.length
+  if (entry.mode === 'exact') { // "query must match exactly"
+    return (keysMinusQs === 0 && wordsjoined === entry.keywords.join(' '))
+  } else if (entry.mode === 'phrase') { // "all words must be present, in order"
+    return (keysMinusQs <= 0 && wordsjoined.includes(entry.keywords.join(' ')))
+  } else { // entry.mode === 'keyword' - "all words must be present, but in any order"
+    return (entry.keywords.filter(keyword => wordset.has(keyword)).length === entry.keywords.length)
+  }
+}
+
+/** Implementation of `entryMatch` that's useful for autocomplete suggestion prefetching.
+ * Impletements the same rules as entryMatch except the last word of the `searchWords` is
+ * compared using `.startsWith()` rather than exact matching. */
+const prefetchEntryMatch = function (entry: IResultEntry, searchWords: string[]) {
   // given a query string, determine whether this entry is a match
   // after accounting for mode
-  [wordset, wordsjoined] = wordsProcessed(words, wordset, wordsjoined)
-  if (entry.mode === 'exact') {
-    if (entry.keywords.length === words.length && entry.keywords.join(' ').startsWith(wordsjoined)) return true
-  } else if (entry.mode === 'phrase') {
-    let count = 0
+  const [searchSet, searchJoined] = wordsProcessed(searchWords)
+  if (entry.mode === 'exact') { // "query must match exactly" - last query word exception
+    return (entry.keywords.length === searchWords.length && entry.keywords.join(' ').startsWith(searchJoined))
+  } else if (entry.mode === 'phrase') { // "all words must be present, in order" - last query word exception
+    let keywordIndex = 0
     let prefixcount = 0
-    for (let i = 0; i < words.length; i++) {
-      const word = words[i]
-      if (word === entry.keywords[count]) {
-        count++
+    for (let i = 0; i < searchWords.length; i++) {
+      const searchWord = searchWords[i]
+      if (searchWord === entry.keywords[keywordIndex]) {
+        keywordIndex++
         prefixcount = 0
-      } else if (i === words.length - 1 && entry.keywords[count]?.startsWith(word)) prefixcount++
+      } else if (i === searchWords.length - 1 && entry.keywords[keywordIndex]?.startsWith(searchWord)) {
+        prefixcount++
+      } else if (keywordIndex < i) return false // Go ahead an stop comparing - it not match enough to continue.
     }
-    if (count === entry.keywords.length || (count === entry.keywords.length - 1 && prefixcount === 1)) return true
-  } else { // entry.mode == 'keyword'
-    let count = 0
+    return (keywordIndex === entry.keywords.length || (keywordIndex === entry.keywords.length - 1 && prefixcount === 1))
+    /* An easier to read but less performant alternative:
+    return (entry.keywords.slice(0, -1).join(' ') === searchWords.slice(0, -1).join(' ') && entry.keywords[-1].startsWith(searchWords[-1]))
+    */
+  } else { // entry.mode === 'keyword' - "all words must be present, but in any order" - last query word excetpion
+    let keywordCount = 0
     let prefixcount = 0
     for (const keyword of entry.keywords) {
-      if (wordset.has(keyword)) count++
-      else if (words.some(w => keyword.startsWith(w))) prefixcount++
+      if (searchSet.has(keyword)) keywordCount++
+      else if (searchWords.some(sw => keyword.startsWith(sw))) prefixcount++
+      /* The above `else if` ends up letting any word being edited in the search to match
+         for the keywords instead of just the last `searchWord`. Is this intended or do we
+         want to limit to the last? If so the following would be more performant and accurate. */
+      // else if (keyword.startsWith(searchWords[-1])) prefixcount++
     }
-    if (count === entry.keywords.length || (count === entry.keywords.length - 1 && prefixcount === 1)) return true
+    return (keywordCount === entry.keywords.length || (keywordCount === entry.keywords.length - 1 && prefixcount === 1))
   }
-  return false
 }
 
 ResultSchema.methods.sortedEntries = function () {
@@ -233,12 +294,27 @@ ResultSchema.methods.sortedEntries = function () {
   return this._sortedEntries
 }
 
-ResultSchema.methods.match = function (words, wordset, wordsjoined) {
-  [wordset, wordsjoined] = wordsProcessed(words, wordset, wordsjoined)
+ResultSchema.methods.match = function (words) {
   for (const entry of this.sortedEntries()) {
-    if (entryMatch(entry, words, wordset, wordsjoined)) return entry.priority ?? 0
+    if (entryMatch(entry, words)) return entry.priority ?? 0
   }
   return undefined
+}
+
+ResultSchema.methods.prefetchMatch = function (words) {
+  for (const entry of this.sortedEntries()) {
+    if (prefetchEntryMatch(entry, words)) return entry.priority ?? 0
+  }
+  return undefined
+}
+
+interface RawJsonResult {
+  url: string
+  title: string
+  entries: ResultEntry[]
+  tags?: string[]
+  /** @deprecated Use `priority` property associated with each entry in `entries`. */
+  priority?: number
 }
 
 ResultSchema.methods.fromJson = function (input) {
@@ -246,6 +322,7 @@ ResultSchema.methods.fromJson = function (input) {
   this.title = input.title.trim()
   this.tags = []
   this.entries = []
+  this._sortedEntries = undefined
   for (const entry of input.entries) {
     const lcmode = entry.mode.toLowerCase()
     const mode = ['keyword', 'phrase', 'exact'].includes(lcmode) ? lcmode : 'keyword'
@@ -254,21 +331,19 @@ ResultSchema.methods.fromJson = function (input) {
       this.entries.push({
         keywords: words,
         mode,
-        // May want to bring back the rool level priority in `full` above. Seems other services
-        // may depend on being able to pass old root level priority to this API.
-        priority: entry.priority || 1 - (input.priority || 1)
+        priority: entry.priority ?? 1 - (input.priority ?? 1)
       })
     }
   }
-  for (const tag of input.tags || []) {
+  for (const tag of input.tags ?? []) {
     if (!isBlank(tag)) this.tags.push(tag.toLowerCase().trim())
   }
 }
 
 ResultSchema.methods.hasEntry = function (entry) {
-  const eKeys = entry.keywords.join()
+  const inKeys = entry.keywords.join(' ')
   for (const e of this.entries) {
-    if (e.mode === entry.mode && e.keywords.join() === eKeys) return true
+    if (e.mode === entry.mode && e.keywords.join(' ') === inKeys) return true
   }
   return false
 }
@@ -294,7 +369,7 @@ ResultSchema.statics.getWithQueries = async function (id) {
 }
 
 ResultSchema.statics.getByQuery = async function (words: string[]) {
-  // TODO: Need to learn `$or` in find query syntax.
+  if (words.length === 0) throw new Error('Attempted Result.getByQuery(words: string[]) with an empty array.')
   const ret = await this.find({
     $or: words.map(w => ({
       'entries.keywords': { $regex: '^' + w }
@@ -303,13 +378,12 @@ ResultSchema.statics.getByQuery = async function (words: string[]) {
   return ret
 }
 
-ResultSchema.statics.findByQuery = async function (query) {
+ResultSchema.statics.findByQuery = async function (query: string) {
   if (isBlank(query)) return []
   const words = querysplit(query)
   const results = await this.getByQuery(words) as (ResultDocument & { priority?: number })[]
-  const [wordset, wordsjoined] = wordsProcessed(words)
-  for (const r of results) r.priority = r.match(words, wordset, wordsjoined)
-  const filteredresults = results.filter(r => r.priority != null)
+  for (const r of results) r.priority = r.match(words)
+  const filteredresults = results.filter(r => !r.priority)
   return sortby(filteredresults, 'priority', true, 'title')
 }
 
@@ -320,6 +394,8 @@ ResultSchema.methods.currencyTest = async function () {
       try {
         const newUrl = this.url.replace(/txstate\.edu/, 'txst.edu')
         await axios.get(newUrl, { timeout: 5000 })
+        // axios.get will throw an error for all non 2xx repsonse,
+        // so it worked if no error was thrown.
         this.url = newUrl
         alreadypassed = true
       } catch (e) {
