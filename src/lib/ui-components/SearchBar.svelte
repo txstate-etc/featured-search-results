@@ -1,13 +1,28 @@
 <script lang=ts>
-  import { Field } from '@txstate-mws/svelte-forms'
+  import { Field, Form } from '@txstate-mws/svelte-forms'
 </script>
 
-<Field path="q">...</Field>
-<button>Search</button>
-<a href="TODO Take to Full Results Page">Browse All Results</a>
+<Form >
+  <div class='searchbar'>
+    <Field path="q">
+      <input autocorrect=false width='50'>
+    </Field>
+    <button>Search</button>
+  </div>
+  <a href="/admin/results">Browse All Results</a>
+</Form>
 
 <style>
+  .searchbar {
+    display: flex-flow;
+  }
+
+  input {
+    width: 300px;
+    min-width: 100px;
+  }
   a {
-    font-size:small
+    font-size:small;
+    color: #000;
   }
 </style>

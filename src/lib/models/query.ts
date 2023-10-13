@@ -130,5 +130,4 @@ QuerySchema.statics.cleanupLoop = async function () {
   setTimeout(() => { Query.cleanupLoop().catch(console.error) }, 27 * 60 * 1000)
 }
 
-/** @interface Query */
-export const Query = model<IQuery, QueryModel>('Query', QuerySchema)
+export const Query = model<IQuery, QueryModel>('query', QuerySchema)

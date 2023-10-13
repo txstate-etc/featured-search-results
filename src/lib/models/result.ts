@@ -209,7 +209,7 @@ ResultSchema.methods.full = function () {
     brokensince: this.currency.brokensince,
     entries,
     // Rather than run all entries, which are already sorted on priority, through the Math.max() function, just grab the first.
-    /** @deprecated Use `priority` property associated with each entry in `entries`. */
+    /** Used for storage of highest priority of matching entries during matching tests. */
     priority: this.priority ?? entries[0].priority ?? 0,
     tags: this.tags
   }
@@ -323,7 +323,7 @@ export interface RawJsonResult {
   title: string
   entries: ResultEntry[]
   tags?: string[]
-  /** @deprecated Use `priority` property associated with each entry in `entries`. */
+  /** Used for storage of highest priority of matching entries during matching tests. */
   priority?: number
 }
 
@@ -425,6 +425,7 @@ ResultSchema.methods.currencyTest = async function () {
     this.currency.broken = false
     this.currency.brokensince = null
   } catch (e) {
+    // Handle Redirect Detection
     if (!this.currency.broken) this.currency.brokensince = new Date()
     this.currency.broken = true
   }
@@ -456,4 +457,4 @@ ResultSchema.statics.currencyTestLoop = async function () {
   setTimeout(() => { this.currencyTestLoop().catch(console.error) }, 600000)
 }
 
-export const Result = model<IResult, ResultModel>('Result', ResultSchema)
+export const Result = model<IResult, ResultModel>('result', ResultSchema)

@@ -2,6 +2,8 @@
   import { afterNavigate, goto } from '$app/navigation'
   import { base } from '$app/paths'
 
+  const adminBase = `${base}/admin`
+
   export let data: { isEditor?: boolean, login?: string }
 
   afterNavigate(() => {
@@ -23,25 +25,127 @@
 </script>
 
 <header>
-  <title>Search Featured Results Admin</title>
-  <nav class='headerNav'>
-    <!-- Can gen up a quick relatively broken home screen just so we have an entry page that will take
-         us to a results that can also be temporarirly a mock-up while we get data populated. -->
-    <a class='homelink' href='./search'>Featured Search</a>
-    <a href='TODO'>Add Featured Search Result</a>
-    <a href='TODO'>Visitor Searches</a>
-    <button type="button" on:click={onLogout}>Logout</button>
+  <title>Search Results Admin</title>
+  <nav class='navbar'>
+    <div class='container-fluid'>
+      <div class='navbar-head'>
+        <a class='app-brand' href={adminBase}>Featured Search</a>
+      </div>
+      <ul class='navlist navbar-flex navbar-right'>
+        <li><a href={adminBase + '/result'}>Add Featured Search Result</a></li>
+        <li><a href='TODO'>Visitor Searches</a></li>
+        <li><button type="button" on:click={onLogout}>Logout</button></li>
+      </ul>
+    </div>
   </nav>
 </header>
 
-<main>
-  <slot />
+<main class='page-content'>
+  <div><slot /></div>
 </main>
 
 <footer>
-  <nav class='footerNav'>
-    <!-- TODO: Link Manage Access to Online toolkit page, possibly with parameters to get to exact location. -->
-    <a href='TODO'>Manage Access</a>
-    <a href='TODO'>Report an Issue</a>
+  <nav class='navbar footer-nav'>
+    <div class='container-fluid'>
+      <ul class='navlist'>
+        <li><a href='https://tim.txstate.edu/onlinetoolkit/Home/Role-Management'>Manage Access</a></li>
+        <li><a href='TODO'>Report an Issue</a></li>
+      </ul>
+    </div>
   </nav>
 </footer>
+
+<style>
+  :global(html, body) {
+    font-family: 'Roboto variant0';
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    height: 100%;
+    min-height: 100%;
+  }
+
+  header, footer {
+    flex: none;
+  }
+
+  main {
+    display: inline-table;
+    overflow-y: scroll;
+    flex: auto;
+  }
+
+  .footer-nav ul {
+    list-style: none;
+    text-align: center;
+  }
+  .footer-nav ul li {
+    padding-right: 10px;
+    padding-left: 10px;
+    display: inline-block;
+  }
+  .footer-nav li:nth-child(n+2) {
+    border-left:#e8e3db;
+    border-left-width: 2px;
+    border-left-style: groove;
+  }
+
+  .page-content {
+    text-align: center;
+  }
+  .container-fluid {
+    padding-right: 15px;
+    padding-left: 15px;
+    margin-right: auto;
+    margin-left: auto;
+    display: flow-root;
+  }
+
+  .navbar {
+    border-color: transparent;
+    background-color: #501214;
+    background-image: linear-gradient(to bottom,#501214 0,#501214 100%);
+   }
+
+   .navbar a {
+    color:#e8e3db;
+    text-decoration: none;
+   }
+
+   .navbar button {
+      background: none;
+      color: #e8e3db;
+      border: none;
+      padding: 0;
+      font: inherit;
+      cursor: pointer;
+      outline: inherit;
+   }
+
+  .navbar-head {
+    margin: 7.5px;
+    float: left;
+  }
+
+  .navlist {
+    margin: 7.5px;
+    list-style: none;
+  }
+
+  .navbar-flex {
+    display: flex;
+  }
+
+  .navbar-right {
+    float: right;
+  }
+  .navbar-right li {
+    margin-left: 35px;
+  }
+
+  .navbar-right li:nth-last-child(1) {
+    margin-left: 45px;
+    margin-right: -10px;
+  }
+
+</style>

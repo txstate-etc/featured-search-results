@@ -31,7 +31,7 @@ export const load = async (input) => {
   if (!login && env.PUBLIC_AUTH_REDIRECT_URL) {
     // we are not authenticated, redirect to unified auth to begin login process
     const authRedirect = new URL(env.PUBLIC_AUTH_REDIRECT_URL)
-    authRedirect.searchParams.set('returnUrl', input.url.origin + base)
+    authRedirect.searchParams.set('returnUrl', input.url.origin + base + '/admin')
     authRedirect.searchParams.set('requestedUrl', input.url.href)
     throw redirect(302, authRedirect.toString())
   }

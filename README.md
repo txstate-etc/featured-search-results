@@ -1,8 +1,12 @@
 # search-featured-results
 
-A RESTful API for storing/retrieving featured search results as well as a admin service
-that provides an interface to use the API for managing `result` associations to
-searches.
+A RESTful API for storing/retrieving featured search results as well as a admin service that provides an
+interface to use the API for managing `Result` associations to searches, reviewing `Query` statistics, and
+detecting malfunctioning urls/links associated with `Results`.
+
+In addition search-featured-results provides directory listings associated with `PeopleSearch` and the code for
+maintaining, updating, and searching directory information, including active `department` listings, is provided
+with this code and the API endpoints they implement.
 
 ## endpoints
 
@@ -17,12 +21,28 @@ searches.
 
 ### featured results
 
-* `GET /results` : Returns an array of ALL results similar to `/result` below but the alias `entries` include a query hit`count` total.
-* `POST /result` : Creates a new result from a `RawJsonResult` or uses that data to update any existing result that has the same `url`.
+* `GET /results` : Returns an array of ALL results similar to `/result` below but the alias `entries` include a query hit-`count` total.
+* `POST /result` : Creates a new result from a [`RawJsonResult`](#create--update-operations) or uses that data to update any existing result that has the same `url`.
   * If successful, returns the json object of a `ResultFull` representation of the saved result.
 * `GET /result/{id}` : Retrieves a single result by `id` - `ResultFull` representation is returned.
 * `PUT /result/{id}` : Updates a result by `id` and returns a `ResultFull` representation of what was saved.
 * `DELETE /result/{id}` : Deletes a result by `id` and returns an `{ ok: true }` response if successful.
+
+```json
+{ // ResultFull
+  "url": string,
+  "title": string,
+  "id": string,
+  "brokensince": Date | null,
+  "entries": [{ // These are in priority descending order.
+    "keyphrase": string,
+    "mode": ResultModes,
+    "priority": number
+  }],
+  "priority": number,
+  "tags": [string]
+}
+```
 
 ### query histories
 
@@ -40,8 +60,7 @@ searches.
 Set Content-Type header on the request to `application/json` and include JSON fitting the `RawJsonResult` interface in the body.
 
 ```json
-// RawJsonResult
-{
+{ // RawJsonResult
   "url": string,
   "title": string,
   "entries": [{

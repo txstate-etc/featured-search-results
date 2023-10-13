@@ -1,5 +1,5 @@
-/** TODO: what are we counting?
- *  I'm unable to make heads or tails of what this is meant to do between this model and the /counter/[id] endpoint handlers. */
+/* TODO: what are we counting?
+ * I'm unable to make heads or tails of what this is meant to do between this model and the /counter/[id] endpoint handlers. */
 
 import { model, type Model, Schema } from 'mongoose'
 import { Cache } from 'txstate-utils'
@@ -41,4 +41,4 @@ CounterSchema.statics.increment = async function (name) {
   return counter.hitcount
 }
 
-export const Counter = model<ICounter, CounterModel>('Counter', CounterSchema)
+export const Counter = model<ICounter, CounterModel>('counter', CounterSchema)
