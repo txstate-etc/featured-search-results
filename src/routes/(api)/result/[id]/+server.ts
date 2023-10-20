@@ -1,4 +1,4 @@
-import { Result, type ResultDocument } from '$lib/models'
+import { Result, type ResultDocument } from '$lib/models/result.js'
 import { error, json } from '@sveltejs/kit'
 import { idFromUrl } from '$lib/util'
 

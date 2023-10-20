@@ -1,4 +1,4 @@
-import { Result } from '$lib/models'
+import { Result } from '$lib/models/result.js'
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET () {

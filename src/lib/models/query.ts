@@ -39,7 +39,7 @@ export interface QueryBasic {
   /** Last date-time this query's results were asked for. */
   lasthit: Date
   /** Reference array to all basic Results, with their `id`, this query matches to. */
-  results: ResultBasicPlusId
+  results: ResultBasicPlusId[]
 }
 
 interface IQueryMethods {
@@ -47,7 +47,7 @@ interface IQueryMethods {
  * * `query` - the search query string
  * * `hits` - number of hits from the length of the `hits` array or coalesc from `hitcount`
  * * `lasthit` - Date of `lasthit` prop or its coalesc from the last element of `hits`
- * * `results` - an array of corresponding basicPlusId `result` objects. */
+ * * `results` - an array of corresponding basicPlusId `Result` objects. */
   basic: () => QueryBasic
 }
 

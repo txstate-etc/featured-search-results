@@ -1,4 +1,4 @@
-import { Result } from '$lib/models'
+import { Result } from '$lib/models/result.js'
 import { error, json } from '@sveltejs/kit'
 
 /** @type {import('./$types').RequestHandler} */

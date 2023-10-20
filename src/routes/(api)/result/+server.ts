@@ -1,6 +1,6 @@
 import { error, json } from '@sveltejs/kit'
 import { isBlank } from 'txstate-utils'
-import { Result, type ResultDocument } from '$lib/models'
+import { Result, type ResultDocument } from '$lib/models/result.js'
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST ({ locals, request }) {

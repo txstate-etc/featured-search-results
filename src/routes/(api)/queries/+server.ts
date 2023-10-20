@@ -1,4 +1,4 @@
-import { Query } from '$lib/models'
+import { Query } from '$lib/models/query.js'
 import { error, json } from '@sveltejs/kit'
 
 /** @type {import('./$types').RequestHandler} */

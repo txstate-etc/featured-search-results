@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit'
-import { Result, Query } from '$lib/models'
+import { Result } from '$lib/models/result.js'
+import { Query } from '$lib/models/query.js'
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET ({ url, setHeaders }) {

@@ -27,6 +27,20 @@ import type { QueryDocument } from './query.js'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
 
+/** Useful for upsert capable components. */
+export interface DraftResult {
+  url?: string
+  title?: string
+  id?: string
+  entries: {
+    keyphrase: string
+    mode: string
+    priority: number
+  }[]
+  tags?: string[]
+  priority?: number
+}
+
 export interface ResultEntry {
   /** Space delimited list of words to associate with the URL based on the `mode`. */
   keyphrase: string

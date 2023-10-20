@@ -1,4 +1,4 @@
-import { Counter, Result, type ResultDocument } from '$lib/models'
+import { Counter } from '$lib/models/counter.js'
 import { error, json } from '@sveltejs/kit'
 import { idFromUrl } from '$lib/util'
 

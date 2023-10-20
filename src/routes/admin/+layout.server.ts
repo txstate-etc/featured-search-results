@@ -1,11 +1,10 @@
 import { error, redirect } from '@sveltejs/kit'
 import { base } from '$app/paths'
+import { apiBase, appBase } from '$lib/util/globals.js'
 import { env } from '$env/dynamic/public'
 
 /** @type {import('./$types').LayoutServerLoad} */
 export const load = async (input) => {
-  // TODO: Test if this affects api calls with their custom GET handlers.
-
   // if we are coming back from unified auth, unified auth will have set
   // both 'requestedUrl' and 'unifiedJwt' as parameters
   const requestedUrl = input.url.searchParams.get('requestedUrl')
@@ -21,17 +20,15 @@ export const load = async (input) => {
   let login: string | undefined
   let isEditor: boolean | undefined
   try {
-    const resp = await input.fetch(`${base}/self`)
+    const resp = await input.fetch(`${apiBase}/self`)
     ;({ login, isEditor } = await resp.json() as { login?: string, isEditor?: boolean })
   } catch (e: any) {
     if (e.status !== 401) throw e
   }
-  /* TODO: Might need to provide an auth escape here or above for api endpoints that are
-           public or simple JWT tokens for apps. */
   if (!login && env.PUBLIC_AUTH_REDIRECT_URL) {
     // we are not authenticated, redirect to unified auth to begin login process
     const authRedirect = new URL(env.PUBLIC_AUTH_REDIRECT_URL)
-    authRedirect.searchParams.set('returnUrl', input.url.origin + base + '/admin')
+    authRedirect.searchParams.set('returnUrl', input.url.origin + appBase)
     authRedirect.searchParams.set('requestedUrl', input.url.href)
     throw redirect(302, authRedirect.toString())
   }

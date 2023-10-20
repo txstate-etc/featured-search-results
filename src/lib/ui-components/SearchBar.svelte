@@ -1,28 +1,28 @@
 <script lang=ts>
-  import { Field, Form } from '@txstate-mws/svelte-forms'
+  import { appBase } from '$lib/util/globals'
+
+  export let search: string = ''
+  export let target: string
+
 </script>
 
-<Form >
+<form name='SearchBar' action={target} method='GET'>
   <div class='searchbar'>
-    <Field path="q">
-      <input autocorrect=false width='50'>
-    </Field>
-    <button>Search</button>
+    <input type='search' name='q' placeholder='Search...' id='searchInput' bind:value={search} />
+    <input type='submit' value="Search"/>
   </div>
-  <a href="/admin/results">Browse All Results</a>
-</Form>
+</form>
 
 <style>
   .searchbar {
-    display: flex-flow;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 0.2rem;
+  }
+  input {
+    border: 1px;
   }
 
-  input {
-    width: 300px;
-    min-width: 100px;
-  }
-  a {
-    font-size:small;
-    color: #000;
-  }
 </style>
