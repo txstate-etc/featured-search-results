@@ -1,7 +1,4 @@
 <script lang=ts>
-  /** @type {import('./$types').PageData} */
-  // export let data
-
   import ResultEditor from '$lib/ui-components/ResultEditor.svelte'
 </script>
 

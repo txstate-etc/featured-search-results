@@ -1,20 +1,23 @@
 <script lang=ts>
   import { onMount } from 'svelte'
   import type { Feedback } from '@txstate-mws/svelte-forms'
-  import { FieldMultiple, FieldNumber, FieldSelect, FieldText, Form } from '@dosgato/dialog'
-  import type { DraftResult, RawJsonResult } from '$lib/models/result.js'
+  import { FieldHidden, FieldMultiple, FieldNumber, FieldSelect, FieldText, Form } from '@dosgato/dialog'
+  import type { TemplateResult, RawJsonResult } from '$lib/models/result.js'
   import type { PopupMenuItem } from '@txstate-mws/svelte-components'
   import { isBlank } from 'txstate-utils'
   import { apiBase } from '$lib/util/globals'
 
-  // Maybe spiff up the page adding enhance to the forms and adding these transitions.
-  // Might need to add to the form library or custom rebuild it here with them.
-  // import { enhance } from '$app/forms'
-  // Example: <form .... use:enhance ... >
-  // import { fly, slide } from 'svelte/transition'
-  // Example: <li in:fly={{ y: 20 }} out:slide>
+  /* TODO - Maybe :
+   Maybe spiff up the page adding enhance to the forms and adding these transitions.
+   Might need to add to the form library or custom rebuild it here with them.
+   import { enhance } from '$app/forms'
+   Example: <form .... use:enhance ... >
+   import { fly, slide } from 'svelte/transition'
+   Example: <li in:fly={{ y: 20 }} out:slide>
+  */
 
-  export let data: DraftResult | undefined
+  /** A `TemplateResult` compatible object to preload the editor form with. */
+  export let data: TemplateResult | undefined
 
   async function removeEntry (id: string) {
     // Remove entry's elements from AddMore element in DOM possibly needing to call
@@ -43,16 +46,15 @@
   }
 
   async function submit (state: ResultState) {
-    console.log('POST:', JSON.stringify(state))
-    const resp = await fetch(`${apiBase}/result`, {
+    console.log('ResultEditor.submit => ', JSON.stringify(state))
+    const resp = await (await fetch(`${apiBase}/result`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(state)
-    })
-    console.log('RESP:', JSON.stringify(resp))
-    // const messages: Feedback[] = []
+    })).json()
+    console.log('ResultEditor.RESP: ', JSON.stringify(resp))
     return resp
   }
 
@@ -92,18 +94,19 @@
 <Form name='result' {submit} {validate} {preload} let:saved>
   <div class='result-form'>
     <FieldText path='title' label='Title:' defaultValue={data?.title ?? ''}/>
-    <FieldText path="url" label='URL:' defaultValue={data?.url ?? ''}/>
-    <FieldMultiple path="entries" label="Matching Aliases:" removable={true} let:index >
+    <FieldText path='url' label='URL:' defaultValue={data?.url ?? ''}/>
+    <FieldMultiple path='entries' label='Matching Aliases:' removable={true} let:index >
       <div class='result-entries-form'>
         <!-- Consider replacing the below with another construct of the fields. -->
-        <FieldText path="keyphrase" label='Keyphrase:' defaultValue={data?.entries[index].keyphrase ?? ''}/>
-        <FieldSelect path="mode" label='Mode:' defaultValue={data?.entries[index].mode ?? 'keyword'} helptext={modeDescriptions} {choices} />
-        <FieldNumber path="priority" label='Priority:' defaultValue={data?.entries[index].priority ?? 0} step={10} />
+        <FieldText path='keyphrase' label='Keyphrase:' defaultValue={data?.entries?.[index].keyphrase ?? ''}/>
+        <FieldSelect path='mode' label='Mode:' defaultValue={data?.entries?.[index].mode ?? 'keyword'} helptext={modeDescriptions} {choices} />
+        <FieldNumber path='priority' label='Priority:' defaultValue={data?.entries?.[index].priority ?? 0} step={10} />
       </div>
     </FieldMultiple>
-    <FieldText path="tags" label='Tags:' defaultValue={data?.tags?.join(' ') ?? ''}/>
+    <FieldText path='tags' label='Tags:' defaultValue={data?.tags?.join(' ') ?? ''}/>
   </div>
-  <svelte:fragment slot="submit" let:saved>
+  {#if data?.id}<FieldHidden path='id' bind:value={data.id}/>{/if}
+  <svelte:fragment slot='submit' let:saved>
     <button>Save</button>
     {#if saved}Save successful!{/if}
   </svelte:fragment>

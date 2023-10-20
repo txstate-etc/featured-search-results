@@ -6,7 +6,7 @@
  *
  * CURRENCY TESTS:
  * All Result document urls are regularly tested looking for any urls that no longer recieve a
- * 2xx response on a 5 second timeout. If a the test fails the Result document is updated to
+ * 2xx response on a 5 second timeout. If the test fails the Result document is updated to
  * reflect the "broken" state of the url including the timestamp of when it was detected. If a
  * previously broken url resolves with a 2xx response in less than 5 seconds then the broken
  * state of the Result document is reset. Regardless the Result document is updated with the
@@ -27,18 +27,10 @@ import type { QueryDocument } from './query.js'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
 
-/** Useful for upsert capable components. */
-export interface DraftResult {
-  url?: string
-  title?: string
+/** A `Partial<RawJsonResult>`, with optional `id`, useful for initializing form data from
+ * either custom template values or values fetched for editing an existing Result. */
+export interface TemplateResult extends Partial<RawJsonResult> {
   id?: string
-  entries: {
-    keyphrase: string
-    mode: string
-    priority: number
-  }[]
-  tags?: string[]
-  priority?: number
 }
 
 export interface ResultEntry {

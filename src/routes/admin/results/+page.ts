@@ -7,8 +7,8 @@ export async function load ({ url }) {
   const query = (url.searchParams.get('q') ?? undefined)?.trim()
   if (isBlank(query)) return undefined
   console.log('app/results - q:', query) // TODO: Remove-me
-  const resp = await fetch(`${apiBase}/adminsearch?q=${query}`)
+  const resp = await (await fetch(`${apiBase}/adminsearch?q=${query}`))?.json()
   console.log('app/results - resp:', JSON.stringify(resp)) // TODO: Remove-me
-  if (resp) return await resp.json()
+  if (resp) return { query, results: resp }
   throw error(404, { message: query ?? '' })
 }

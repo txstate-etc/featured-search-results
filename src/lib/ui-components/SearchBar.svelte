@@ -1,14 +1,13 @@
 <script lang=ts>
-  import { appBase } from '$lib/util/globals'
-
+  /** Two-way bind for sharing the `search` value with sibling components. */
   export let search: string = ''
+  /** The endpoint to direct search requests to. */
   export let target: string
-
 </script>
 
-<form name='SearchBar' action={target} method='GET'>
+<form name='SearchBar' action={`${target}?q=${search}`} method='GET'>
   <div class='searchbar'>
-    <input type='search' name='q' placeholder='Search...' id='searchInput' bind:value={search} />
+    <input type='search' name='q' placeholder='Search...' bind:value={search} />
     <input type='submit' value="Search"/>
   </div>
 </form>

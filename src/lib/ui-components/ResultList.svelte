@@ -1,10 +1,11 @@
 <script lang=ts>
   import type { ResultBasicPlusId } from '$lib/models/result.js'
   import { appBase } from '$lib/util/globals'
+  // TODO: Add `limit` for when this is nested in a <QueryList>.
+  // TODO: Add pagination - maybe?
 
-  // export items: ResultFull[]
+  /** Array of ResultBasicPlusId to generate a listing for. */
   export let data: ResultBasicPlusId[]
-  // TODO: Add pagination for regular listings and `limit` for when this is nested in a <QueryList>.
 </script>
 
 <div class='list-container'>

@@ -2,6 +2,7 @@
   import ResultList from './ResultList.svelte'
   import type { QueryBasic } from '$lib/models/query'
 
+  /** Array of `QueryBasic` records to generate a list for. */
   export let data: QueryBasic[]
 </script>
 
