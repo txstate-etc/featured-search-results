@@ -25,7 +25,7 @@
 
   const incompatibleTypes = new Set(['undefined', 'function', 'symbol'])
   const arithmeticTypes = new Set(['number', 'bigint', 'boolean'])
-  const nestingKeys = new Set(...(nesting ? getNestingKeys(data) : []))
+  const nestingKeys = new Set(nesting ? getNestingKeys(data) : [])
 
   const headingMeta = sortByNesting(getMetaData(data[0]))
   const plainMeta = headingMeta.filter(h => !nestingKeys.has(h.key))
@@ -44,9 +44,9 @@
 
   /** Sorts `meta` by meta.key exisiting in `nestingKeys` if `nesting` is enabled. */
   function sortByNesting (meta: PropMeta[]) {
-    return !nesting
-      ? meta
-      : meta.sort((a, b) => { return Number(nestingKeys.has(a.key)) - Number(nestingKeys.has(b.key)) })
+    return nesting
+      ? meta.sort((a, b) => { return Number(nestingKeys.has(a.key)) - Number(nestingKeys.has(b.key)) })
+      : meta
   }
 
   let ascending = true
