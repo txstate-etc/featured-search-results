@@ -1,128 +1,6 @@
 <script lang='ts' context='module'>
-  /** Documentation - Temp placement here, will move to appropriate README.md
-  A responsive table that will generate itself based on the `data` and behavior bindings passed to it.
-  For data input where types can't be inferred from undefined data properties, you can define your own
-  meta data description of what you want and bind them to propsMetas using this
-  format:
-  ```ts
-  type EnhancedTypes = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function' | 'array'
-  interface PropMeta {
-    key: string, type: EnhancedTypes,
-    // Whether this property's data is complex/deep/large enough to merit being displayed
-    // inside an "extra responsive" container that will spread the contents accross inner
-    // columns - space available - and provide special layout handling when presented in
-    // smaller media sizes.
-    isComplex: boolean
-  }
-  ```
-  If what you're doing is simple enough that all you really want is the heading and sorting functionality
-  associated with it then you can handle the full data structuring yourself with the `"record"` slot to define
-  how each record's data will correspond to the heading columns. Everything `ResponsiveTable` uses to
-  generate the default structuring and styling is exposed for your use.
-  - ```ts
-    "record" {record} {i} {propsMetas} {simpleMetas} {plainMetas} {nestedMetas}
-             {colspan} {longestKey}
-             {isBottomProp} {isAlternate} {dataPresent} {format}
-    ```
-    - `record` and `i` correspond to the record and its index value in the `data`.
-    - `propsMetas` is the list of all the data's property metadata. You might have specified this yourself
-      or let ResponsiveTable figure it out for you.
-    - `simpleMetas` is a convenience reference to properties that `ResponsiveTable` is confident should be
-      easy to display regardless of any consumer overrides.
-    - `plainMetas` and `nestedMetas` are only relevant when `nesting` is enabled. See the following section.
-    - `colspan` is the number of columns presented in the heading. Useful for spanning records across
-      multiple rows.
-    - `longestKey` is the character length of the longest key name. Useful for reserving inline label space.
-    - `isBottomProp(key, record?)` is a convenience function useful for conditionally formatting the bottom
-      border of a record's last row if it spans multiple rows.
-    - `isAlternate(i)` is a convenience function for determining even indexes of records. Useful for applying
-      alternating stylings - by record - with records that span multiple rows.
-    - `dataPresent(record[key])` is a convenience function for determining if there's actually anything to
-      display. Empty arrays, objects, and undefined properties return false.
-    - `format(meta, record[key])` will apply any custom formatting supplied in the `transforms` bind defaulting
-      to `ResponsiveTable`'s default formattings if not defined.
+  import { htmlEncode } from 'txstate-utils'
 
-  Otherwise `ResponsiveTable` will default to its own layout and formatting based on the `data` bound to it
-  with two primary classifications:
-  - `Plain` for data items that present well on a single line.
-  - `Nested` for data that's complex/deep/large enough to merit nesting onto its own row - per nestable prop -
-     below the `Plain` data row when `nesting` is enabled.
-
-  You can also define customizations to how it structures most of its parts using the following slot mappings:
-  - ```ts
-    "caption" {data}
-    ```
-    - Self explanatory.
-  - ```ts
-    "sortIcon" {ascending} {selectedHeading} {key}
-    ```
-    - The `key` bound here is what data key is associated with the internal use of this slot.
-      The `selectedHeading` is what heading was previously selected if any.
-      Useful for `{selectedHeading === key}` tests to determine what icon to display for `heading[key]`.
-
-  The following slots apply to all records when `nesting` is disabled and to property values that don't
-  require nesting when `nesting` IS enabled:
-  - ```ts
-    "plainRowContent" {record} {plainMetas} {format} {i}
-    ```
-    - Customize the full contents of `Plain` rows. To help make sure your `<td>`s match up the `plainMetas`
-      describing all the items that need to be accounted for can be inspected. In addition a reference to
-      the `format(obj)` handler is passed as well as the `i`ndex of the record in the `data` set. The number
-      of columns defined in the table heading is equal to `plainMetas.length ?? 1` - in case you're off mark.
-  - ```ts
-    "plainDataContent" {record} {dataMeta} {format} {i}
-    ```
-    - Customize the handling of each `Plain` `<td>`'s content. `record[dataMeta.key]` is the property value to
-      structure as desired.
-  - ```ts
-    "plainDataArrayContent" {record} {dataMeta} {format} {i}
-    ```
-    - Customize just the html structuring of `Plain` data arrays. Content slotted here will be in an extra
-      responsive container. Go ahead and try recursively nesting another `<ResponsiveTable>` here. The
-      `record[dataMeta.key]` exposed here would be the array. By default arrays are nested when `nesting`
-      is enabled but this can be overridden by binding a function to `getNestingKeys(data)` that returns an
-      array of data keys that exclude your desired array.
-  - ```ts
-    "plainDataArrayElementContent" {record} {dataMeta} {format} {element} {i}
-    ```
-    - Customize just the html structuring of each `Plain` array `element`.
-  - ```ts
-    "plainDataSimpleContent" {record} {dataMeta} {format} {i}
-    ```
-    - Customize the html structure handling of `Plain` property values that aren't arrays.
-
-  The following slots are just like the above but only apply when `nesting` is enabled AND the property key
-  is marked as nestable. Bind `getNestingKeys(data)` to override the defaults with an array of the key names
-  you want nesting for.
-  - ```ts
-    "nestedRows" {record} {nestedMeta} {dataMeta} {colspan} {isBottomProp} {isAlternate} {format} {i}
-    ```
-    - Because `nesting` causes muti-row presentation of records we can't use simple `tr:nth-child(even)`
-      styling to differentiate between records so the `isAlternate(i)` function is exposed for you use in
-      association with class assignments to style each nested record in alternation - `<tr class:opaqued={isAlternate(i)} `...
-      Furthermore the `isBottomProp` function is exposed to determine if the property this slot is generating a
-      nested row for is a bottom property of a record useful for differentiating between the bottom border of
-      rows within a record and the bottom border of the last row of a record. You'll also need to set the
-      `colspan` of nested record rows. You can use `plainMetas.length ?? 1` to determine that value.
-    - `nestedMeta` is provided for length inspection to forgo any unnessary content generation.
-  - ```ts
-    "nestedRowContent" {record} {dataMeta} {colspan} {format} {i}
-    ```
-    - Since this is for customizing the `<td>` that spans the entire row `colspan` is provided as a convenience.
-  - ```ts
-    "nestedDataContent" {record} {dataMeta} {format} {i}
-    ```
-  - ```ts
-    "nestedDataArrayContent" {record} {dataMeta} {format} {i}
-    ```
-  - ```ts
-    "nestedDataArrayElementContent" {record} {dataMeta} {element} {format} {i}
-    ```
-  - ```ts
-    "nestedDataSimpleContent" {record} {dataMeta} {format} {i}
-    ```
-   */
-  export const documentation = 'intellisense-mouseover'
   const incompatibleTypes = new Set(['undefined', 'function', 'symbol'])
   const nestingDefaultTypes = new Set(['object', 'array'])
   const arithmeticTypes = new Set(['number', 'bigint', 'boolean'])
@@ -147,8 +25,10 @@
   function isAlternate (i: number) {
     return (i % 2) > 0
   }
+
 </script>
 <script lang='ts'>
+
   /* TODO:
      1) Add `rollupSize` option to resize rows that are `rollupSize` lines tall.
      2) Add hidden sort <select> with <asc|desc> button(?) that displays in mobile media mode.
@@ -171,6 +51,38 @@
     const meta = getMetaData(data[0])
     return meta.filter(m => nestingDefaultTypes.has(m.type)).map(m => m.key)
   }
+  /** Formats `obj` based on any transformations passed for its associated heading type. If none are supplied it defaults
+  * to recursively handling any `obj` that are `typeof 'object'` with no extra labeling or indenting of array elements
+  * but adding such to any sub-objects found whenther they are found in a parent object or as an object that is an
+  * element of an array.
+  * Non-object array elements are encoded to escape any reserved HTML characters.
+  * For everything else that doesn't have a custom transformation supplied it encodes the output to escape reserved HTML
+  * characters. */
+  const format: (meta: PropMeta, obj: any) => string = (meta: PropMeta, obj: any) => {
+    if (transforms[meta.key]) return transforms[meta.key](obj)
+    if (typeof obj === 'object') { // Recurse
+      if (obj.length === undefined) { // not array - iterate keys to recurse adding labels and indentation
+        const objMetas = getMetaData(obj)
+        return `
+          <div style='padding-left: 0.4rem'>
+            ${objMetas.map(p => {
+                return `<div><label style='text-transform: capitalize'>${p.key}: </label>${format(p, obj[p.key])}`
+              }).join('</div><div>')
+            }</div>
+          </div>`
+      } // array - iterate elements to recurse
+      return `
+        <div style='padding-left: 0.4rem'>
+          <div>${obj.map((e: any) => format({ key: meta.key, type: 'array', isComplex: true }, e)).join('</div><div>')}</div>
+        </div>`
+    }
+    // Our containing prop's type was an array but the obj element is neither an object nor array.
+    if (meta.type === 'array') {
+      return `<div>${htmlEncode(obj)}</div>`
+    } // All other single-value types.
+    return htmlEncode(obj)
+  }
+
   /** Rather than let `ResponsiveTable` generate the default metadata definitions its using to drive its output
    * you can supply your own metadata descriptor via this bind.
    * @note Will have an a value of `undefined` until the table is mounted/initialized. */
@@ -242,14 +154,6 @@
     return propsMetas[propsMetas.length - 1].key === key
   }
 
-  /** Formats `obj` based on any transformations passed for its associated heading type, OR calls JSON.stringify if typeof `object` and no transforms are defined.
-   * Else it just returns the object value without altering it. */
-  function format (meta: PropMeta, obj: any) {
-    if (transforms[meta.key]) return transforms[meta.key](obj)
-    else if (meta.type === 'object') return JSON.stringify(obj)
-    return obj
-  }
-
   function dataPresent (obj: any) {
     if (obj.length !== undefined) return obj.length > 0
     if (obj.size !== undefined) return obj.size > 0
@@ -307,21 +211,20 @@
                     class:complex-container={dataMeta.isComplex}
                     class:simple-container={!dataMeta.isComplex}>
                     <slot name='plainDataContent' {record} {dataMeta} {format} {i}>
+                      <!--- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
                       {#if dataMeta.type === 'array'}
                         <div class:complex-container={true}>
-                          <slot name='plainDataArrayContent' {record} {dataMeta} {format} {i}>
+                          <slot name='plainArrayContent' {record} {dataMeta} {format} {i}>
                             {#each record[dataMeta.key] as element}
-                              <slot name='plainDataArrayElementContent' {record} {dataMeta} {element} {format} {i}>
-                                {@html format(dataMeta, element)}
-                              </slot>
+                                <slot name='plainArrayElementContent' {record} {dataMeta} {element} {format} {i}>
+                                  {@html format(dataMeta, element)}
+                                </slot>
                             {/each}
                           </slot>
                         </div>
                       {:else}
-                        <div
-                          class:complex-container={dataMeta.isComplex}
-                          class:simple-container={!dataMeta.isComplex}>
-                          <slot name='plainDataSimpleContent' {record} {dataMeta} {format} {i}>
+                        <div class:complex-container={dataMeta.isComplex}>
+                          <slot name='plainSingletonContent' {record} {dataMeta} {format} {i}>
                             {@html format(dataMeta, record[dataMeta.key])}
                           </slot>
                         </div>
@@ -342,20 +245,20 @@
                       class:nested-container={true}
                       colspan={plainMetas.length ?? 1}>
                       <slot name='nestedDataContent' {record} {dataMeta} {format} {i}>
+                      <!--- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
                         {#if dataMeta.type === 'array'}
                           <div class:complex-container={true}>
-                            <slot name='nestedDataArrayContent' {record} {dataMeta} {format} {i}>
+                            <slot name='nestedArrayContent' {record} {dataMeta} {format} {i}>
                               {#each record[dataMeta.key] as element}
-                                <slot name='nestedDataArrayElementContent' {record} {dataMeta} {element} {format} {i}>
+                                <slot name='nestedArrayElementContent' {record} {dataMeta} {element} {format} {i}>
                                   {@html format(dataMeta, element)}
                                 </slot>
                               {/each}
                             </slot>
                           </div>
                         {:else}
-                          <div
-                            class:complex-container={dataMeta.isComplex}>
-                            <slot name='nestedDataSimpleContent' {record} {dataMeta} {format} {i}>
+                          <div class:complex-container={dataMeta.isComplex}>
+                            <slot name='nestedSingletonContent' {record} {dataMeta} {format}>
                               {@html format(dataMeta, record[dataMeta.key])}
                             </slot>
                           </div>
