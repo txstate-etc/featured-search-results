@@ -108,7 +108,7 @@
 
   let ascending = true
   let selectedHeading = ''
-  /** Sorts `data` by the heading { key, type } data associated with the records in it.
+  /** Sorts `data` by the heading { key, type } data associated with the records in it. Array properties are sorted by their length.
    * Also handles updating what heading is selected for soriting and toggling asc/desc. */
   function sortByHeading (meta: PropMeta) {
     if (meta.key !== selectedHeading) { // Reset column state and resort.
@@ -200,23 +200,23 @@
       {/each}
     </thead>
     <tbody>
-      {#each data as record, i}
-        <slot name='record' {record} {propsMetas} {simpleMetas} {plainMetas} {nestedMetas} colspan={plainMetas.length ?? 1} {longestKey} {isBottomProp} {isAlternate} {dataPresent} {format} {i}>
+      {#each data as record, i}<!-- Note that `i` cannot be passed to slots. -->
+        <slot name='record' {record} {propsMetas} {simpleMetas} {plainMetas} {nestedMetas} colspan={plainMetas.length ?? 1} {longestKey} {isBottomProp} {isAlternate} {dataPresent} {format}>
           {#if plainMetas.length}
             <tr class:opaqued={isAlternate(i)}
               class:bottom-record-row={isBottomProp(plainMetas[plainMetas.length - 1].key, record)}>
-              <slot name='plainRowContent' {record} {plainMetas} {format} {i}>
+              <slot name='plainRowContent' {record} {plainMetas} {format}>
                 {#each plainMetas as dataMeta}
                   <td data-key={dataMeta.key.replace('_', ' ')}
                     class:complex-container={dataMeta.isComplex}
                     class:simple-container={!dataMeta.isComplex}>
-                    <slot name='plainDataContent' {record} {dataMeta} {format} {i}>
-                      <!--- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
+                    <slot name='plainDataContent' {record} {dataMeta} {format}>
+                      <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
                       {#if dataMeta.type === 'array'}
                         <div class:complex-container={true}>
-                          <slot name='plainArrayContent' {record} {dataMeta} {format} {i}>
+                          <slot name='plainArrayContent' {record} {dataMeta} {format}>
                             {#each record[dataMeta.key] as element}
-                                <slot name='plainArrayElementContent' {record} {dataMeta} {element} {format} {i}>
+                                <slot name='plainArrayElementContent' {record} {dataMeta} {element} {format}>
                                   {@html format(dataMeta, element)}
                                 </slot>
                             {/each}
@@ -224,7 +224,7 @@
                         </div>
                       {:else}
                         <div class:complex-container={dataMeta.isComplex}>
-                          <slot name='plainSingletonContent' {record} {dataMeta} {format} {i}>
+                          <slot name='plainSingletonContent' {record} {dataMeta} {format}>
                             {@html format(dataMeta, record[dataMeta.key])}
                           </slot>
                         </div>
@@ -237,20 +237,20 @@
           {/if}
           {#each nestedMetas as dataMeta}
             {#if dataPresent(record[dataMeta.key])}
-              <slot name='nestedRows' {record} {nestedMetas} {dataMeta} colspan={plainMetas.length ?? 1} {isBottomProp} {isAlternate} {format} {i}>
+              <slot name='nestedRows' {record} {nestedMetas} {dataMeta} colspan={plainMetas.length ?? 1} {isBottomProp} {isAlternate} {format}>
                 <tr class:opaqued={isAlternate(i)}
                   class:bottom-record-row={isBottomProp(dataMeta.key, record)}>
-                  <slot name='nestedRowContent' {record} {dataMeta} colspan={plainMetas.length ?? 1} {format} {i}>
+                  <slot name='nestedRowContent' {record} {dataMeta} colspan={plainMetas.length ?? 1} {format}>
                     <td data-key={dataMeta.key.replace('_', ' ')}
                       class:nested-container={true}
                       colspan={plainMetas.length ?? 1}>
-                      <slot name='nestedDataContent' {record} {dataMeta} {format} {i}>
-                      <!--- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
+                      <slot name='nestedDataContent' {record} {dataMeta} {format}>
+                      <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
                         {#if dataMeta.type === 'array'}
                           <div class:complex-container={true}>
-                            <slot name='nestedArrayContent' {record} {dataMeta} {format} {i}>
+                            <slot name='nestedArrayContent' {record} {dataMeta} {format}>
                               {#each record[dataMeta.key] as element}
-                                <slot name='nestedArrayElementContent' {record} {dataMeta} {element} {format} {i}>
+                                <slot name='nestedArrayElementContent' {record} {dataMeta} {element} {format}>
                                   {@html format(dataMeta, element)}
                                 </slot>
                               {/each}

@@ -55,12 +55,12 @@ will still generate according to the behavior binds you set and you will need to
 concepts if `nesting` is activated and you have nestable data.
 
 - ```ts
-  "record" {record} {i} {propsMetas} {simpleMetas} {plainMetas} {nestedMetas}
+  "record" {record} {propsMetas} {simpleMetas} {plainMetas} {nestedMetas}
            {colspan} {longestKey}
            {isBottomProp} {isAlternate} {dataPresent} {format}
   ```
 
-  - `record` and `i` correspond to the record and its index value in the `data`.
+  - `record` correspond to the record in the `data`.
   - `propsMetas` is the list of all the data's property metadata. You might have specified this yourself
     or let ResponsiveTable figure it out for you.
   - `simpleMetas` is a convenience reference to properties that `ResponsiveTable` is confident should be
@@ -71,7 +71,7 @@ concepts if `nesting` is activated and you have nestable data.
   - `longestKey` is the character length of the longest key name. Useful for reserving inline label space.
   - `isBottomProp(key, record?)` is a convenience function useful for conditionally formatting the bottom
     border of a record's last row if it spans multiple rows.
-  - `isAlternate(i)` is a convenience function for determining even indexes of records. Useful for applying
+  - `isAlternate({indexOfRecord})` is a convenience function for determining even indexes of records. Useful for applying
     alternating stylings - by record - with records that span multiple rows.
   - `dataPresent(record[key])` is a convenience function for determining if there's actually anything to
     display. Empty arrays, objects, and undefined properties return false.
@@ -93,7 +93,7 @@ The following slots apply to all records when `nesting` is disabled and to prope
 require nesting when `nesting` IS enabled:
 
 - ```ts
-  "plainRowContent" {record} {plainMetas} {format} {i}
+  "plainRowContent" {record} {plainMetas} {format}
   ```
 
   - Customize the full contents of `Plain` rows. To help make sure your `<td>`s match up the `plainMetas`
@@ -102,14 +102,14 @@ require nesting when `nesting` IS enabled:
     of columns defined in the table heading is equal to `plainMetas.length ?? 1` - in case you're off mark.
 
 - ```ts
-  "plainDataContent" {record} {dataMeta} {format} {i}
+  "plainDataContent" {record} {dataMeta} {format}
   ```
 
   - Customize the handling of each `Plain` `<td>`'s content. `record[dataMeta.key]` is the property value to
     structure as desired.
 
 - ```ts
-  "plainDataArrayContent" {record} {dataMeta} {format} {i}
+  "plainArrayContent" {record} {dataMeta} {format}
   ```
 
   - Customize just the html structuring of `Plain` data arrays. Content slotted here will be in an extra
@@ -119,16 +119,16 @@ require nesting when `nesting` IS enabled:
     array of data keys that exclude your desired array.
 
 - ```ts
-  "plainDataArrayElementContent" {record} {dataMeta} {format} {element} {i}
+  "plainArrayElementContent" {record} {dataMeta} {format} {element}
   ```
 
   - Customize just the html structuring of each `Plain` array `element`.
 
 - ```ts
-  "plainDataAbsoluteContent" {record} {dataMeta} {format} {i}
+  "plainSingletonContent" {record} {dataMeta} {format}
   ```
 
-  - Customize the html structure handling of `Plain` property values that aren't arrays.
+  - Customize the html structure handling of `Plain` property values that aren't arrays.gg
 
 ### Nested Drill-Down Slots
 
@@ -137,12 +137,12 @@ is marked as nestable. Bind `getNestingKeys(data)` to override the defaults with
 you want nesting for.
 
 - ```ts
-  "nestedRows" {record} {nestedMeta} {dataMeta} {colspan} {isBottomProp} {isAlternate} {format} {i}
+  "nestedRows" {record} {nestedMeta} {dataMeta} {colspan} {isBottomProp} {isAlternate} {format}
   ```
 
   - Because `nesting` causes muti-row presentation of records we can't use simple `tr:nth-child(even)`
-    styling to differentiate between records so the `isAlternate(i)` function is exposed for you use in
-    association with class assignments to style each nested record in alternation - `<tr class:opaqued={isAlternate(i)} ...>`
+    styling to differentiate between records so the `isAlternate({indexOfRecord})` function is exposed for you use in
+    association with class assignments to style each nested record in alternation - `<tr class:opaqued={isAlternate({indexOfRecord})} ...>`
     Furthermore the `isBottomProp(key, record?)` function is exposed to determine if the property this slot
     is generating a nested row for is a bottom property of a record useful for differentiating between the
     bottom border of rows within a record and the bottom border of the last row of a record. You'll also need
@@ -150,23 +150,23 @@ you want nesting for.
   - `nestedMeta` is provided for length inspection to forgo any unnessary content generation.
 
 - ```ts
-  "nestedRowContent" {record} {dataMeta} {colspan} {format} {i}
+  "nestedRowContent" {record} {dataMeta} {colspan} {format}
   ```
 
   - Since this is for customizing the `<td>` that spans the entire row `colspan` is provided as a convenience.
 
 - ```ts
-  "nestedDataContent" {record} {dataMeta} {format} {i}
+  "nestedDataContent" {record} {dataMeta} {format}
   ```
 
 - ```ts
-  "nestedDataArrayContent" {record} {dataMeta} {format} {i}
+  "nestedArrayContent" {record} {dataMeta} {format}
   ```
 
 - ```ts
-  "nestedDataArrayElementContent" {record} {dataMeta} {element} {format} {i}
+  "nestedArrayElementContent" {record} {dataMeta} {element} {format}
   ```
 
 - ```ts
-  "nestedDataAbsoluteContent" {record} {dataMeta} {format} {i}
+  "nestedSingletonContent" {record} {dataMeta} {format}
   ```
