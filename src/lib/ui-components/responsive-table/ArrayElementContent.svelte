@@ -1,5 +1,5 @@
 <script lang='ts' context='module'>
-  import type { PropMeta } from '../ResponsiveTable.svelte'
+  import type { PropMeta } from './ResponsiveTable.svelte'
 </script>
 <script lang='ts'>
   export let record: any

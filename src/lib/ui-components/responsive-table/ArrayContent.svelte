@@ -1,5 +1,5 @@
 <script lang='ts' context='module'>
-  import type { PropMeta } from '../ResponsiveTable.svelte'
+  import type { PropMeta } from './ResponsiveTable.svelte'
   import ArrayElementContent from './ArrayElementContent.svelte'
   /**
   Can supply ONE of two named slots (`'nestedArrayElementContent'` | `'plainArrayElementContent'`), OR use the default

@@ -1,5 +1,5 @@
 <script lang='ts' context='module'>
-  import type { PropMeta } from '../ResponsiveTable.svelte'
+  import type { PropMeta } from './ResponsiveTable.svelte'
   /**
   Can forward the named slot OR use the default for customizing presentation of each element.
   #### Example Usage in Consumer
