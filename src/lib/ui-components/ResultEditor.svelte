@@ -99,7 +99,7 @@
       <div class='result-entries-form'>
         <!-- Consider replacing the below with another construct of the fields. -->
         <FieldText path='keyphrase' label='Keyphrase:' defaultValue={data?.entries?.[index].keyphrase ?? ''}/>
-        <FieldSelect path='mode' label='Mode:' defaultValue={data?.entries?.[index].mode ?? 'keyword'} helptext={modeDescriptions} {choices} />
+        <FieldSelect path='mode' label='Mode:' notNull defaultValue={data?.entries?.[index].mode ?? 'keyword'} {choices} />
         <FieldNumber path='priority' label='Priority:' defaultValue={data?.entries?.[index].priority ?? 0} step={10} />
       </div>
     </FieldMultiple>
@@ -113,31 +113,57 @@
 </Form>
 
 <style>
+
   :focus {
     outline: 3px solid #005481;
   }
+  .result-entries-form {
+    display: flex;
+  }
 
-  :global(dl) {
+  .result-form {
+    --dialog-container-padding: 1.3em;
+  }
+  .result-entries-form :global(.dialog-field-container) {
+    margin-bottom: 0 !important;
+  }
+  .result-entries-form :global(.dialog-field-container:first-child) {
+    flex-grow: 1;
+  }
+
+  .result-entries-form :global(.dialog-field-container:nth-child(2)) {
+    width: 7em;
+  }
+
+  .result-entries-form :global(.dialog-field-container:last-child) {
+    width: 5em;
+  }
+
+  .result-entries-form :global(.dialog-field-container:not(:last-child)) {
+    margin-right: 0.5em !important;
+  }
+
+  .result-entries-form :global(dl) {
     margin: 0;
     padding: 0;
     display: flex;
     flex-flow: row wrap;
   }
 
-  :global(dt:before) {
+  .result-entries-form :global(dt:before) {
     content: "";
     display: block;
   }
-  :global(dt) {
+  .result-entries-form :global(dt) {
     flex-basis: 20%;
     padding: 2px 4px;
     text-align: right;
     font-weight: bold;
   }
-  :global(dt:after) {
+  .result-entries-form :global(dt:after) {
     content: ":";
   }
-  :global(dd) {
+  .result-entries-form :global(dd) {
     flex-basis: 70%;
     flex-grow: 1;
     margin: 0;

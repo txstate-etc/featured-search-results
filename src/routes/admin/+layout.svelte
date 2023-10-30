@@ -30,7 +30,7 @@
         <a class='app-brand' href={appBase}>Featured Search</a>
       </div>
       <ul class='navlist navbar-flex navbar-right'>
-        <li><a href={appBase + '/result'}>Add Featured Search Result</a></li>
+        <li><a href={appBase + '/results/create'}>Add Featured Search Result</a></li>
         <li><a href='TODO'>Visitor Searches</a></li>
         <li><button type="button" on:click={onLogout}>Logout</button></li>
       </ul>
@@ -38,7 +38,7 @@
   </nav>
 </header>
 
-<main class='page-content media-context'>
+<main>
   <div><slot /></div>
 </main>
 
@@ -73,14 +73,12 @@
     opacity: 1;
   }
 
-  header, footer {
-    flex: none;
+  main {
+    flex-grow: 1;
   }
 
-  main {
-    display: inline-table;
-    overflow-y: scroll;
-    flex: auto;
+  header, footer {
+    flex: none;
   }
 
   .footer-nav ul {
@@ -98,27 +96,6 @@
     border-left-style: groove;
   }
 
-  .page-content {
-    text-align: center;
-    position: relative;
-    margin: auto;
-  }
-
-  @media (max-width: 200) {
-   .media-context {
-      width: 90%
-    }
-  }
-  @media (max-width: 900) {
-   .media-context {
-      width: 80%
-    }
-  }
-  @media (min-width: 900) {
-   .media-context {
-      max-width: 700
-    }
-  }
   .container-fluid {
     padding-right: 15px;
     padding-left: 15px;

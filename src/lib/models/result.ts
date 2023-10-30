@@ -20,7 +20,7 @@
 
 import axios from 'axios'
 import { DateTime } from 'luxon'
-import { type Model, model, Schema, type Document, type ObjectId } from 'mongoose'
+import { type Model, model, Schema, type Document, type ObjectId, models } from 'mongoose'
 import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
 import { querysplit } from '../util/helpers.js'
 import type { QueryDocument } from './query.js'
@@ -463,4 +463,4 @@ ResultSchema.statics.currencyTestLoop = async function () {
   setTimeout(() => { this.currencyTestLoop().catch(console.error) }, 600000)
 }
 
-export const Result = model<IResult, ResultModel>('result', ResultSchema)
+export const Result = models.Result as ResultModel ?? model<IResult, ResultModel>('Result', ResultSchema)

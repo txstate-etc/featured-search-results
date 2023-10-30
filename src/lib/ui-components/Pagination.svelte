@@ -42,7 +42,8 @@
 
 </script>
 
-<form name='Pagination' action={`${target}?q=${search}&p=${page}&s=${pagesize}`} method='GET'>
+<!-- Test this, the browser should add these to form (rename to appropriate acronyms) but SvelteKit might get in the way. If it doesn't remove all the appending here. -->
+<form name='Pagination' action={`${target}?q=${search}&p=${page}&n=${pagesize}`} method='GET'>
   <select name='pagesize'>
     {#each sizeops as option}
       <option value={option.value} selected={option.value === pagesize} />

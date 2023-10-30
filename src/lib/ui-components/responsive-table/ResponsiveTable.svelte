@@ -7,7 +7,17 @@
 
   /** `typeof` operator doesn't distinguish between 'object' and 'array' and we want the distinction here. */
   type EnhancedTypes = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function' | 'array'
+  export interface TableData extends Record<string, any> {}
   export interface PropMeta { key: string, type: EnhancedTypes, isComplex: boolean }
+  export interface Transforms extends Record<string, (e: any) => string> {}
+  export interface Sortings extends Record<string, (a: any, b: any) => number> {}
+  export interface ResponsiveTableProps {
+    propsMetas: PropMeta[] | undefined
+    caption: string | undefined
+    transforms: Transforms | undefined
+    sortings: Sortings | undefined
+    getNestingKeys: ((data: Record<string, any>[]) => string[]) | undefined
+  }
 
   /** Returns an array of { key, type, isComplex } records that describe the properties of the `obj`. */
   function getMetaData (obj: any) {
@@ -37,20 +47,26 @@
   /** Array of `Record<string, any>[]` records to generate a table for. Uses the first element to figure out the shape of the data. All
    * elements MUST be uniform with the first, or at least have values corresponding to the compatible properties in that first record. */
   export let data: Record<string, any>[]
-  export let caption: string
+  export let caption: string | undefined
   /** Whether to sort nestable props to the end of the record and nest them on their own rows after all "simple" value props have been displayed on a common row. */
-  export let nesting: boolean = !true
+  export let nesting: boolean | undefined = !true
   /** Pass in any special transfrom functions, keyed by the property names in your data, that generate html based on the element passed in. Only used
    * on data rows. Useful for turning data elements into hyperlinks or buttons in the table. */
-  export let transforms: Record<string, (e: any) => string> = {}
+  export let transforms: Transforms | undefined = {}
   /** Pass in any special sort handling functions, keyed by the property names in your data. */
-  export let sortings: Record<string, (a: any, b: any) => number> = {}
+  export let sortings: Sortings | undefined = {}
   /** Optional function bind to return an array of property names to nest on their own row.
    * Useful for overriding default behavior of doing so for all objects and arrays when `nesting` is enabled. */
   export let getNestingKeys: (data: Record<string, any>[]) => string[] = (data: Record<string, any>[]) => {
     const meta = getMetaData(data[0])
     return meta.filter(m => nestingDefaultTypes.has(m.type)).map(m => m.key)
   }
+  /** Rather than let `ResponsiveTable` generate the default metadata definitions its using to drive its output
+   * you can supply your own metadata descriptor via this bind.
+   * @note Will have an a value of `undefined` until the table is mounted/initialized. */
+  export let propsMetas: PropMeta[] | undefined
+  propsMetas = propsMetas ? sortByNesting(propsMetas) : sortByNesting(getMetaData(data[0]))
+
   /** Formats `obj` based on any transformations passed for its associated heading type. If none are supplied it defaults
   * to recursively handling any `obj` that are `typeof 'object'` with no extra labeling or indenting of array elements
   * but adding such to any sub-objects found whenther they are found in a parent object or as an object that is an
@@ -59,7 +75,7 @@
   * For everything else that doesn't have a custom transformation supplied it encodes the output to escape reserved HTML
   * characters. */
   const format: (meta: PropMeta, obj: any) => string = (meta: PropMeta, obj: any) => {
-    if (transforms[meta.key]) return transforms[meta.key](obj)
+    if (transforms?.[meta.key]) return transforms[meta.key](obj)
     if (typeof obj === 'object') { // Recurse
       if (obj.length === undefined) { // not array - iterate keys to recurse adding labels and indentation
         const objMetas = getMetaData(obj)
@@ -82,12 +98,6 @@
     } // All other single-value types.
     return htmlEncode(obj)
   }
-
-  /** Rather than let `ResponsiveTable` generate the default metadata definitions its using to drive its output
-   * you can supply your own metadata descriptor via this bind.
-   * @note Will have an a value of `undefined` until the table is mounted/initialized. */
-  export let propsMetas: PropMeta[]
-  propsMetas = propsMetas ? sortByNesting(propsMetas) : sortByNesting(getMetaData(data[0]))
 
   const nestingKeys = new Set(nesting ? getNestingKeys(data) : [])
 
@@ -114,8 +124,8 @@
     if (meta.key !== selectedHeading) { // Reset column state and resort.
       selectedHeading = meta.key
       ascending = true
-      if (sortings[meta.key]) {
-        data = data.sort((a, b) => { return sortings[meta.key](a[meta.key], b[meta.key]) })
+      if (sortings?.[meta.key]) {
+        data = data.sort((a, b) => { return sortings![meta.key](a[meta.key], b[meta.key]) })
       } else if (arithmeticTypes.has(meta.type)) {
         data = data.sort((a, b) => { return a[meta.key] - b[meta.key] })
       } else if (meta.type === 'string') {
@@ -141,7 +151,7 @@
   /** Utility function for detecting when we're working with the first property of a record.
    *  Useful for adding top of record formatting. */
   function isFirstProp (key: string) {
-    return propsMetas[0].key === key
+    return propsMetas![0].key === key
   }
   /** Utility function for detecting when we're working with the bottom property of a record.
    *  If `record` is included it will check if any props of record after `key` have data and
@@ -149,9 +159,9 @@
    *  record formatting. */
   function isBottomProp (key: string, record?: any) {
     if (record) {
-      return propsMetas.findIndex(p => p.key === key) >= propsMetas.findLastIndex(l => dataPresent(record[l.key]))
+      return propsMetas!.findIndex(p => p.key === key) >= propsMetas!.findLastIndex(l => dataPresent(record[l.key]))
     } else if (nestedMetas.length === 0) return true
-    return propsMetas[propsMetas.length - 1].key === key
+    return propsMetas![propsMetas!.length - 1].key === key
   }
 
   function dataPresent (obj: any) {
