@@ -5,16 +5,24 @@ module.exports = {
 	plugins: ['@typescript-eslint'],
 	ignorePatterns: ['*.cjs', 'package/**/*', '*.config.js', '*.d.ts'],
   rules: {
+    'import/first': 'off',
+		'no-multiple-empty-lines': 'off',
+    'no-undef-init': 'off',
+		'no-unused-vars': 'off',
+		'no-use-before-define': 'off',
+		'no-void': 'off', // svelte problems
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/array-type': 'off',
+		'@typescript-eslint/no-confusing-void-expression': 'off', // svelte problems
     '@typescript-eslint/no-non-null-assertion': 'off',
+		'@typescript-eslint/no-unnecessary-boolean-literal-compare': ['off'],
     '@typescript-eslint/no-unused-vars': 'off', // typescript does this better
-    '@typescript-eslint/no-throw-literal': 'off', // sveltekit error function
+		'@typescript-eslint/no-use-before-define': 'off', // svelte problems
+    "@typescript-eslint/prefer-nullish-coalescing": ["off"],
+    '@typescript-eslint/prefer-readonly': ['off'],
     '@typescript-eslint/require-await': 'off',
-		'@typescript-eslint/prefer-nullish-coalescing': 'off', // not compatible with strictNullChecks disabled
     '@typescript-eslint/return-await': ['error', 'always'],
-    '@typescript-eslint/strict-boolean-expressions': 'off',
-    '@typescript-eslint/prefer-readonly': ['off']
+    '@typescript-eslint/strict-boolean-expressions': 'off'
   },
 	parserOptions: {
 		sourceType: 'module',

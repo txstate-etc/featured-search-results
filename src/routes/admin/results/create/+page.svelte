@@ -2,14 +2,8 @@
   import ResultEditor from '$lib/ui-components/ResultEditor.svelte'
 </script>
 
-<h1>Add Featured Search Result</h1>
-<div class='mediaContext'>
-  <ResultEditor data={undefined} />
-</div>
-<style>
-  .mediaContext {
-    margin: auto;
-    width: 60%
-  }
+<h1>Add Search Result</h1>
+<ResultEditor data={undefined} />
 
+<style>
 </style>

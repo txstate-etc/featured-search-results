@@ -30,7 +30,7 @@
         <a class='app-brand' href={appBase}>Featured Search</a>
       </div>
       <ul class='navlist navbar-flex navbar-right'>
-        <li><a href={appBase + '/results/create'}>Add Featured Search Result</a></li>
+        <li><a href={appBase + '/results/create'}>Add Search Result</a></li>
         <li><a href='TODO'>Visitor Searches</a></li>
         <li><button type="button" on:click={onLogout}>Logout</button></li>
       </ul>
@@ -62,25 +62,47 @@
     margin: 0;
     height: 100%;
     min-height: 100%;
-  }
 
+    --colors-white: #fff;
+    --colors-paper: #f5f3f0;
+    --colors-vellum: #E8E3DB;
+    --colors-maroon: #501214;
+    --colors-gold: #9F661C;
+    --colors-blue: #005481;
+    --colors-grey: #808080;
+    --colors-red: #FF1717;
+
+    --colors-navbar-background: var(--colors-maroon);
+    --colors-input-background: var(--colors-paper);
+    --colors-navbar-text: var(--colors-vellum);
+    --colors-help: var(--colors-blue);
+    --colors-focus: var(--colors-maroon);
+
+    --dialog-container-border: 1px solid #999999;
+    --dg-button-bg: var(--colors-maroon);
+    --dg-button-text: var(--colors-vellum);
+  }
   :global(input, select) {
-    background-color: #F5F3F0;
+    background-color: var(--colors-input-background);
     outline: 1px solid;
   }
-
+  :global(:focus) {
+    outline: 3px solid var(--colors-focus);
+  }
   :global(button:hover) {
     opacity: 1;
   }
-
   main {
     flex-grow: 1;
+    margin: auto;
+    width: 60%;
   }
-
+  main :global(h1) {
+    text-align: center;
+  }
   header, footer {
     flex: none;
   }
-
   .footer-nav ul {
     list-style: none;
     text-align: center;
@@ -90,12 +112,11 @@
     padding-left: 10px;
     display: inline-block;
   }
-  .footer-nav li:nth-child(n+2) {
-    border-left:#e8e3db;
+  .footer-nav li:not(:first-child) {
+    border-left: var(--colors-navbar-text);
     border-left-width: 2px;
     border-left-style: groove;
   }
-
   .container-fluid {
     padding-right: 15px;
     padding-left: 15px;
@@ -103,51 +124,42 @@
     margin-left: auto;
     display: flow-root;
   }
-
   .navbar {
     border-color: transparent;
-    background-color: #501214;
-    background-image: linear-gradient(to bottom,#501214 0,#501214 100%);
+    background-color: var(--colors-navbar-background);
+    background-image: linear-gradient(to bottom, var(--colors-navbar-background) 0, var(--colors-navbar-background) 100%);
    }
-
    .navbar a {
-    color:#e8e3db;
+    color: var(--colors-navbar-text);
     text-decoration: none;
    }
-
    .navbar button {
       background: none;
-      color: #e8e3db;
+      color: var(--colors-navbar-text);
       border: none;
       padding: 0;
       font: inherit;
       cursor: pointer;
    }
-
   .navbar-head {
     margin: 7.5px;
     float: left;
   }
-
   .navlist {
     margin: 7.5px;
     list-style: none;
   }
-
   .navbar-flex {
     display: flex;
   }
-
   .navbar-right {
     float: right;
   }
   .navbar-right li {
     margin-left: 35px;
   }
-
   .navbar-right li:nth-last-child(1) {
     margin-left: 45px;
     margin-right: -10px;
   }
-
 </style>

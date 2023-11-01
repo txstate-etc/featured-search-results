@@ -1,28 +1,48 @@
-<script lang=ts>
-  import { onMount } from 'svelte'
-  import type { Feedback } from '@txstate-mws/svelte-forms'
-  import { FieldHidden, FieldMultiple, FieldNumber, FieldSelect, FieldText, Form } from '@dosgato/dialog'
+<script lang='ts' context='module'>
   import type { TemplateResult, RawJsonResult } from '$lib/models/result.js'
   import type { PopupMenuItem } from '@txstate-mws/svelte-components'
+  import type { Feedback } from '@txstate-mws/svelte-forms'
   import { isBlank } from 'txstate-utils'
   import { apiBase } from '$lib/util/globals'
+  import { FieldHidden, FieldNumber, FieldSelect, FieldText, Form, Icon } from '@dosgato/dialog'
+  import FieldMultiple from './FieldMultiple.svelte'
+  import helpCircle from '@iconify-icons/mdi/help-circle'
+  import deleteCircle from '@iconify-icons/mdi/delete'
 
-  /* TODO - Maybe :
-   Maybe spiff up the page adding enhance to the forms and adding these transitions.
-   Might need to add to the form library or custom rebuild it here with them.
-   import { enhance } from '$app/forms'
-   Example: <form .... use:enhance ... >
-   import { fly, slide } from 'svelte/transition'
-   Example: <li in:fly={{ y: 20 }} out:slide>
+  /* const modeDescriptions = `
+  The type of matching to perform:<br>
+  <dl>
+    <dt>Exact</dt><dd>The words here must match exactly with the search.</dd>
+    <dt>Phrase</dt><dd>All words here must be present in the search in the same order as listed here.</dd>
+    <dt>Keyword</dt><dd>All words here must be preset in the search in any order.</dd>
+  </dl>
+  ` */
+  const modeDescriptions = "<a href='https://know.tr.txstate.edu/display/MWS/Featured+Search'>Help with Matching Aliases</a>"
+  const choices: PopupMenuItem[] = [
+    { value: 'keyword', label: 'Keyword' },
+    { value: 'phrase', label: 'Phrase' },
+    { value: 'exact', label: 'Exact' }
+  ]
+  const preload = {
+    title: 'HomePage',
+    url: 'https://www.txstate.edu/',
+    entries: [
+      { keyphrase: 'Texas State', mode: 'keyword', priority: 50 },
+      { keyphrase: 'Test', mode: 'keyword', priority: 50 }
+    ]
+  }
+</script>
+<script lang=ts>
+  /* TODO:
+    2) Get rid of border around multipleEntries and move remove button to right.
+    3) Icon the helptext to the right of the label.
   */
+  import { onMount, getContext } from 'svelte'
 
   /** A `TemplateResult` compatible object to preload the editor form with. */
   export let data: TemplateResult | undefined
 
-  async function removeEntry (id: string) {
-    // Remove entry's elements from AddMore element in DOM possibly needing to call
-    // its API or interact via its two-way binds. Ensure it's reliably handling destroy.
-  }
+  let entries: HTMLElement
 
   /**
   ```ts
@@ -58,6 +78,10 @@
     return resp
   }
 
+  /** For now this is a quick check of the inputs to warn about any potential problems with basic input.
+   * @note Since we can't client side check if a record already exists, amongst other validation checking,
+   * we're going to let the API handle this in the future and then we'll need to handle displaying the
+   * messages sent back. */
   function validate (state: ResultState): Feedback[] {
     const messages: Feedback[] = []
     if (isBlank(state.url)) messages.push({ type: 'error', message: 'Must include a URL to associate Result with.' })
@@ -65,22 +89,16 @@
     if (!state.entries.length) messages.push({ type: 'error', message: 'Please add search aliases to associate with this result.' })
     return messages
   }
-  const modeDescriptions = `
-  The type of matching to perform:<br>
-  <dl>
-    <dt>Exact</dt><dd>The words here must match exactly with the search.</dd>
-    <dt>Phrase</dt><dd>All words here must be present in the search in the same order as listed here.</dd>
-    <dt>Keyword</dt><dd>All words here must be preset in the search in any order.</dd>
-  </dl>
-  `
-  const choices: PopupMenuItem[] = [
-    { value: 'keyword', label: 'Keyword' },
-    { value: 'phrase', label: 'Phrase' },
-    { value: 'exact', label: 'Exact' }
-  ]
 
-  function isInitialized () { return !!true }
+  function openHelp () {
+    const href = 'https://know.tr.txstate.edu/display/MWS/Featured+Search'
+    const target = '_blank'
+    window.open(href, target)
+  }
+
   onMount(() => {
+    /* Remove the empty label from FieldMultiple. */
+    Array.from(entries.getElementsByClassName('dialog-field-label')).filter(l => isBlank(l.textContent)).forEach(e => { e.remove() })
     if (data?.id) { console.log('TODO: (Optional) ResultEditor - Race Condition Check Interval') }
     /* Add interval to check for race condition updates to result/[id] and display them to active user.
        Keep in mind that upserts to the Result model already do some checking at .save but it'd be nice
@@ -88,87 +106,144 @@
        - OR don't waste all the electricity making service calls they can coordinate themselves with so
        few users. */
   })
-  const preload = { title: 'HomePage', url: 'https://www.txstate.edu/', entries: [{ keyphrase: 'Texas State', mode: 'keyword', priority: 50 }] }
 </script>
 
 <Form name='result' {submit} {validate} {preload} let:saved>
   <div class='result-form'>
     <FieldText path='title' label='Title:' defaultValue={data?.title ?? ''}/>
-    <FieldText path='url' label='URL:' defaultValue={data?.url ?? ''}/>
-    <FieldMultiple path='entries' label='Matching Aliases:' removable={true} let:index >
-      <div class='result-entries-form'>
-        <!-- Consider replacing the below with another construct of the fields. -->
-        <FieldText path='keyphrase' label='Keyphrase:' defaultValue={data?.entries?.[index].keyphrase ?? ''}/>
-        <FieldSelect path='mode' label='Mode:' notNull defaultValue={data?.entries?.[index].mode ?? 'keyword'} {choices} />
-        <FieldNumber path='priority' label='Priority:' defaultValue={data?.entries?.[index].priority ?? 0} step={10} />
+    <FieldText path='url' label='URL:' defaultValue={data?.url ?? ''} required/>
+    <!-- svelte-forms(entries[]) -->
+    <div class='result-entries' bind:this={entries}>
+      <div class='label-and-helpicon'>
+        <label for='entries'>Matching Aliases</label>
+          <button type='button' on:click|preventDefault|stopPropagation={openHelp}>
+            <Icon icon={helpCircle} hiddenLabel='documentation on search result aliases'/>
+          </button>
       </div>
-    </FieldMultiple>
+      <FieldMultiple path='entries' label='' removable={true} let:index>
+        <div class='result-entries-record'>
+          <FieldText path='keyphrase' label='Search Words:' defaultValue={data?.entries?.[index].keyphrase ?? ''} required/>
+          <FieldSelect path='mode' label='Mode:' notNull defaultValue={data?.entries?.[index].mode ?? 'keyword'} {choices} required />
+          <FieldNumber path='priority' label='Priority:' defaultValue={data?.entries?.[index].priority ?? 0} step={10} required/>
+        </div>
+        <Icon slot='removeBtnIcon' icon={deleteCircle} hiddenLabel='remove from list'/>
+      </FieldMultiple>
+    </div>
     <FieldText path='tags' label='Tags:' defaultValue={data?.tags?.join(' ') ?? ''}/>
   </div>
   {#if data?.id}<FieldHidden path='id' bind:value={data.id}/>{/if}
   <svelte:fragment slot='submit' let:saved>
-    <button>Save</button>
+    <button class='submit-button' type='button'>Save</button>
     {#if saved}Save successful!{/if}
   </svelte:fragment>
 </Form>
 
 <style>
-
-  :focus {
-    outline: 3px solid #005481;
+  .result-form {
+    --dialog-container-padding: 1.0em;
+    --dialog-entries-row-padding-top: 0.7em;
+    --dialog-entries-row-padding-bottom: 0.3em;
+    & > div {
+      border: none !important;
+    }
+    & > div:last-of-type {
+      margin-bottom: 1em;
+    }
   }
-  .result-entries-form {
+  .result-form :global(.dialog-multiple) {
+    /*--dialog-container-border: 1px dashed hsl(0 0% 0% / 0.05);*/
+    border: none;
+  }
+  .result-form :global(.dialog-field-container) {
+    padding-bottom: 0 !important;
+  }
+  .result-entries {
+    padding-top: 1.0em;
+  }
+  .result-entries :global(.dialog-field-container) {
+    padding-top: 0 !important;
+  }
+  .result-entries :global(:not(.result-entries-record .dialog-field-container).dialog-field-container > .dialog-field-label) {
+    display: hidden;
+    margin: 0;
+  }
+  .result-entries :global(.dialog-field-container > .dialog-field-content > .dialog-multiple:last-of-type) {
+    border-bottom: 1px solid;
+    margin-bottom: 0.8em;
+  }
+  .result-entries :global(.dialog-multiple) {
+    padding-left: 0.8em !important;
+    padding-right: 2em !important;
+    padding-top: var(--dialog-entries-row-padding-top);
+    padding-bottom: var(--dialog-entries-row-padding-bottom);
+  }
+  .result-entries :global(.dialog-multiple:first-child) {
+    border-top: 1px solid;
+  }
+  .result-entries :global(.dialog-multiple:last-of-type) {
+    padding-bottom: 1em;
+  }
+  .result-entries :global(.dialog-multiple-buttons) {
+    padding-top: 2.0em !important;
+  }
+  .result-entries :global(.dialog-multiple-buttons > button > svg) {
+    color: var(--dg-button-bg);
+  }
+  .label-and-helpicon {
+    padding-bottom: 0.3em;
+    & > label {
+      display: inline-block;
+      padding-right: 0;
+    }
+    & > button {
+      border: none;
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
+      font-size: 1.3em;
+    }
+  }
+  .label-and-helpicon > button :global(svg) {
+    display: inline-block;
+    box-sizing: border-box;
+    width: 0.7em;
+    height: 0.7em;
+    color: var(--colors-help);
+  }
+  .result-entries-record {
     display: flex;
   }
-
-  .result-form {
-    --dialog-container-padding: 1.3em;
-  }
-  .result-entries-form :global(.dialog-field-container) {
+  .result-entries-record :global(.dialog-field-container) {
     margin-bottom: 0 !important;
+    & select {
+      margin-bottom: 0 !important;
+      padding: 0.2rem 0.5em;
+    }
   }
-  .result-entries-form :global(.dialog-field-container:first-child) {
+  /* entries.keyphrase - Search Words */
+  .result-entries-record :global(.dialog-field-container:first-child) {
     flex-grow: 1;
   }
-
-  .result-entries-form :global(.dialog-field-container:nth-child(2)) {
+  /* entries.mode - Mode */
+  .result-entries-record :global(.dialog-field-container:nth-child(2)) {
     width: 7em;
   }
-
-  .result-entries-form :global(.dialog-field-container:last-child) {
+  /* entries.priority - Priority */
+  .result-entries-record :global(.dialog-field-container:last-child) {
     width: 5em;
   }
-
-  .result-entries-form :global(.dialog-field-container:not(:last-child)) {
+  .result-entries-record :global(.dialog-field-container:not(:last-child)) {
     margin-right: 0.5em !important;
   }
-
-  .result-entries-form :global(dl) {
-    margin: 0;
-    padding: 0;
+  .submit-button {
+    padding: 0.7em 1.9em;
+    border: 0;
+    border-radius: 0.25em;
+    background-color: var(--dg-button-bg);
+    color: var(--dg-button-text);
+    cursor: pointer;
     display: flex;
-    flex-flow: row wrap;
-  }
-
-  .result-entries-form :global(dt:before) {
-    content: "";
-    display: block;
-  }
-  .result-entries-form :global(dt) {
-    flex-basis: 20%;
-    padding: 2px 4px;
-    text-align: right;
-    font-weight: bold;
-  }
-  .result-entries-form :global(dt:after) {
-    content: ":";
-  }
-  .result-entries-form :global(dd) {
-    flex-basis: 70%;
-    flex-grow: 1;
-    margin: 0;
-    padding: 2px 4px;
-    text-align: left;
-    margin-left: auto;
+    align-items: center;
+    line-height: 1;
   }
 </style>
