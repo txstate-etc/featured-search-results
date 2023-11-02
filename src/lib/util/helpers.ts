@@ -2,6 +2,9 @@
 import { isBlank } from 'txstate-utils'
 import { error } from '@sveltejs/kit'
 
+/** Function for doing things in svelte curly bracers without generating output that gets added to the DOM. */
+export function noOp (..._: any[]) { return '' }
+
 /** "Cleans" `query` to all lowercase, with all whitespaces reduced to single space, and trims that result.
  * If there's anything left the result is returned as a tokenized string array split on the spaces. Else an
  * empty array is returned. */

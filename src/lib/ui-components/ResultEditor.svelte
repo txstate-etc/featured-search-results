@@ -9,41 +9,6 @@
   import helpCircle from '@iconify-icons/mdi/help-circle'
   import deleteCircle from '@iconify-icons/mdi/delete'
 
-  /* const modeDescriptions = `
-  The type of matching to perform:<br>
-  <dl>
-    <dt>Exact</dt><dd>The words here must match exactly with the search.</dd>
-    <dt>Phrase</dt><dd>All words here must be present in the search in the same order as listed here.</dd>
-    <dt>Keyword</dt><dd>All words here must be preset in the search in any order.</dd>
-  </dl>
-  ` */
-  const modeDescriptions = "<a href='https://know.tr.txstate.edu/display/MWS/Featured+Search'>Help with Matching Aliases</a>"
-  const choices: PopupMenuItem[] = [
-    { value: 'keyword', label: 'Keyword' },
-    { value: 'phrase', label: 'Phrase' },
-    { value: 'exact', label: 'Exact' }
-  ]
-  const preload = {
-    title: 'HomePage',
-    url: 'https://www.txstate.edu/',
-    entries: [
-      { keyphrase: 'Texas State', mode: 'keyword', priority: 50 },
-      { keyphrase: 'Test', mode: 'keyword', priority: 50 }
-    ]
-  }
-</script>
-<script lang=ts>
-  /* TODO:
-    2) Get rid of border around multipleEntries and move remove button to right.
-    3) Icon the helptext to the right of the label.
-  */
-  import { onMount, getContext } from 'svelte'
-
-  /** A `TemplateResult` compatible object to preload the editor form with. */
-  export let data: TemplateResult | undefined
-
-  let entries: HTMLElement
-
   /**
   ```ts
   {
@@ -64,6 +29,36 @@
     entries to populate the form's entries section with for editing. */
     id?: string
   }
+  const choices: PopupMenuItem[] = [
+    { value: 'keyword', label: 'Keyword' },
+    { value: 'phrase', label: 'Phrase' },
+    { value: 'exact', label: 'Exact' }
+  ]
+  function openHelp () {
+    const href = 'https://know.tr.txstate.edu/display/MWS/Featured+Search'
+    const target = '_blank'
+    window.open(href, target)
+  }
+  const preload = {
+    title: 'HomePage',
+    url: 'https://www.txstate.edu/',
+    entries: [
+      { keyphrase: 'Texas State', mode: 'keyword', priority: 50 },
+      { keyphrase: 'Test', mode: 'keyword', priority: 50 }
+    ]
+  }
+</script>
+<script lang=ts>
+  /**
+   * TODO:
+  */
+import { onMount } from 'svelte'
+  /** A `TemplateResult` compatible object to preload the editor form with. */
+  export let data: TemplateResult | undefined
+
+  // const fieldMultipleContext = getContext<{ helptextid: string | undefined }>(DG_DIALOG_FIELD_MULTIPLE)
+  let fieldMultipleContext
+  let entries: HTMLElement
 
   async function submit (state: ResultState) {
     console.log('ResultEditor.submit => ', JSON.stringify(state))
@@ -90,15 +85,9 @@
     return messages
   }
 
-  function openHelp () {
-    const href = 'https://know.tr.txstate.edu/display/MWS/Featured+Search'
-    const target = '_blank'
-    window.open(href, target)
-  }
-
   onMount(() => {
     /* Remove the empty label from FieldMultiple. */
-    Array.from(entries.getElementsByClassName('dialog-field-label')).filter(l => isBlank(l.textContent)).forEach(e => { e.remove() })
+    Array.from(entries.getElementsByTagName('label')).filter(l => isBlank(l.textContent)).forEach(e => { e.remove() })
     if (data?.id) { console.log('TODO: (Optional) ResultEditor - Race Condition Check Interval') }
     /* Add interval to check for race condition updates to result/[id] and display them to active user.
        Keep in mind that upserts to the Result model already do some checking at .save but it'd be nice
@@ -114,11 +103,11 @@
     <FieldText path='url' label='URL:' defaultValue={data?.url ?? ''} required/>
     <!-- svelte-forms(entries[]) -->
     <div class='result-entries' bind:this={entries}>
-      <div class='label-and-helpicon'>
-        <label for='entries'>Matching Aliases</label>
-          <button type='button' on:click|preventDefault|stopPropagation={openHelp}>
-            <Icon icon={helpCircle} hiddenLabel='documentation on search result aliases'/>
-          </button>
+      <div class='label-with-helpicon'>
+        <label for={'alias-help'}>Matching Aliases</label>
+        <button id='alias-help' type='button' on:click|preventDefault|stopPropagation={openHelp}>
+          <Icon icon={helpCircle} hiddenLabel='documentation on search result aliases'/>
+        </button>
       </div>
       <FieldMultiple path='entries' label='' removable={true} let:index>
         <div class='result-entries-record'>
@@ -129,7 +118,7 @@
         <Icon slot='removeBtnIcon' icon={deleteCircle} hiddenLabel='remove from list'/>
       </FieldMultiple>
     </div>
-    <FieldText path='tags' label='Tags:' defaultValue={data?.tags?.join(' ') ?? ''}/>
+    <FieldText path='tags' label='Administrative Tags:' defaultValue={data?.tags?.join(' ') ?? ''}/>
   </div>
   {#if data?.id}<FieldHidden path='id' bind:value={data.id}/>{/if}
   <svelte:fragment slot='submit' let:saved>
@@ -140,75 +129,87 @@
 
 <style>
   .result-form {
-    --dialog-container-padding: 1.0em;
-    --dialog-entries-row-padding-top: 0.7em;
-    --dialog-entries-row-padding-bottom: 0.3em;
+    --element-container-spacing: 1rem;
+    --margin-below-labels: 0.3rem;
+    --padding-between-borders-and-first-container: calc(var(--element-container-spacing) - 0.3rem);
+    --padding-between-last-container-and-borders: var(--element-container-spacing);
+    --margin-below-borders-and-buttons: var(--margin-below-labels);
+    --container-borders: 1px solid;
+    --delete-button-offset: 1.3rem;
+    --delete-button-top: calc(var(--element-container-spacing) + var(--delete-button-offset));
     & > div {
       border: none !important;
     }
     & > div:last-of-type {
-      margin-bottom: 1em;
+      margin-bottom: var(--element-container-spacing);
     }
   }
   .result-form :global(.dialog-multiple) {
     /*--dialog-container-border: 1px dashed hsl(0 0% 0% / 0.05);*/
     border: none;
   }
-  .result-form :global(.dialog-field-container) {
-    padding-bottom: 0 !important;
+  /* All form containers except those nested under result-entries. */
+  .result-form :global(.dialog-field-container:not(.result-entries *)) {
+    padding: 0 !important;
+    margin-top: var(--element-container-spacing);
+    & > label {
+      margin-bottom: var(--margin-below-labels);
+    }
   }
   .result-entries {
-    padding-top: 1.0em;
+    margin-top: var(--element-container-spacing);
   }
-  .result-entries :global(.dialog-field-container) {
-    padding-top: 0 !important;
-  }
-  .result-entries :global(:not(.result-entries-record .dialog-field-container).dialog-field-container > .dialog-field-label) {
-    display: hidden;
-    margin: 0;
-  }
-  .result-entries :global(.dialog-field-container > .dialog-field-content > .dialog-multiple:last-of-type) {
-    border-bottom: 1px solid;
-    margin-bottom: 0.8em;
-  }
-  .result-entries :global(.dialog-multiple) {
-    padding-left: 0.8em !important;
-    padding-right: 2em !important;
-    padding-top: var(--dialog-entries-row-padding-top);
-    padding-bottom: var(--dialog-entries-row-padding-bottom);
-  }
-  .result-entries :global(.dialog-multiple:first-child) {
-    border-top: 1px solid;
-  }
-  .result-entries :global(.dialog-multiple:last-of-type) {
-    padding-bottom: 1em;
-  }
-  .result-entries :global(.dialog-multiple-buttons) {
-    padding-top: 2.0em !important;
-  }
-  .result-entries :global(.dialog-multiple-buttons > button > svg) {
-    color: var(--dg-button-bg);
-  }
-  .label-and-helpicon {
-    padding-bottom: 0.3em;
+  .label-with-helpicon {
     & > label {
       display: inline-block;
       padding-right: 0;
+      margin-bottom: var(--margin-below-labels);
     }
     & > button {
       border: none;
       background: transparent;
       padding: 0;
       cursor: pointer;
-      font-size: 1.3em;
+      font-size: 1.3rem;
     }
   }
-  .label-and-helpicon > button :global(svg) {
+  .label-with-helpicon > button :global(svg) {
     display: inline-block;
     box-sizing: border-box;
-    width: 0.7em;
-    height: 0.7em;
+    width: 0.7rem;
+    height: 0.7rem;
     color: var(--colors-help);
+  }
+  .result-entries :global(:not(.result-form) > .dialog-field-container) {
+    margin-top: 0 !important;
+  }
+  .result-entries :global(:not(.result-entries-record .dialog-field-container).dialog-field-container > .dialog-field-label) {
+    display: hidden;
+    margin: 0;
+  }
+  .result-entries :global(.dialog-multiple) {
+    padding-top: var(--element-container-spacing);
+    padding-left: 0.8rem;
+    padding-right: 2rem;
+    padding-bottom: 0;
+  }
+  .result-entries :global(.dialog-multiple:first-child) {
+    border-top: var(--container-borders);
+    padding-top: var(--padding-between-borders-and-first-container) !important;
+    & > .dialog-multiple-buttons {
+      top: calc(var(--padding-between-borders-and-first-container) + var(--delete-button-offset));
+    }
+  }
+  .result-entries :global(.dialog-multiple:last-of-type) {
+    padding-bottom: var(--padding-between-last-container-and-borders) !important;
+    border-bottom: var(--container-borders);
+    margin-bottom: var(--margin-below-borders-and-buttons);
+  }
+  .result-entries :global(.dialog-multiple-buttons:not(.dialog-field-content > .dialog-multiple:first-child > div)) {
+    top: var(--delete-button-top)
+  }
+  .result-entries :global(.dialog-multiple-buttons > button > svg) {
+    color: var(--dg-button-bg);
   }
   .result-entries-record {
     display: flex;
@@ -217,8 +218,11 @@
     margin-bottom: 0 !important;
     & select {
       margin-bottom: 0 !important;
-      padding: 0.2rem 0.5em;
+      padding: 0.2rem 0.5rem;
     }
+    /*& > label {
+      display: none;
+    }*/
   }
   /* entries.keyphrase - Search Words */
   .result-entries-record :global(.dialog-field-container:first-child) {
@@ -226,19 +230,19 @@
   }
   /* entries.mode - Mode */
   .result-entries-record :global(.dialog-field-container:nth-child(2)) {
-    width: 7em;
+    width: 7rem;
   }
   /* entries.priority - Priority */
   .result-entries-record :global(.dialog-field-container:last-child) {
-    width: 5em;
+    width: 5rem;
   }
   .result-entries-record :global(.dialog-field-container:not(:last-child)) {
-    margin-right: 0.5em !important;
+    margin-right: 0.5rem !important;
   }
   .submit-button {
-    padding: 0.7em 1.9em;
+    padding: 0.7rem 1.9rem;
     border: 0;
-    border-radius: 0.25em;
+    border-radius: 0.25rem;
     background-color: var(--dg-button-bg);
     color: var(--dg-button-text);
     cursor: pointer;

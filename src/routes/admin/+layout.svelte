@@ -62,6 +62,7 @@
     margin: 0;
     height: 100%;
     min-height: 100%;
+    /*font-size: 62.5%;*/
 
     --colors-white: #fff;
     --colors-paper: #f5f3f0;

@@ -42,6 +42,20 @@
   /* TODO:
      1) Add `rollupSize` option to resize rows that are `rollupSize` lines tall.
      2) Add hidden sort <select> with <asc|desc> button(?) that displays in mobile media mode.
+       2 Addendum)
+        The whole sort approach here might not be the way to go. It's great for sorting in page
+        records that are fetched and displayed in the table but often times users will expect
+        sorts to operate on the whole paginated set bringing the data not displayed up to the top
+        of the displayed set.
+        - May consider revisiting sort to pass in optional `asyncSortings` that call API sorting
+          endpoints. With that as an option consumer paginators can have the callbacks passed in
+          reference pagination bounds for the API endpoints to return on their sort.
+        - The paginator could then control whether sorting refreshes from page 1 of the paginated
+          data - effectively resetting most of its state as well as the `data` bound to this - or
+          if they are required to do something funky they can.
+        - This async sort should become the default handling if provided but there should also be
+          an option to provide in page sorting or both options for users who are experts in data
+          analysis enough to recognise the value of different sorting granularities.
   */
 
   /** Array of `Record<string, any>[]` records to generate a table for. Uses the first element to figure out the shape of the data. All

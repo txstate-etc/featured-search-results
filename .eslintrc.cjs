@@ -11,10 +11,12 @@ module.exports = {
 		'no-unused-vars': 'off',
 		'no-use-before-define': 'off',
 		'no-void': 'off', // svelte problems
+		'no-throw-literal': 'off', // svelte shorthand allows `throw error(number, { message: string })`
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/array-type': 'off',
 		'@typescript-eslint/no-confusing-void-expression': 'off', // svelte problems
     '@typescript-eslint/no-non-null-assertion': 'off',
+		'@typescript-eslint/no-throw-literal': 'off', // svelte shorthand allows `throw error(number, { message: string })`
 		'@typescript-eslint/no-unnecessary-boolean-literal-compare': ['off'],
     '@typescript-eslint/no-unused-vars': 'off', // typescript does this better
 		'@typescript-eslint/no-use-before-define': 'off', // svelte problems
