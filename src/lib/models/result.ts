@@ -20,12 +20,18 @@
 
 import axios from 'axios'
 import { DateTime } from 'luxon'
-import { type Model, model, Schema, type Document, type ObjectId, models } from 'mongoose'
-import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
+import pkg from 'mongoose'
+const { Schema, models, model } = pkg
+import type { Model, Document, ObjectId } from 'mongoose'
+import { isBlank, isNotNull, sortby, eachConcurrent, pick, isNotBlank } from 'txstate-utils'
 import { querysplit } from '../util/helpers.js'
 import type { QueryDocument } from './query.js'
+import { MessageType, type Feedback } from '@txstate-mws/svelte-forms'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
+export interface ValidationError extends Error {
+  errors: Record<string, { path: string, message: string, value: any }>
+}
 
 /** A `Partial<RawJsonResult>`, with optional `id`, useful for initializing form data from
  * either custom template values or values fetched for editing an existing Result. */
@@ -103,7 +109,7 @@ interface IResultMethods {
   /** Tests if result's `tags` array already includes `tag`. */
   hasTag: (tag: string) => boolean
   /** Tests for non-blank `title` and `url` values, at least one entry, and that the `url` starts with a scheme. */
-  valid: () => boolean
+  valid: () => Promise<Feedback[]>
   /** Tests `url` for 2xx response on a 5 second timeout.
    * * Resets `currency.broken*` values to not broken state if passed.
    * * Sets `currency.broken*` values to broken state and time detected if newly broken.
@@ -154,21 +160,37 @@ interface IResultEntry {
   priority: number
 }
 
+// TODO: I wonder if making entries it's own sub-Schema/Model in here would
+// provide benefits worth the extra step in tracing with problems.
+
 const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
-  url: { type: String, unique: true },
-  title: String,
+  url: { type: String, unique: true, validate: /^(\w+:)?\/\//i },
+  title: { type: String, required: true },
   currency: {
     broken: Boolean,
     tested: Date,
     brokensince: Date
   },
   entries: [{
-    keywords: [String],
+    keywords: {
+      type: [String],
+      validate: {
+        validator: (value: string[]) => {
+          const notBlank = value.reduce<string[]>((acc, cur) => {
+            const trimmed = cur.trim()
+            if (isNotBlank(trimmed)) acc.push(trimmed)
+            return acc
+          }, [])
+          return notBlank.length > 0
+        },
+        message: 'search words must not be blank'
+      }
+    },
     mode: {
       type: String,
       enum: ['keyword', 'phrase', 'exact']
     },
-    priority: { type: Number }
+    priority: { type: Number, required: true }
   }],
   tags: [String]
 })
@@ -368,12 +390,14 @@ ResultSchema.methods.hasTag = function (tag) {
   return this.tags.includes(tag)
 }
 
-ResultSchema.methods.valid = function () {
-  if (this.entries.length === 0) return false
-  if (isBlank(this.title)) return false
-  if (isBlank(this.url)) return false
-  if (!this.url.match(/^(\w+:)?\/\//i)) return false
-  return true
+ResultSchema.methods.valid = async function () {
+  const resultValidation: ValidationError = await this.validate()
+  const resp: Feedback[] = resultValidation
+    ? Object.values(resultValidation.errors).map(e =>
+      ({ type: MessageType.ERROR, ...pick(e, 'path', 'message') })
+    )
+    : []
+  return resp
 }
 
 ResultSchema.statics.getAllWithQueries = async function () {
@@ -439,7 +463,7 @@ ResultSchema.methods.currencyTest = async function () {
   try {
     await this.save()
   } catch (e) {
-    console.log(e)
+    console.error(e)
   }
 }
 
@@ -458,7 +482,7 @@ ResultSchema.statics.currencyTestLoop = async function () {
   try {
     await this.currencyTestAll()
   } catch (e) {
-    console.log(e)
+    console.error(e)
   }
   setTimeout(() => { this.currencyTestLoop().catch(console.error) }, 600000)
 }

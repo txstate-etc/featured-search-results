@@ -67,12 +67,12 @@ Set Content-Type header on the request to `application/json` and include JSON fi
     "keyphrase": string,
     /* case-insensitive space delimited list, will be stored as lower case keyword array */
     "mode": 'keyword'|'phrase'|'exact'
-    /* keyword: all words must be present, but in any order
-     * phrase: all words must be present, in order
-     * exact: query must match exactly */
+    /* keyword: the query must contain all keyphrase words, but in any order
+     * phrase: the query must contain the keyphrase exactly as it is ordered
+     * exact: the query must match the keyphrase exactly */
   }],
   "tags": [string]
-  /* non-indexed tags for tracking ownership of the entry
+  /* non-indexed tags for tracking ownership/association of the entry
    * optional, comma-separated
    * e.g. `liberal_arts,anthropology` */
 }

@@ -25,7 +25,7 @@
   export let format: (meta: PropMeta, obj: any) => string
 </script>
 
-<div class:complex-container={dataMeta.isComplex}>
+<div class:complex-container={dataMeta.shouldNest}>
   {#if $$slots.singletonContent}
     <slot {record} {dataMeta} {format}>
       {@html format(dataMeta, record[dataMeta.key])}

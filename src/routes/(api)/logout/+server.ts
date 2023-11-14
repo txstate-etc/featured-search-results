@@ -1,11 +1,16 @@
 import { base } from '$app/paths'
+import { env } from '$env/dynamic/public'
 
-const logoutUrl = new URL(process.env.PUBLIC_AUTH_REDIRECT_URL!)
-logoutUrl.search = ''
-logoutUrl.pathname = '/logout'
+
+let logoutUrl: URL | undefined
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET ({ cookies }) {
+  if (logoutUrl == null) {
+    logoutUrl = new URL(env.PUBLIC_AUTH_REDIRECT_URL!)
+    logoutUrl.search = ''
+    logoutUrl.pathname = '/logout'
+  }
   const outUrl = new URL(logoutUrl)
   outUrl.searchParams.set('unifiedJwt', cookies.get('token') ?? '')
   return new Response('OK', {

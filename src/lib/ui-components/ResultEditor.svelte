@@ -1,10 +1,10 @@
 <script lang='ts' context='module'>
   import type { TemplateResult, RawJsonResult } from '$lib/models/result.js'
   import type { PopupMenuItem } from '@txstate-mws/svelte-components'
-  import type { Feedback } from '@txstate-mws/svelte-forms'
+  import { MessageType, type Feedback, type FormStore, type SubmitResponse } from '@txstate-mws/svelte-forms'
   import { isBlank } from 'txstate-utils'
-  import { apiBase } from '$lib/util/globals'
-  import { FieldHidden, FieldNumber, FieldSelect, FieldText, Form, Icon } from '@dosgato/dialog'
+  import { VALIDATE_ONLY, apiURL } from '$lib/util/globals'
+  import { FieldHidden, FieldNumber, FieldSelect, FieldStandard, FieldText, Form, Icon, Input } from '@dosgato/dialog'
   import FieldMultiple from './FieldMultiple.svelte'
   import helpCircle from '@iconify-icons/mdi/help-circle'
   import deleteCircle from '@iconify-icons/mdi/delete'
@@ -49,40 +49,67 @@
   }
 </script>
 <script lang=ts>
-  /**
-   * TODO:
+  /* TODO:
+    1) Fix submit errors. Done. - Need to work out asyoutype validations.
+    2) Validate checks with fetches against API.
+       - Started adding Feedbacks to API's handling. Still need to pass associated VALIDATE_ONLY param to calls when validating.
+    3) Look into CSS nesting with (this is very low priority for now)
+      a) different CSS attribute selectors.
+        Examples:
+        - div[class~='classname'] - for 'classname' being any one of the space separated words in class attribute.
+        - div[class|='classname'] - for class value starts with 'classname' optionally followed by hyphenated classname extensions `-.*`
+        - div[class*='classname'] - for 'classname' being a substring contained anywhere in the class attribute.
+      b) :has(), :is(), and :where() psuedo-selectors.
+        Examples:
+        - :global(.class1:not(:has(.subclass))) - For making clearer structure refrences.
+        - :global(:is(.class1, .class2)) - For grouping common rules with most-specific specificity.
+        - :global(:where(.class1, .class2)) - For grouping common rules with zero specificity.
+    5) Add interval to 'Save Successful!' that changes it back to 'Save'
+       - Might not need to do this. If they start changing inputs validating will change state.
+    6) Add confirmation dialog when [Save] is pressed. Possibly the same when [Delete] is pressed
+       if they want a [Delete] button for the entire Rusult record.
   */
-import { onMount } from 'svelte'
+  import { onMount } from 'svelte'
+
   /** A `TemplateResult` compatible object to preload the editor form with. */
   export let data: TemplateResult | undefined
 
-  // const fieldMultipleContext = getContext<{ helptextid: string | undefined }>(DG_DIALOG_FIELD_MULTIPLE)
-  let fieldMultipleContext
+  let store: FormStore<ResultState>
   let entries: HTMLElement
+  let tagsinputelement: HTMLInputElement = undefined as any
 
-  async function submit (state: ResultState) {
+  async function submit (state: ResultState): Promise<SubmitResponse<ResultState>> {
     console.log('ResultEditor.submit => ', JSON.stringify(state))
-    const resp = await (await fetch(`${apiBase}/result`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(state)
+    const resp = await (await fetch(`${apiURL}/result`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state)
     })).json()
-    console.log('ResultEditor.RESP: ', JSON.stringify(resp))
-    return resp
+    console.log('ResultEditor.submit <= RESP: ', JSON.stringify(resp))
+    const messages = resp.messages ?? []
+    return { success: true, data: resp, messages }
   }
 
-  /** For now this is a quick check of the inputs to warn about any potential problems with basic input.
-   * @note Since we can't client side check if a record already exists, amongst other validation checking,
-   * we're going to let the API handle this in the future and then we'll need to handle displaying the
-   * messages sent back. */
-  function validate (state: ResultState): Feedback[] {
-    const messages: Feedback[] = []
-    if (isBlank(state.url)) messages.push({ type: 'error', message: 'Must include a URL to associate Result with.' })
-    if (isBlank(state.title)) messages.push({ type: 'warning', message: 'A Title to associate with the URL would be helpful.' })
-    if (!state.entries.length) messages.push({ type: 'error', message: 'Please add search aliases to associate with this result.' })
+  async function validate (state: ResultState): Promise<Feedback[]> {
+    console.log('ResultEditor.validate => ', JSON.stringify(state))
+    const resp = await (await fetch(`${apiURL}/result?${VALIDATE_ONLY}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state)
+    })).json()
+    console.log('ResultEditor.validate <= RESP: ', JSON.stringify(resp))
+    const messages: Feedback[] = resp.messages ?? []
+    console.log('State.id:', state.id ?? '')
+    console.log('Resp.id', resp.result?.id)
+    if (isBlank(state.id) && resp.result?.id) { // Validation found a pre-existing id for our Result. Add message and add `id` to store.
+      messages.push({ type: MessageType.WARNING, path: 'id', message: 'URL corresponds to a pre-existing record.' })
+      console.log('url corresponds to a pre-existing Result. Adding `id` to state.')
+      // await store.setField('id', resp.result.id)
+    }
     return messages
+  }
+
+  function tagsSerialize (value: string[]) {
+    return value?.join(' ') ?? ''
+  }
+  function tagsDeserialise (value: string) {
+    return value?.split(/[, ]/) ?? []
   }
 
   onMount(() => {
@@ -97,7 +124,7 @@ import { onMount } from 'svelte'
   })
 </script>
 
-<Form name='result' {submit} {validate} {preload} let:saved>
+<Form bind:store name='result' {submit} {validate} {preload} let:saved>
   <div class='result-form'>
     <FieldText path='title' label='Title:' defaultValue={data?.title ?? ''}/>
     <FieldText path='url' label='URL:' defaultValue={data?.url ?? ''} required/>
@@ -113,31 +140,40 @@ import { onMount } from 'svelte'
         <div class='result-entries-record'>
           <FieldText path='keyphrase' label='Search Words:' defaultValue={data?.entries?.[index].keyphrase ?? ''} required/>
           <FieldSelect path='mode' label='Mode:' notNull defaultValue={data?.entries?.[index].mode ?? 'keyword'} {choices} required />
-          <FieldNumber path='priority' label='Priority:' defaultValue={data?.entries?.[index].priority ?? 0} step={10} required/>
+          <FieldNumber path='priority' label='Priority:' defaultValue={data?.entries?.[index].priority ?? 50} step={10} required/>
         </div>
         <Icon slot='removeBtnIcon' icon={deleteCircle} hiddenLabel='remove from list'/>
       </FieldMultiple>
     </div>
-    <FieldText path='tags' label='Administrative Tags:' defaultValue={data?.tags?.join(' ') ?? ''}/>
+    <FieldStandard path='tags' label='Administrative Tags:' defaultValue={data?.tags ?? ''} serialize={tagsSerialize} deserialize={tagsDeserialise} let:value let:valid let:invalid let:id let:onBlur let:onChange let:messagesid let:helptextid>
+      <Input bind:inputelement={tagsinputelement} name='tags' {value} {id} class="dialog-input" {onChange} {onBlur} {valid} {invalid} {messagesid} {helptextid} ></Input>
+    </FieldStandard>
   </div>
   {#if data?.id}<FieldHidden path='id' bind:value={data.id}/>{/if}
-  <svelte:fragment slot='submit' let:saved>
-    <button class='submit-button' type='button'>Save</button>
-    {#if saved}Save successful!{/if}
+  <svelte:fragment slot='submit' let:saved let:submitting let:validating let:valid let:invalid let:allMessages>
+    <button class='submit-button' class:validating class:submitting class:saved type='submit'>
+      {#if submitting}Submitting...
+      {:else if validating}Validating...
+      {:else if saved}<span>Save successful!</span>
+      {:else}Save
+      {/if}
+    </button>
   </svelte:fragment>
 </Form>
 
+<!-- <style lang="scss"> TODO: I need to get back to translating the below to scss. Lower priority right now. -->
 <style>
   .result-form {
-    --element-container-spacing: 1rem;
-    --margin-below-labels: 0.3rem;
-    --padding-between-borders-and-first-container: calc(var(--element-container-spacing) - 0.3rem);
-    --padding-between-last-container-and-borders: var(--element-container-spacing);
-    --margin-below-borders-and-buttons: var(--margin-below-labels);
-    --container-borders: 1px solid;
+    --entries-multiple-spacing: 1.0rem;/*var(--element-container-spacing);   They liked 1.5rem. */
+    --padding-between-borders-and-first-container: calc(var(--entries-multiple-spacing) - 0.3rem);
+    --padding-between-last-container-and-borders: var(--entries-multiple-spacing);
+    --margin-below-borders-and-buttons: calc(var(--margin-below-labels) + 0.1rem);
+    --container-borders: 1px solid black;
     --delete-button-offset: 1.3rem;
-    --delete-button-top: calc(var(--element-container-spacing) + var(--delete-button-offset));
-    & > div {
+    --delete-button-top: calc(var(--entries-multiple-spacing) + var(--delete-button-offset));
+    --help-icon-size: 0.7rem;
+    --border-to-label-spacing: 0.8rem;
+    & > div:not(.result-entries) {
       border: none !important;
     }
     & > div:last-of-type {
@@ -145,7 +181,7 @@ import { onMount } from 'svelte'
     }
   }
   .result-form :global(.dialog-multiple) {
-    /*--dialog-container-border: 1px dashed hsl(0 0% 0% / 0.05);*/
+    --dialog-container-border: none;
     border: none;
   }
   /* All form containers except those nested under result-entries. */
@@ -158,6 +194,10 @@ import { onMount } from 'svelte'
   }
   .result-entries {
     margin-top: var(--element-container-spacing);
+    border-top: var(--container-borders);
+    padding-top: var(--border-to-label-spacing);
+    padding-bottom: var(--element-container-spacing);
+    border-bottom: var(--container-borders);
   }
   .label-with-helpicon {
     & > label {
@@ -176,9 +216,12 @@ import { onMount } from 'svelte'
   .label-with-helpicon > button :global(svg) {
     display: inline-block;
     box-sizing: border-box;
-    width: 0.7rem;
-    height: 0.7rem;
+    width: var(--help-icon-size);
+    height: var(--help-icon-size);
     color: var(--colors-help);
+  }
+  .result-entries :global(.dialog-field-container) {
+    padding: 0 !important;
   }
   .result-entries :global(:not(.result-form) > .dialog-field-container) {
     margin-top: 0 !important;
@@ -188,13 +231,13 @@ import { onMount } from 'svelte'
     margin: 0;
   }
   .result-entries :global(.dialog-multiple) {
-    padding-top: var(--element-container-spacing);
+    padding-top: var(--entries-multiple-spacing, 1.5rem);
     padding-left: 0.8rem;
     padding-right: 2rem;
     padding-bottom: 0;
   }
   .result-entries :global(.dialog-multiple:first-child) {
-    border-top: var(--container-borders);
+    border-top: var(--top-entries-border, none);
     padding-top: var(--padding-between-borders-and-first-container) !important;
     & > .dialog-multiple-buttons {
       top: calc(var(--padding-between-borders-and-first-container) + var(--delete-button-offset));
@@ -202,7 +245,7 @@ import { onMount } from 'svelte'
   }
   .result-entries :global(.dialog-multiple:last-of-type) {
     padding-bottom: var(--padding-between-last-container-and-borders) !important;
-    border-bottom: var(--container-borders);
+    border-bottom: var(--bottom-entries-border, none);
     margin-bottom: var(--margin-below-borders-and-buttons);
   }
   .result-entries :global(.dialog-multiple-buttons:not(.dialog-field-content > .dialog-multiple:first-child > div)) {
@@ -224,30 +267,23 @@ import { onMount } from 'svelte'
       display: none;
     }*/
   }
-  /* entries.keyphrase - Search Words */
+  /* Search Words */
   .result-entries-record :global(.dialog-field-container:first-child) {
     flex-grow: 1;
   }
-  /* entries.mode - Mode */
+  /* Mode */
   .result-entries-record :global(.dialog-field-container:nth-child(2)) {
     width: 7rem;
   }
-  /* entries.priority - Priority */
+  /* Priority */
   .result-entries-record :global(.dialog-field-container:last-child) {
     width: 5rem;
   }
+  /* Spacing between the above inputs. */
   .result-entries-record :global(.dialog-field-container:not(:last-child)) {
     margin-right: 0.5rem !important;
   }
   .submit-button {
-    padding: 0.7rem 1.9rem;
-    border: 0;
-    border-radius: 0.25rem;
-    background-color: var(--dg-button-bg);
-    color: var(--dg-button-text);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    line-height: 1;
+    margin-bottom: 1rem;
   }
 </style>

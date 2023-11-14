@@ -5,10 +5,10 @@
   export let target: string
 </script>
 
-<form name='SearchBar' action={`${target}?q=${search}`} method='GET'>
+<form name='SearchBar' action={target} method='GET'>
   <div class='searchbar'>
     <input type='search' name='q' placeholder='Search...' bind:value={search} />
-    <input type='submit' value="Search"/>
+    <button type='submit' class='submit-button'>Search</button>
   </div>
 </form>
 
@@ -16,12 +16,19 @@
   .searchbar {
     margin-inline: auto;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    padding-top: 0.2rem;
+    margin-top: var(--element-container-spacing);
   }
   input {
-    border: 1px;
+    flex-grow: 1;
+    line-height: 1;
+    padding: 0.3rem;
+    margin-right: var(--margin-below-labels);
+    border: var(--dialog-container-border);
+  }
+  button {
+    padding: var(--search-button-padding);
   }
 
 </style>

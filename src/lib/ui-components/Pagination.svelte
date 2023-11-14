@@ -2,7 +2,10 @@
   import { onMount } from 'svelte'
   import { appBase, DEFAULT_PAGESIZE_OPTIONS, DEFAULT_PAGINATION_SIZE } from '$lib/util/globals'
 
-  /**
+  /** TODO:
+   - Add form submit to pagesize <select>
+    <select onchange="this.form.submit()">
+
   @Discussion - Some things to think about when we get around to extending the api to support
                 pagination and wrapping result lists in it...
 

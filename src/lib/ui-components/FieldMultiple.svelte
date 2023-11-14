@@ -104,8 +104,7 @@
 <style>
   .dialog-multiple {
     position: relative;
-    /* border: var(--dialog-container-border, 1px dashed #CCCCCC); */
-    border: var(--dialog-container-border);
+    border: var(--dialog-container-border, 1px dashed #CCCCCC);
     padding: var(--dialog-container-padding, 1.5em);
   }
   .dialog-multiple:not(.first) {

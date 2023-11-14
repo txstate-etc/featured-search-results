@@ -5,14 +5,12 @@
 </script>
 
 <h1>Search Featured Results</h1>
-<div>
-  <SearchBar target={`${appBase}/results`}/>
-  <a href={`${appBase}/results`}>Browse All Results</a>
-</div>
+<SearchBar target={`${appBase}/results`}/>
+<a href={`${appBase}/results`}>Browse All Results</a>
 
 <style>
   a {
     font-size:small;
-    color: #000;
+    /* color: ; */
   }
 </style>

@@ -1,0 +1,14 @@
+version: '3'
+services:
+  search-featured-results:
+    environment:
+      MOTION_TOKEN: <pull-from-ansible>
+      MYSQL_PASS: secret
+      WAREHOUSE_PASS: <pull-from-ansible>
+      PUBLIC_AUTH_REDIRECT_URL: http://localhost:3001/login?clientId=search-featured-results
+      JWT_TRUSTED_ISSUERS: '[{ "iss": "unified-auth", "url": "http://fakeauth/jwks" }, { "iss": "search-featured-results", "secret": "localtoken" }]'
+      EDITOR_GROUP_NAME: '$$staff-current'
+networks:
+  default:
+    external:
+      name: txst-tunnel_default

@@ -19,7 +19,9 @@
  * If any Query documents end up with empty `hits` arrays as a result - they are deleted.
  */
 
-import { type Model, model, Schema, type Document, type ObjectId, models } from 'mongoose'
+import pkg from 'mongoose'
+const { models, model } = pkg
+import { Schema, type Model, type Document, type ObjectId } from 'mongoose'
 import { DateTime } from 'luxon'
 import { isEmpty, isBlank } from 'txstate-utils'
 import type { ResultDocument, ResultBasicPlusId } from './result.js'
@@ -125,7 +127,7 @@ QuerySchema.statics.cleanupLoop = async function () {
   try {
     await Query.cleanup()
   } catch (e) {
-    console.log(e)
+    console.error(e)
   }
   setTimeout(() => { Query.cleanupLoop().catch(console.error) }, 27 * 60 * 1000)
 }

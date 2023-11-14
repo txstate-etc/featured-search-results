@@ -1,6 +1,7 @@
 /* eslint-disable quote-props */
 import { isBlank } from 'txstate-utils'
 import { error } from '@sveltejs/kit'
+import { MessageType } from '@txstate-mws/svelte-forms'
 
 /** Function for doing things in svelte curly bracers without generating output that gets added to the DOM. */
 export function noOp (..._: any[]) { return '' }
@@ -12,6 +13,58 @@ export function querysplit (query: string) {
   const clean = query.toLowerCase().replace(/[^\w-]+/g, ' ').trim()
   if (clean.length === 0) return []
   return clean.split(' ')
+}
+
+/** Extracts and returns the `param: string` value from `url`.
+ * @param {URL} url - The URL to extract id from.
+ * @param {string} param - The name of the parameter to extract a value from.
+ * @param {boolean} required - Optional specification of whether a 400 error should be thrown if `param`'s value is blank or missing.
+ * @throws error(400, {message: `${param} is required.` }) - if `param` is blank or missing. */
+export function paramFromUrl (url: URL, param: string, required: boolean = false) {
+  const value = (url.searchParams.get(param) ?? undefined)?.trim()
+  console.log('paramFromUrl', url.searchParams)
+  if (required && isBlank(value)) throw error(400, { message: `${param} is requried.` })
+  return value
+}
+
+/** Extracts and returns the `id` prameter from `url`.
+ * @param {URL} url - The URL to extract id from.
+ * @throws error(400, {message: 'id is required.' }) - if `id` is blank or missing.
+ * @throws error(400, {message: 'Bad id format...' }) - if `id` is not a hexadecimal. */
+export function idFromUrl (url: URL) {
+  const id = paramFromUrl(url, 'id', true)
+  if (!/^[a-f0-9]+$/i.test(id!)) throw error(400, { message: 'Bad id format. Should be a hex string.' })
+  return id
+}
+
+function statusToMessageType (status: number) {
+  if (status === 200) return MessageType.SUCCESS
+  if (status === 401) return MessageType.SYSTEM
+  /* Currently no warnings thrown so don't waste cycles checking:
+  if (status > 200 && status < 300) return MessageType.WARNING */
+  return MessageType.ERROR
+}
+
+/** A set of common checks that handle the difference between validation only checks and
+ * full blown throw an error checks. If they're not `validationOnly` then errors will be
+ * thrown before a value can be returned. If they ARE `validationOnly` checks then an
+ * array of Feedback messages will be returned, or an empty array for passing.
+ * Usefull for making sure our checks are consistent - where these are used - and for
+ * reducing code clutter where we optionally want to throw errors or return feedback. */
+export const ValidationChecks = {
+  isTrue: (condition: boolean, status: number, message: string, validationOnly: boolean = false) => {
+    if (!condition) {
+      if (!validationOnly) throw error(status, { message })
+      const type = statusToMessageType(status)
+      return [{ type, message }]
+    } return []
+  },
+  isEditor: (verified: boolean, validationOnly: boolean = false) => {
+    return ValidationChecks.isTrue(verified, 401, 'Not Authorized', validationOnly)
+  },
+  isBlank: (param: any, name: string, validationOnly: boolean = false) => {
+    return ValidationChecks.isTrue(!isBlank(param[name]), 400, `Posted request must contain a non-empty ${name}.`, validationOnly)
+  }
 }
 
 interface SearchMappings {
@@ -174,15 +227,4 @@ export function getLimitClause (pageNum: number, pageSizes: number) {
   const limitDefault = ''
   const offset = (pageNum > 1) ? `${(pageNum - 1) * pageSizes}, ` : ''
   return (pageSizes > 0) ? ` limit ${offset}${pageSizes}` : limitDefault
-}
-
-/** Extracts and returns the `id` prameter from `url`.
- * @param {URL} url - The URL to extract id from.
- * @throws error(400, {message: 'id is required.' }) - if `id` is blank or missing.
- * @throws error(400, {message: 'Bad id format...' }) - if `id` is not a hexadecimal. */
-export function idFromUrl (url: URL) {
-  const id = (url.searchParams.get('id') ?? undefined)?.trim()
-  if (isBlank(id)) throw error(400, { message: 'id is requried.' })
-  if (!/^[a-f0-9]+$/i.test(id)) throw error(400, { message: 'Bad id format. Should be a hex string.' })
-  return id
 }

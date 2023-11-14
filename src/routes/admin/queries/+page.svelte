@@ -4,6 +4,9 @@
   import type { ResultBasicPlusId } from '$lib/models/result'
   import { appBase } from '$lib/util/globals'
 
+  /* TODO:
+    Run queries against the api to generate queries to search for.
+  */
   /** @type {import('./$types').PageData} */
   export let data: ResultBasicPlusId[]
 </script>

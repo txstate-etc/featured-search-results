@@ -14,9 +14,10 @@ services:
       MYSQL_DATABASE: peoplesearch
       MYSQL_PORT: 3306
       MYSQL_PASS: secret
+      PUBLIC_BASE_URL: http://localhost
       PUBLIC_AUTH_REDIRECT_URL: http://localhost:3001/login?clientId=search-featured-results
       JWT_TRUSTED_ISSUERS: '[{ "iss": "unified-auth", "url": "http://fakeauth/jwks" }, { "iss": "search-featured-results", "secret": "localtoken" }]'
-      EDITOR_GROUP_NAME: '$$staff-current'
+      EDITOR_GROUP_NAME: 'App-MWS-featured-search'
     volumes:
       - ./src:/usr/app/src
     ports:

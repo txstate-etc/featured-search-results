@@ -1,7 +1,9 @@
 /* TODO: what are we counting?
  * I'm unable to make heads or tails of what this is meant to do between this model and the /counter/[id] endpoint handlers. */
 
-import { model, type Model, Schema, models } from 'mongoose'
+import pkg from 'mongoose'
+const { Schema, models, model } = pkg
+import type { Model } from 'mongoose'
 import { Cache } from 'txstate-utils'
 
 interface ICounter {

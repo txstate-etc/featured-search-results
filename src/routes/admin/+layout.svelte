@@ -77,11 +77,24 @@
     --colors-input-background: var(--colors-paper);
     --colors-navbar-text: var(--colors-vellum);
     --colors-help: var(--colors-blue);
-    --colors-focus: var(--colors-maroon);
+    --colors-focus: var(--colors-blue);
 
     --dialog-container-border: 1px solid #999999;
     --dg-button-bg: var(--colors-maroon);
     --dg-button-text: var(--colors-vellum);
+    --dg-button-disabled-bg: var(--colors-grey);
+    --table-header-bg: var(--colors-navbar-background);
+    --table-header-text: var(--colors-vellum);
+
+    --submit-button-padding-vert: 0.7rem;
+    --submit-button-padding-sides: 1.9rem;
+    --submit-button-padding: var(--submit-button-padding-vert) var(--submit-button-padding-sides);
+    --submit-button-border: 0;
+    --submit-button-radius: 0.25rem;
+    --search-button-padding: 0.5rem 0.7rem;
+
+    --element-container-spacing: 1.0rem;
+    --margin-below-labels: 0.3rem;
   }
   :global(input, select) {
     background-color: var(--colors-input-background);
@@ -92,6 +105,20 @@
   }
   :global(button:hover) {
     opacity: 1;
+  }
+  :global(.submit-button) {
+    padding: var(--submit-button-padding);
+    border: var(--submit-button-border);
+    border-radius: var(--submit-button-radius);
+    background-color: var(--dg-button-bg);
+    color: var(--dg-button-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    line-height: 1;
+    &.submitting,.validating {
+      background-color: var(--dg-button-disabled-bg);
+    }
   }
   main {
     flex-grow: 1;

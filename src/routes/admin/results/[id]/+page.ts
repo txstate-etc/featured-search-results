@@ -3,10 +3,10 @@ import type { TemplateResult } from '$lib/models/result.js'
 import { apiBase } from '$lib/util/globals.js'
 
 /** @type {import('./$types').PageLoad} */
-export async function load ({ params }) {
+export async function load ({ fetch, params }) {
   console.log('results/[id] - params:', JSON.stringify(params))
-  const resp = await fetch(`${apiBase}/result?id=${params.id}`)
+  const resp = (await fetch(`${apiBase}/result?id=${params.id}`))?.json()
   console.log('results/[id] - resp:', JSON.stringify(resp))
-  if (resp) return await resp.json() as TemplateResult
+  if (resp) return { ...resp }
   throw error(404, 'Not Found')
 }
