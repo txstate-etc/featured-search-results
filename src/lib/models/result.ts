@@ -20,17 +20,31 @@
 
 import axios from 'axios'
 import { DateTime } from 'luxon'
-import pkg from 'mongoose'
-const { Schema, models, model } = pkg
+import mongoose from 'mongoose'
+const { Schema, models, model, Error } = mongoose
+// const { ValidationError, ValidatorError } = Error
 import type { Model, Document, ObjectId } from 'mongoose'
-import { isBlank, isNotNull, sortby, eachConcurrent, pick, isNotBlank } from 'txstate-utils'
+import { isBlank, isNotNull, sortby, eachConcurrent, isNotBlank } from 'txstate-utils'
 import { querysplit } from '../util/helpers.js'
 import type { QueryDocument } from './query.js'
 import { MessageType, type Feedback } from '@txstate-mws/svelte-forms'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
+const matchingModes = ['keyword', 'phrase', 'exact']
 export interface ValidationError extends Error {
-  errors: Record<string, { path: string, message: string, value: any }>
+  errors: Record<string, {
+    properties: {
+      validator: (value: any) => boolean
+      message: string
+      type: string
+      path: string
+      value: any
+    }
+    kind: string
+    path: string
+    value: any
+    reason?: any
+  }>
 }
 
 /** A `Partial<RawJsonResult>`, with optional `id`, useful for initializing form data from
@@ -101,6 +115,9 @@ interface IResultMethods {
    *  Prefetch matching permits last word in words to be a `keyword.startsWith()` match
    *  so that matches work for autocomplete suggestions. */
   prefetchMatch: (words: string[], offset?: number) => number | undefined
+  /** Updates the result's values with those passed in via `input`.
+   * Intended to be used with non-saving validation checks. */
+  fromPartialJson: (input: TemplateResult) => void
   /** Updates the result's values with those passed in via `input`. */
   fromJson: (input: RawJsonResult) => void
   /** Tests if result already has an entry with the same `keywords` and `mode`.
@@ -109,7 +126,7 @@ interface IResultMethods {
   /** Tests if result's `tags` array already includes `tag`. */
   hasTag: (tag: string) => boolean
   /** Tests for non-blank `title` and `url` values, at least one entry, and that the `url` starts with a scheme. */
-  valid: () => Promise<Feedback[]>
+  valid: () => Feedback[]
   /** Tests `url` for 2xx response on a 5 second timeout.
    * * Resets `currency.broken*` values to not broken state if passed.
    * * Sets `currency.broken*` values to broken state and time detected if newly broken.
@@ -164,8 +181,8 @@ interface IResultEntry {
 // provide benefits worth the extra step in tracing with problems.
 
 const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
-  url: { type: String, unique: true, validate: /^(\w+:)?\/\//i },
-  title: { type: String, required: true },
+  url: { type: String, unique: true, validate: /^(\w+:)?\/\//i }, // Note `unique` here is a hint for MongoDB indexes, not a validator.
+  title: { type: String, required: [true, 'Please provide a `title`.'] },
   currency: {
     broken: Boolean,
     tested: Date,
@@ -174,25 +191,27 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
   entries: [{
     keywords: {
       type: [String],
+      // required: [true, 'Search Words are required.'], // Not working.
+      lowercase: true,
       validate: {
         validator: (value: string[]) => {
-          const notBlank = value.reduce<string[]>((acc, cur) => {
-            const trimmed = cur.trim()
-            if (isNotBlank(trimmed)) acc.push(trimmed)
-            return acc
-          }, [])
-          return notBlank.length > 0
+          const notEmpty = value.length > 0
+          return notEmpty ? value.every(str => isNotBlank(str)) : false
         },
-        message: 'search words must not be blank'
+        message: 'Search Words are required.'
       }
     },
     mode: {
       type: String,
-      enum: ['keyword', 'phrase', 'exact']
+      enum: {
+        values: matchingModes,
+        message: '{VALUE} is not a supported matching `mode`.'
+      },
+      required: [true, 'Mode matching type is required.']
     },
-    priority: { type: Number, required: true }
+    priority: { type: Number, required: [true, 'Priority required.'] }
   }],
-  tags: [String]
+  tags: { type: [String], lowercase: true }
 })
 ResultSchema.virtual('queries', {
   ref: 'Query',
@@ -355,7 +374,27 @@ export interface RawJsonResult {
   priority?: number
 }
 
-ResultSchema.methods.fromJson = function (input) {
+
+ResultSchema.methods.fromPartialJson = function (input: Partial<RawJsonResult>) {
+  this.url = input.url?.trim()
+  this.title = input.title?.trim()
+  this.tags = []
+  this.entries = []
+  this._sortedEntries = undefined
+  for (const entry of input.entries ?? []) {
+    const mode = entry.mode?.toLowerCase()
+    this.entries.push({
+      keywords: querysplit(entry.keyphrase ?? ''),
+      mode,
+      priority: entry.priority
+    })
+  }
+  for (const tag of input.tags ?? []) {
+    this.tags.push(tag.toLowerCase().trim())
+  }
+}
+
+ResultSchema.methods.fromJson = function (input: RawJsonResult) {
   this.url = input.url.trim()
   this.title = input.title.trim()
   this.tags = []
@@ -363,8 +402,8 @@ ResultSchema.methods.fromJson = function (input) {
   this._sortedEntries = undefined
   for (const entry of input.entries) {
     const lcmode = entry.mode.toLowerCase()
-    const mode = ['keyword', 'phrase', 'exact'].includes(lcmode) ? lcmode : 'keyword'
-    const words = querysplit(entry.keyphrase)
+    const mode = matchingModes.includes(lcmode) ? lcmode : 'keyword'
+    const words = querysplit(entry.keyphrase ?? '')
     if (words.length > 0) {
       this.entries.push({
         keywords: words,
@@ -390,11 +429,12 @@ ResultSchema.methods.hasTag = function (tag) {
   return this.tags.includes(tag)
 }
 
-ResultSchema.methods.valid = async function () {
-  const resultValidation: ValidationError = await this.validate()
-  const resp: Feedback[] = resultValidation
-    ? Object.values(resultValidation.errors).map(e =>
-      ({ type: MessageType.ERROR, ...pick(e, 'path', 'message') })
+ResultSchema.methods.valid = function () {
+  // this.validate() will only throw errors for us to catch. Use validateSync() instead.
+  const validation: ValidationError = this.validateSync()
+  const resp: Feedback[] = validation
+    ? Object.keys(validation.errors).map(key =>
+      ({ type: MessageType.ERROR, path: key, message: validation.errors[key].properties.message })
     )
     : []
   return resp

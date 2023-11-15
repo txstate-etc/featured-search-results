@@ -1,7 +1,6 @@
 import { error, redirect } from '@sveltejs/kit'
 import { base } from '$app/paths'
-import { apiBase, appBase } from '$lib/util/globals.js'
-import { env } from '$env/dynamic/public'
+import { apiBase, appBase, PUBLIC_AUTH_REDIRECT_URL } from '$lib/util/globals.js'
 
 /** @type {import('./$types').LayoutServerLoad} */
 export const load = async (input) => {
@@ -25,9 +24,9 @@ export const load = async (input) => {
   } catch (e: any) {
     if (e.status !== 401) throw e
   }
-  if (!login && env.PUBLIC_AUTH_REDIRECT_URL) {
+  if (!login) {
     // we are not authenticated, redirect to unified auth to begin login process
-    const authRedirect = new URL(env.PUBLIC_AUTH_REDIRECT_URL)
+    const authRedirect = new URL(PUBLIC_AUTH_REDIRECT_URL)
     authRedirect.searchParams.set('returnUrl', input.url.origin + appBase)
     authRedirect.searchParams.set('requestedUrl', input.url.href)
     throw redirect(302, authRedirect.toString())

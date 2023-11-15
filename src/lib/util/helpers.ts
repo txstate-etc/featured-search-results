@@ -52,18 +52,18 @@ function statusToMessageType (status: number) {
  * Usefull for making sure our checks are consistent - where these are used - and for
  * reducing code clutter where we optionally want to throw errors or return feedback. */
 export const ValidationChecks = {
-  isTrue: (condition: boolean, status: number, message: string, validationOnly: boolean = false) => {
+  isTrue: (condition: boolean, status: number, message: string, path: string, validationOnly: boolean = false) => {
     if (!condition) {
       if (!validationOnly) throw error(status, { message })
       const type = statusToMessageType(status)
-      return [{ type, message }]
+      return [{ type, path, message }]
     } return []
   },
   isEditor: (verified: boolean, validationOnly: boolean = false) => {
-    return ValidationChecks.isTrue(verified, 401, 'Not Authorized', validationOnly)
+    return ValidationChecks.isTrue(verified, 401, 'Not Authorized', '', validationOnly)
   },
   isBlank: (param: any, name: string, validationOnly: boolean = false) => {
-    return ValidationChecks.isTrue(!isBlank(param[name]), 400, `Posted request must contain a non-empty ${name}.`, validationOnly)
+    return ValidationChecks.isTrue(!isBlank(param[name]), 400, `Posted request must contain a non-empty ${name}.`, name, validationOnly)
   }
 }
 

@@ -1,13 +1,12 @@
 import { base } from '$app/paths'
-import { env } from '$env/dynamic/public'
-
+import { PUBLIC_AUTH_REDIRECT_URL } from '$lib/util/globals.js'
 
 let logoutUrl: URL | undefined
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET ({ cookies }) {
   if (logoutUrl == null) {
-    logoutUrl = new URL(env.PUBLIC_AUTH_REDIRECT_URL!)
+    logoutUrl = new URL(PUBLIC_AUTH_REDIRECT_URL)
     logoutUrl.search = ''
     logoutUrl.pathname = '/logout'
   }

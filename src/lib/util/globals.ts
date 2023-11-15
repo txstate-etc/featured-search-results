@@ -7,6 +7,7 @@ import { isNotBlank } from 'txstate-utils'
 // our variables from `env` above won't be available as those are supplied by the runtime.
 import { building } from '$app/environment'
 
+export const PUBLIC_AUTH_REDIRECT_URL = !building ? `${env.PUBLIC_AUTH_BASE_URL!}/login?clientId=${env.PUBLIC_AUTH_CLIENT_ID ?? 'search-featured-results'}` : ''
 const BASE_URL = !building ? `${env.PUBLIC_BASE_URL}${isNotBlank(base) ? '/' + base : ''}` : ''
 export const appBase: string = `${base}/admin`
 export const apiBase: string = base

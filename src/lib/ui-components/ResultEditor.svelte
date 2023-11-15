@@ -89,20 +89,22 @@
   }
 
   async function validate (state: ResultState): Promise<Feedback[]> {
-    console.log('ResultEditor.validate => ', JSON.stringify(state))
     const resp = await (await fetch(`${apiURL}/result?${VALIDATE_ONLY}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state)
     })).json()
-    console.log('ResultEditor.validate <= RESP: ', JSON.stringify(resp))
     const messages: Feedback[] = resp.messages ?? []
-    console.log('State.id:', state.id ?? '')
-    console.log('Resp.id', resp.result?.id)
-    if (isBlank(state.id) && resp.result?.id) { // Validation found a pre-existing id for our Result. Add message and add `id` to store.
+    if (isBlank(state.id) && resp.result?.id) {
+      // Validation found a pre-existing id for our Result. Add message and add `id` to store.
       messages.push({ type: MessageType.WARNING, path: 'id', message: 'URL corresponds to a pre-existing record.' })
-      console.log('url corresponds to a pre-existing Result. Adding `id` to state.')
-      // await store.setField('id', resp.result.id)
+      await store?.setField('id', resp.result.id, { initialize: true })
     }
-    return messages
+    if (state.url !== resp.result?.url && new URL(resp.result.url).hostname.endsWith('txst.edu')) {
+      // `CurrencyTest` updated our URL. Add message and update our store with the updated url.
+      messages.push({ type: MessageType.WARNING, path: 'url', message: 'URL migrated to txst.edu domain.' })
+      await store?.setField('url', resp.result.url)
+    }
+    // Translate message paths to match our store's paths.
+    return messages.map(m => ({ ...m, path: m.path?.replace(/keywords/, 'keyphrase') }))
   }
 
   function tagsSerialize (value: string[]) {
@@ -112,15 +114,10 @@
     return value?.split(/[, ]/) ?? []
   }
 
+
   onMount(() => {
     /* Remove the empty label from FieldMultiple. */
     Array.from(entries.getElementsByTagName('label')).filter(l => isBlank(l.textContent)).forEach(e => { e.remove() })
-    if (data?.id) { console.log('TODO: (Optional) ResultEditor - Race Condition Check Interval') }
-    /* Add interval to check for race condition updates to result/[id] and display them to active user.
-       Keep in mind that upserts to the Result model already do some checking at .save but it'd be nice
-       notify our user that someone else is working on the same Result and what changes they've saved.
-       - OR don't waste all the electricity making service calls they can coordinate themselves with so
-       few users. */
   })
 </script>
 

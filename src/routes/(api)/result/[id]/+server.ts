@@ -1,8 +1,10 @@
 import { Result, type ResultDocument } from '$lib/models/result.js'
 import { error, json } from '@sveltejs/kit'
-import { ValidationChecks, idFromUrl, paramFromUrl } from '$lib/util'
+import { ValidationChecks, idFromUrl } from '$lib/util'
 import type { Feedback } from '@txstate-mws/svelte-forms'
 import { VALIDATE_ONLY } from '$lib/util/globals.js'
+
+/* TODO: Update validation checks/handling in here. */
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET ({ url, locals }) {
@@ -23,13 +25,13 @@ export async function PUT ({ url, request, locals }) {
 
   const id = idFromUrl(url)
   const result = await Result.findById(id) as ResultDocument | undefined
-  messages.push(...ValidationChecks.isTrue(!result, 404, 'That result id does not exist.', isValidation))
+  messages.push(...ValidationChecks.isTrue(!result, 404, 'That result id does not exist.', 'id', isValidation))
   // Above would have thrown error if not just validating. Go ahead and return messages if no result.
   if (!result) return json({ messages })
 
   result.fromJson(body)
   // I need to replace the following check with separate validation checks for each field if not handled elsewhere.
-  messages.push(...(await result.valid()))
+  messages.push(...result.valid())
   if (!isValidation) {
     await result.save()
     return json(result.full())
