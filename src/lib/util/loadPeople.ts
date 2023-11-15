@@ -84,7 +84,7 @@ export async function loadPeople () {
     const searchidsCount = await db.getval<number>('SELECT count(*) FROM searchids')
     console.log(`${peopleCount} records loaded into \`people\` with ${searchidsCount} searchid associations stored in \`searchids\`.`)
     console.groupEnd()
-  } catch (e) { console.log(e) }
+  } catch (e) { console.error(e) }
 
   /* const notInPeople = await db.getvals(`
     SELECT searchids.userid

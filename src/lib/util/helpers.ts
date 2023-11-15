@@ -22,7 +22,6 @@ export function querysplit (query: string) {
  * @throws error(400, {message: `${param} is required.` }) - if `param` is blank or missing. */
 export function paramFromUrl (url: URL, param: string, required: boolean = false) {
   const value = (url.searchParams.get(param) ?? undefined)?.trim()
-  console.log('paramFromUrl', url.searchParams)
   if (required && isBlank(value)) throw error(400, { message: `${param} is requried.` })
   return value
 }
@@ -47,10 +46,13 @@ function statusToMessageType (status: number) {
 
 /** A set of common checks that handle the difference between validation only checks and
  * full blown throw an error checks. If they're not `validationOnly` then errors will be
- * thrown before a value can be returned. If they ARE `validationOnly` checks then an
- * array of Feedback messages will be returned, or an empty array for passing.
+ * thrown before a value can be returned. If they ARE `validationOnly` then an array of
+ * Feedback messages will be returned, or an empty array if the check passed.
  * Usefull for making sure our checks are consistent - where these are used - and for
- * reducing code clutter where we optionally want to throw errors or return feedback. */
+ * reducing code clutter where we optionally want to throw errors or return feedback.
+ * @note Mongoose should be centralizing our document properties validation and formatting.
+ * Hence these checks are more for whether the API was provided everything it needs to
+ * interact with Mongoose. */
 export const ValidationChecks = {
   isTrue: (condition: boolean, status: number, message: string, path: string, validationOnly: boolean = false) => {
     if (!condition) {

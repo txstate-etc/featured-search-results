@@ -23,7 +23,7 @@ export const mongoConnect = async function () {
       break
     } catch (err) {
       failures++
-      console.log('Connection to MongoDB failed. Trying again in 200 milliseconds.')
+      console.error('Connection to MongoDB failed. Trying again in 200 milliseconds.')
       if (failures > 4) console.error(err)
       await sleep(200)
     }
