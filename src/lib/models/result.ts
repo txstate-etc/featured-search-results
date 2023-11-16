@@ -127,6 +127,8 @@ interface IResultMethods {
   hasTag: (tag: string) => boolean
   /** Tests for non-blank `title` and `url` values, at least one entry, and that the `url` starts with a scheme. */
   valid: () => Feedback[]
+  /** Uses feedback from `this.valid` to attempt to heal records failing validation where it can. */
+  healRecord: (feedback?: Feedback[]) => void
   /** Tests `url` for 2xx response on a 5 second timeout.
    * * Resets `currency.broken*` values to not broken state if passed.
    * * Sets `currency.broken*` values to broken state and time detected if newly broken.
@@ -182,7 +184,7 @@ interface IResultEntry {
 
 const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
   url: { type: String, unique: true, validate: /^(\w+:)?\/\//i }, // Note `unique` here is a hint for MongoDB indexes, not a validator.
-  title: { type: String, required: [true, 'Please provide a `title`.'] },
+  title: { type: String, required: [true, 'Required.'] },
   currency: {
     broken: Boolean,
     tested: Date,
@@ -198,18 +200,18 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
           const notEmpty = value.length > 0
           return notEmpty ? value.every(str => isNotBlank(str)) : false
         },
-        message: 'Search Words are required.'
+        message: 'Required.'
       }
     },
     mode: {
       type: String,
       enum: {
         values: matchingModes,
-        message: '{VALUE} is not a supported matching `mode`.'
+        message: '{VALUE} is not an option.'
       },
-      required: [true, 'Mode matching type is required.']
+      required: [true, 'Required.']
     },
-    priority: { type: Number, required: [true, 'Priority required.'] }
+    priority: { type: Number, required: [true, 'Required.'] }
   }],
   tags: { type: [String], lowercase: true }
 })
@@ -479,9 +481,11 @@ ResultSchema.statics.findByQueryCompletion = async function (query: string, offs
 ResultSchema.methods.currencyTest = async function () {
   try {
     let alreadypassed = false
-    if (this.url.includes('txstate.edu')) {
+    const parsedUrl = new URL(this.url)
+    if (parsedUrl.hostname.endsWith('txstate.edu')) {
       try {
-        const newUrl = this.url.replace(/txstate\.edu/, 'txst.edu')
+        parsedUrl.hostname = parsedUrl.hostname.replace(/txstate\.edu$/, 'txst.edu')
+        const newUrl = parsedUrl.toString()
         await axios.get(newUrl, { timeout: 5000 })
         // axios.get will throw an error for all non 2xx repsonse,
         // so it worked if no error was thrown.
@@ -501,9 +505,28 @@ ResultSchema.methods.currencyTest = async function () {
   }
   this.currency.tested = new Date()
   try {
+    // Heal existing Result documents where we can.
+    this.healRecord(this.valid())
     await this.save()
   } catch (e) {
     console.error(e)
+  }
+}
+
+ResultSchema.methods.healRecord = function (feedback?: Feedback[]) {
+  if (!feedback || feedback.length === 0) return
+  for (const v of feedback) {
+    if (v.path?.startsWith('entries.')) {
+      const index = parseInt(v.path.split('.')[1])
+      if (v.path.endsWith('priority')) {
+        console.info(`Healing Result ${this.id} entries.${index}.priority from ${this.entries[index].priority ?? 'undefined'} to 0.`)
+        this.entries[index].priority = 0
+      }
+      if (v.path.endsWith('mode')) {
+        console.info(`Healing Result ${this.id} entries.${index}.mode from ${this.entries[index].mode ?? 'undefined'} to 'keyword'.`)
+        this.entries[index].mode = 'keyword'
+      }
+    }
   }
 }
 

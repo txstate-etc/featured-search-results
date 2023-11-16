@@ -29,10 +29,10 @@ export async function POST ({ url, locals, request }) {
      but what happens if we have a servie we're creating a Result for that isn't yet updated to use the new txst.edu domain? */
   let existingResult = await Result.findOne({ url: postedResult.url }) as ResultDocument | undefined
   if (!existingResult && postedResult.url) {
-    const urlObj = new URL(postedResult.url)
-    if (urlObj.hostname.endsWith('txstate.edu')) {
-      urlObj.hostname.replace('txstate.edu', 'txst.edu')
-      existingResult = await Result.findOne({ url: urlObj.toString() }) as ResultDocument | undefined
+    const parsedUrl = new URL(postedResult.url)
+    if (parsedUrl.hostname.endsWith('txstate.edu')) {
+      parsedUrl.hostname = parsedUrl.hostname.replace(/txstate\.edu$/, 'txst.edu')
+      existingResult = await Result.findOne({ url: parsedUrl.toString() }) as ResultDocument | undefined
     }
   }
   if (existingResult) {
@@ -52,10 +52,9 @@ export async function POST ({ url, locals, request }) {
       await result.save()
       return json(result.full())
     }
-    console.table(messages) // TODO: Remove this server side table print of the messages.
-    // Perserve our non-validating API contract with callers.
+    // Perserve our non-feedback API contract with existing clients.
     throw error(400, 'Result did not validate.')
-  }
+  } else if (messages.length > 0) console.table(messages) // TODO: Remove this server side table print of the messages.
   const respResult: Partial<ResultFull> = result.full()
   // If just validating `newresult.id` gets thrown away and a new one generated on the next POST - don't pass it back.
   if (result.id === postedResult.id) {

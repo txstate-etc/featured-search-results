@@ -54,6 +54,7 @@
     2) Validate checks with fetches against API.
        - Started adding Feedbacks to API's handling. Still need to pass associated VALIDATE_ONLY param to calls when validating.
     3) Look into CSS nesting with (this is very low priority for now)
+    OR Ignore below and just use SCSS.
       a) different CSS attribute selectors.
         Examples:
         - div[class~='classname'] - for 'classname' being any one of the space separated words in class attribute.
@@ -64,10 +65,11 @@
         - :global(.class1:not(:has(.subclass))) - For making clearer structure refrences.
         - :global(:is(.class1, .class2)) - For grouping common rules with most-specific specificity.
         - :global(:where(.class1, .class2)) - For grouping common rules with zero specificity.
-    5) Add interval to 'Save Successful!' that changes it back to 'Save'
-       - Might not need to do this. If they start changing inputs validating will change state.
-    6) Add confirmation dialog when [Save] is pressed. Possibly the same when [Delete] is pressed
+    4) Add confirmation dialog when [Save] is pressed. Possibly the same when [Delete] is pressed
        if they want a [Delete] button for the entire Rusult record.
+    5) Replace Matching Aliases help icon with original helptext and add tooltips
+       to items specified in the ticket. Tooltip can span width of row. I think Nick provided
+       a use:Action for that.
   */
   import { onMount } from 'svelte'
 
@@ -123,8 +125,8 @@
 
 <Form bind:store name='result' {submit} {validate} {preload} let:saved>
   <div class='result-form'>
-    <FieldText path='title' label='Title:' defaultValue={data?.title ?? ''}/>
-    <FieldText path='url' label='URL:' defaultValue={data?.url ?? ''} required/>
+    <FieldText path='title' label='Title:' defaultValue={''}/>
+    <FieldText path='url' label='URL:' defaultValue={''} required/>
     <!-- svelte-forms(entries[]) -->
     <div class='result-entries' bind:this={entries}>
       <div class='label-with-helpicon'>
@@ -135,9 +137,9 @@
       </div>
       <FieldMultiple path='entries' label='' removable={true} let:index>
         <div class='result-entries-record'>
-          <FieldText path='keyphrase' label='Search Words:' defaultValue={data?.entries?.[index].keyphrase ?? ''} required/>
-          <FieldSelect path='mode' label='Mode:' notNull defaultValue={data?.entries?.[index].mode ?? 'keyword'} {choices} required />
-          <FieldNumber path='priority' label='Priority:' defaultValue={data?.entries?.[index].priority ?? 50} step={10} required/>
+          <FieldText path='keyphrase' label='Search Words:' defaultValue={''} required/>
+          <FieldSelect path='mode' label='Mode:' notNull defaultValue={'keyword'} {choices} required />
+          <FieldNumber path='priority' label='Weight:' defaultValue={50} step={10} required/>
         </div>
         <Icon slot='removeBtnIcon' icon={deleteCircle} hiddenLabel='remove from list'/>
       </FieldMultiple>
@@ -151,7 +153,7 @@
     <button class='submit-button' class:validating class:submitting class:saved type='submit'>
       {#if submitting}Submitting...
       {:else if validating}Validating...
-      {:else if saved}<span>Save successful!</span>
+      {:else if saved}<span></span>
       {:else}Save
       {/if}
     </button>
@@ -160,6 +162,13 @@
 
 <!-- <style lang="scss"> TODO: I need to get back to translating the below to scss. Lower priority right now. -->
 <style>
+  .submit-button.saved > span::after {
+    content: 'Successful!';
+    animation: replace normal forwards 10s;
+  }
+  @keyframes replace {
+    to { content: 'Save'; }
+  }
   .result-form {
     --entries-multiple-spacing: 1.0rem;/*var(--element-container-spacing);   They liked 1.5rem. */
     --padding-between-borders-and-first-container: calc(var(--entries-multiple-spacing) - 0.3rem);

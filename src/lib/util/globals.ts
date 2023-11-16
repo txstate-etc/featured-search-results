@@ -7,8 +7,12 @@ import { isNotBlank } from 'txstate-utils'
 // our variables from `env` above won't be available as those are supplied by the runtime.
 import { building } from '$app/environment'
 
-export const PUBLIC_AUTH_REDIRECT_URL = !building ? `${env.PUBLIC_AUTH_BASE_URL!}/login?clientId=${env.PUBLIC_AUTH_CLIENT_ID ?? 'search-featured-results'}` : ''
-const BASE_URL = !building ? `${env.PUBLIC_BASE_URL}${isNotBlank(base) ? '/' + base : ''}` : ''
+export const PUBLIC_AUTH_REDIRECT_URL = !building
+  ? `${env.PUBLIC_AUTH_BASE_URL!}/login?clientId=${env.PUBLIC_AUTH_CLIENT_ID ?? 'search-featured-results'}`
+  : ''
+const BASE_URL = !building
+  ? `${env.PUBLIC_BASE_URL}${isNotBlank(base) ? '/' + base : ''}`
+  : ''
 export const appBase: string = `${base}/admin`
 export const apiBase: string = base
 export const apiURL: string = BASE_URL
@@ -18,4 +22,3 @@ export const DEFAULT_PAGINATION_SIZE: number = 100
 export const DEFAULT_PAGESIZE_OPTIONS: { value: number }[] = [{ value: 10 }, { value: 20 }, { value: 50 }, { value: 100 }, { value: 200 }]
 
 export const VALIDATE_ONLY = 'validateonly'
-// TODO: Need to figure out how to best pass css style colors.

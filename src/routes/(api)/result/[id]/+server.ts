@@ -23,7 +23,7 @@ export async function PUT ({ url, request, locals }) {
 
   const id = idFromUrl(url)
   const result = await Result.findById(id) as ResultDocument | undefined
-  messages.push(...ValidationChecks.isTrue(!result, 404, 'That result id does not exist.', 'id', isValidation))
+  messages.push(...ValidationChecks.isTrue(!result, 404, `Result ${id} does not exist.`, 'id', isValidation))
   // Above would have thrown error if not `isValidation`. Can't proceed if nothing was found - return messages.
   if (!result) return json({ messages })
 
@@ -34,10 +34,9 @@ export async function PUT ({ url, request, locals }) {
       await result.save()
       return json(result.full())
     }
-    console.table(messages) // TODO: Remove this server side table print of the messages.
-    // Perserve our non-validating API contract with callers.
+    // Perserve our non-feedback API contract with existing clients.
     throw error(400, 'Result did not validate.')
-  }
+  } else if (messages.length > 0) console.table(messages) // TODO: Remove this server side table print of the messages.
   return json({ result: result.full(), messages })
 }
 
