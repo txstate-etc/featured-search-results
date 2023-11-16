@@ -61,6 +61,8 @@ export const ValidationChecks = {
       return [{ type, path, message }]
     } return []
   },
+  /** Careful with isEditor. If `validationOnly` this will return a message but not throw 401.
+   * It's up to the caller to inspect returned messages and throw 401 if Not Authorized. */
   isEditor: (verified: boolean, validationOnly: boolean = false) => {
     return ValidationChecks.isTrue(verified, 401, 'Not Authorized', '', validationOnly)
   },

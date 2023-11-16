@@ -6,19 +6,13 @@ import { VALIDATE_ONLY } from '$lib/util/globals.js'
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST ({ url, locals, request }) {
-  const isValidation = url.searchParams.has(VALIDATE_ONLY)
-  const messages: Feedback[] = []
-  messages.push(...ValidationChecks.isEditor(!!locals.isEditor, isValidation))
-
+  if (!locals.isEditor) throw error(401, 'Not Authorized')
   const body: RawJsonResult | TemplateResult = await request.json()
   if (!body) throw error(400, 'POST body was not parseable JSON.')
 
-  // ResultSchema validates this as well but we can't proceed without it.
-  messages.push(...ValidationChecks.isBlank(body, 'url', isValidation))
-
-  let result = null
+  const isValidation = url.searchParams.has(VALIDATE_ONLY)
+  const messages: Feedback[] = []
   const postedResult = new Result()
-  // Getting rid of fromJson's sanitizing of inputs so Mongoose can centralize the validation and formatting for us.
   postedResult.fromPartialJson(body)
   /* We have a potential problem here with the `Result.currencyTest`.
      If we save a Result and the user keeps the response as the state in whatever editor, then step away for about 10 min, by then
@@ -35,18 +29,13 @@ export async function POST ({ url, locals, request }) {
       existingResult = await Result.findOne({ url: parsedUrl.toString() }) as ResultDocument | undefined
     }
   }
+  const result = existingResult ?? postedResult
   if (existingResult) {
-    result = existingResult
-    // We're letting mongoose validation check all the things we were checking before so just update to what's
-    // coming in and respond with validation results of mongoose.
-    result.title = postedResult.title
-    result.entries = postedResult.entries
-    result.tags = postedResult.tags
-  } else {
-    result = postedResult
+    result.tags = postedResult.tags ?? result.tags
+    result.title = postedResult.title ?? result.title
+    result.entries = postedResult.entries ?? result.entries
   }
   messages.push(...result.valid())
-
   if (!isValidation) {
     if (messages.length === 0) {
       await result.save()
@@ -57,8 +46,6 @@ export async function POST ({ url, locals, request }) {
   } else if (messages.length > 0) console.table(messages) // TODO: Remove this server side table print of the messages.
   const respResult: Partial<ResultFull> = result.full()
   // If just validating `newresult.id` gets thrown away and a new one generated on the next POST - don't pass it back.
-  if (result.id === postedResult.id) {
-    delete respResult.id
-  }
+  if (result.id === postedResult.id) delete respResult.id
   return json({ result: respResult, messages })
 }

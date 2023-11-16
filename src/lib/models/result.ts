@@ -183,7 +183,12 @@ interface IResultEntry {
 // provide benefits worth the extra step in tracing with problems.
 
 const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
-  url: { type: String, unique: true, validate: /^(\w+:)?\/\//i }, // Note `unique` here is a hint for MongoDB indexes, not a validator.
+  url: {
+    type: String,
+    required: [true, 'Required.'],
+    unique: true, // Note `unique` here is a hint for MongoDB indexes, not a validator.
+    validate: [/^(\w+:)?\/\//i, 'URL must start with a scheme.']
+  },
   title: { type: String, required: [true, 'Required.'] },
   currency: {
     broken: Boolean,
@@ -375,7 +380,6 @@ export interface RawJsonResult {
   /** Used for storage of highest priority of matching entries during matching tests. */
   priority?: number
 }
-
 
 ResultSchema.methods.fromPartialJson = function (input: Partial<RawJsonResult>) {
   this.url = input.url?.trim()

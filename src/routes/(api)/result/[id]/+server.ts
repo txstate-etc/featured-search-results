@@ -14,17 +14,15 @@ export async function GET ({ url, locals }) {
 
 /** @type {import('./$types').RequestHandler} */
 export async function PUT ({ url, request, locals }) {
-  const isValidation = url.searchParams.has(VALIDATE_ONLY)
-  const messages: Feedback[] = []
-  messages.push(...ValidationChecks.isEditor(!!locals.isEditor, isValidation))
-
+  if (!locals.isEditor) throw error(401, 'Not Authorized')
   const body: RawJsonResult | TemplateResult = await request.json()
   if (!body) throw error(400, 'PUT body was not parseable JSON.')
 
+  const isValidation = url.searchParams.has(VALIDATE_ONLY)
+  const messages: Feedback[] = []
   const id = idFromUrl(url)
   const result = await Result.findById(id) as ResultDocument | undefined
   messages.push(...ValidationChecks.isTrue(!result, 404, `Result ${id} does not exist.`, 'id', isValidation))
-  // Above would have thrown error if not `isValidation`. Can't proceed if nothing was found - return messages.
   if (!result) return json({ messages })
 
   result.fromPartialJson(body)
