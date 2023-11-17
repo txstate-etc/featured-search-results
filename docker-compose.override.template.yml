@@ -6,9 +6,12 @@ services:
       MYSQL_PASS: secret
       WAREHOUSE_PASS: <pull-from-ansible>
       PUBLIC_AUTH_BASE_URL: http://localhost:3001
+      # Below is optional and defaults to 'search-featured-results' if not defined in environment.
       # PUBLIC_AUTH_CLIENT_ID: search-featured-results
-      # Above is optional and defaults to 'search-featured-results' if not defined in environment.
+      # JWT_SECRET: <pull-from-ansible or f-s-r-secrets file as FEATURED_SECRET>
+      # When using real auth update the unified-auth url to the corresponding landscape's hostname and set the s-f-r secret to the above JWT_SECRET value.
       JWT_TRUSTED_ISSUERS: '[{ "iss": "unified-auth", "url": "http://fakeauth/jwks" }, { "iss": "search-featured-results", "secret": "localtoken" }]'
+      # App's editor group, 'App-MWS-featured-search' is not setup in QUAL AD at this time.
       EDITOR_GROUP_NAME: '$$staff-current'
 networks:
   default:

@@ -11,10 +11,9 @@ interface ICounter {
   hitcount: number
   lasthit: Date
 }
-
-interface CounterModel extends Model<ICounter> {
-  get: (name: string) => Promise<number>
-  increment: (name: string) => Promise<number>
+interface CounterModel extends Model<ICounter, any> {
+  increment: (name: string | undefined) => Promise<number | undefined>
+  get: (name: string | undefined) => Promise<number | undefined>
 }
 
 const CounterSchema = new Schema<ICounter, CounterModel>({
@@ -28,7 +27,7 @@ const CounterSchema = new Schema<ICounter, CounterModel>({
 
 CounterSchema.index({ name: 1 })
 
-const counterCache = new Cache(async (name: string) => {
+const counterCache = new Cache(async (name: string | undefined) => {
   const counter = await Counter.findOne({ name })
   return counter?.hitcount ?? 0
 })
@@ -39,8 +38,9 @@ CounterSchema.statics.get = async function (name) {
 
 CounterSchema.statics.increment = async function (name) {
   const counter = await Counter.findOneAndUpdate({ name }, { $inc: { hitcount: 1 }, $set: { lasthit: new Date() } }, { upsert: true, new: true, setDefaultsOnInsert: true })
+  if (!counter) return undefined
   counterCache.invalidate(name).catch(console.error)
   return counter.hitcount
 }
 
-export const Counter = models.Counter ?? model<ICounter, CounterModel>('Counter', CounterSchema)
+export const Counter = models.Counter as CounterModel ?? model<ICounter, CounterModel>('Counter', CounterSchema)

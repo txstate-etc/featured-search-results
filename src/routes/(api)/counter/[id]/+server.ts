@@ -4,7 +4,7 @@ import { idFromUrl } from '$lib/util'
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET ({ url, locals, cookies }) {
-  if (!locals.isEditor) throw error(401)
+  if (!locals.isEditor) throw error(403)
   const id = idFromUrl(url)
   const cookiename = 'sfr_counter_' + id
   let voted = cookies.get(cookiename)
@@ -16,7 +16,7 @@ export async function GET ({ url, locals, cookies }) {
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST ({ url, request, locals, cookies }) {
-  if (!locals.isEditor) throw error(401)
+  if (!locals.isEditor) throw error(403)
   const id = idFromUrl(url)
   const cookiename = 'sfr_counter_' + id
   if (cookies.get(cookiename) !== 'false') {

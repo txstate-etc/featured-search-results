@@ -1,5 +1,5 @@
 import { base } from '$app/paths'
-import { PUBLIC_AUTH_REDIRECT_URL } from '$lib/util/globals.js'
+import { PUBLIC_AUTH_REDIRECT_URL, appURL } from '$lib/util/globals.js'
 
 let logoutUrl: URL | undefined
 
@@ -9,6 +9,8 @@ export async function GET ({ cookies }) {
     logoutUrl = new URL(PUBLIC_AUTH_REDIRECT_URL)
     logoutUrl.search = ''
     logoutUrl.pathname = '/logout'
+    // In case we ever decide to have Unified Auth redirect back to the app to let it reinitiate login process on logout.
+    logoutUrl.searchParams.set('returnUrl', appURL)
   }
   const outUrl = new URL(logoutUrl)
   outUrl.searchParams.set('unifiedJwt', cookies.get('token') ?? '')

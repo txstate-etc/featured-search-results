@@ -8,9 +8,11 @@ In addition search-featured-results provides directory listings associated with 
 maintaining, updating, and searching directory information, including active `department` listings, is provided
 with this code and the API endpoints they implement.
 
-## endpoints
+## api endpoints
 
-### searches
+### public endpoints
+
+These are all non-authenticated endpoints open to any requests with network access to the serving hosts.
 
 * `GET /search?q={query}` : Returns an array of results based on a user-provided `query` string.
   * Optionally takes an additional `asyoutype` boolean parameter which causes matching to evaluate with normal matching rules except the last word of the query which is counted as a match if the corresponding keywords start with that word instead of requiring a complete match.
@@ -18,15 +20,22 @@ with this code and the API endpoints they implement.
   * Results returned from this endpoing include only `url` and `title` - `ResultBasic` representations.
 * `GET /adminsearch?q={query}` : Same as `/search` except results include the `id` of the result and there's no `asyoutype` option.
 * `GET /peoplesearch?q={query}` : Retrieves directory entries based on a user-provided `query` string.
+* `GET /departments` : Returns an array of ALL distinct departments with non-retired directory affiliations in the person directory.
+* `GET /linkcheck` : Returns an array of all `Result` urls with all their associated `keywords`.
 
-### featured results
+### authenticated endpoints
+
+The following endpoints are secured behind authenticated access via [unified-auth](https://git.txstate.edu/mws/unified-authentication) and require membership
+in the `App-MWS-featured-search` AD Group in PROD or the `$$staff-current` AD Group in QUAL.
+
+#### featured results
 
 * `GET /results` : Returns an array of ALL results similar to `/result` below but the alias `entries` include a query hit-`count` total.
-* `POST /result` : Creates a new result from a [`RawJsonResult`](#create--update-operations) or uses that data to update any existing result that has the same `url`.
+* `POST /result` : Creates a new result from a `RawJsonResult` or uses that data to update any existing result that has the same `url`.
   * If successful, returns the json object of a `ResultFull` representation of the saved result.
-* `GET /result/{id}` : Retrieves a single result by `id` - `ResultFull` representation is returned.
-* `PUT /result/{id}` : Updates a result by `id` and returns a `ResultFull` representation of what was saved.
-* `DELETE /result/{id}` : Deletes a result by `id` and returns an `{ ok: true }` response if successful.
+* `GET /result/[id]` : Retrieves a single result by `id` - `ResultFull` representation is returned.
+* `PUT /result/[id]` : Updates a result by `id` and returns a `ResultFull` representation of what was saved.
+* `DELETE /result/[id]` : Deletes a result by `id` and returns an `{ ok: true }` response if successful.
 
 ```json
 { // ResultFull
@@ -42,25 +51,7 @@ with this code and the API endpoints they implement.
   "priority": number,
   "tags": [string]
 }
-```
-
-### query histories
-
-* `GET /queries` : Returns an array of the top 5000 queries from the past 6 months sorted by their `hitcount` in descending order along with their most recent associated `Result` ids.
-
-### other subjects
-
-* `GET /counter/{id}` : ???
-* `POST /counter/{id}` : ???
-* `GET /departments` : Returns an array of ALL distinct departments with non-retired directory affiliations in the person directory.
-* `GET /linkcheck` : Returns an array of all `Result` urls with all their associated `keywords`.
-
-## create / update operations
-
-Set Content-Type header on the request to `application/json` and include JSON fitting the `RawJsonResult` interface in the body.
-
-```json
-{ // RawJsonResult
+{ // RawJsonResult - For submitting saveable/updatable Result entries.
   "url": string,
   "title": string,
   "entries": [{
@@ -78,10 +69,23 @@ Set Content-Type header on the request to `application/json` and include JSON fi
 }
 ```
 
-## authorization
+#### query histories
 
-* `GET /search` is open to the public
-* All other endpoints secured by single secret key for server-to-server editing.
+* `GET /queries` : Returns an array of the top 5000 queries from the past 6 months sorted by their `hitcount` in descending order along with their most recent associated `Result` ids.
+
+#### other subjects
+
+* `GET /counter/[id]` : Get the count from a counter.
+* `POST /counter/[id]` : Increment the count of a counter
+
+## app endpoints
+
+All `Search Result Admin` (app) endpoints are secured behind authenticated access via [unified-auth](https://git.txstate.edu/mws/unified-authentication) and require membership in the `App-MWS-featured-search` AD Group in PROD or the `$$staff-current` AD Group in QUAL.
+
+* `/queries` - Search and sort visitor queries as an aid in finding tuning needed for our featured search Results.
+* `/results` - Search and sort our featured search Result records that are used to tune matching and prioritization of search query words/terms to featured URLs.
+* `/results/create` - A validated form for creating new search Result records and submitting them to the API `/result` endpoint as a POST. Results posted can continue to be edited here after they've been successfully submitted. In addtion, the as-you-type validation will detect any existing Result records that match the url you are specifying and update the form with any exsiting values not a part of your current editing session - including ones with `txst.edu | txstate.edu` equivalents.
+* `/results/[id]` - A validated form (same editor component used above) for editing search Results. Works as above.
 
 ## first build
 

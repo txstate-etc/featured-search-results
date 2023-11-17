@@ -5,9 +5,11 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     environment:
-      DB_HOST: mongodb
       NODE_ENV: development
-      FEATURED_SECRET: mysecret
+      DB_HOST: mongodb
+      EDITOR_GROUP_NAME: 'App-MWS-featured-search'
+      JWT_SECRET: mysecret
+      JWT_TRUSTED_ISSUERS: '[{ "iss": "unified-auth", "url": "http://fakeauth/jwks" }, { "iss": "search-featured-results", "secret": "localtoken" }]'
       MOTION_URL: https://motion.tr.qual.txstate.edu/v2/api
       MOTION_TOKEN: set this in docker-compose.override.yml
       MYSQL_HOST: mysql
@@ -16,8 +18,6 @@ services:
       MYSQL_PASS: secret
       PUBLIC_BASE_URL: http://localhost
       PUBLIC_AUTH_BASE_URL: http://localhost:3001
-      JWT_TRUSTED_ISSUERS: '[{ "iss": "unified-auth", "url": "http://fakeauth/jwks" }, { "iss": "search-featured-results", "secret": "localtoken" }]'
-      EDITOR_GROUP_NAME: 'App-MWS-featured-search'
     volumes:
       - ./src:/usr/app/src
     ports:

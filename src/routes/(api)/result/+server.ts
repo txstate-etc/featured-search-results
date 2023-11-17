@@ -1,12 +1,11 @@
 import { error, json } from '@sveltejs/kit'
 import { Result, type ResultDocument, type RawJsonResult, type ResultFull, type TemplateResult } from '$lib/models/result.js'
-import { ValidationChecks } from '$lib/util/helpers.js'
 import type { Feedback } from '@txstate-mws/svelte-forms'
 import { VALIDATE_ONLY } from '$lib/util/globals.js'
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST ({ url, locals, request }) {
-  if (!locals.isEditor) throw error(401, 'Not Authorized')
+  if (!locals.isEditor) throw error(403)
   const body: RawJsonResult | TemplateResult = await request.json()
   if (!body) throw error(400, 'POST body was not parseable JSON.')
 
@@ -27,13 +26,16 @@ export async function POST ({ url, locals, request }) {
     if (parsedUrl.hostname.endsWith('txstate.edu')) {
       parsedUrl.hostname = parsedUrl.hostname.replace(/txstate\.edu$/, 'txst.edu')
       existingResult = await Result.findOne({ url: parsedUrl.toString() }) as ResultDocument | undefined
+    } else if (parsedUrl.hostname.endsWith('txst.edu')) { // This problem cuts both ways.
+      parsedUrl.hostname = parsedUrl.hostname.replace(/txst\.edu$/, 'txstate.edu')
+      existingResult = await Result.findOne({ url: parsedUrl.toString() }) as ResultDocument | undefined
     }
   }
   const result = existingResult ?? postedResult
   if (existingResult) {
-    result.tags = postedResult.tags ?? result.tags
+    result.tags = postedResult.tags.length > 0 ? postedResult.tags : result.tags
     result.title = postedResult.title ?? result.title
-    result.entries = postedResult.entries ?? result.entries
+    result.setEntries(postedResult.entries)
   }
   messages.push(...result.valid())
   if (!isValidation) {

@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit'
 import { base } from '$app/paths'
-import { apiBase, appBase, PUBLIC_AUTH_REDIRECT_URL } from '$lib/util/globals.js'
+import { apiBase, appBase, PUBLIC_AUTH_REDIRECT_URL, type ClientAuth } from '$lib/util/globals.js'
 
 /** @type {import('./$types').LayoutServerLoad} */
 export const load = async (input) => {
@@ -20,9 +20,9 @@ export const load = async (input) => {
   let isEditor: boolean | undefined
   try {
     const resp = await input.fetch(`${apiBase}/self`)
-    ;({ login, isEditor } = await resp.json() as { login?: string, isEditor?: boolean })
+    ;({ login, isEditor } = await resp.json() as ClientAuth)
   } catch (e: any) {
-    if (e.status !== 401) throw e
+    if (![401, 403].includes(e.status)) throw e
   }
   if (!login) {
     // we are not authenticated, redirect to unified auth to begin login process

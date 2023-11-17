@@ -6,7 +6,7 @@ import { VALIDATE_ONLY } from '$lib/util/globals.js'
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET ({ url, locals }) {
-  if (!locals.isEditor) throw error(401)
+  if (!locals.isEditor) throw error(403)
   const id = idFromUrl(url)
   const result = await Result.getWithQueries(id!)
   return json(result.full())
@@ -14,7 +14,7 @@ export async function GET ({ url, locals }) {
 
 /** @type {import('./$types').RequestHandler} */
 export async function PUT ({ url, request, locals }) {
-  if (!locals.isEditor) throw error(401, 'Not Authorized')
+  if (!locals.isEditor) throw error(403)
   const body: RawJsonResult | TemplateResult = await request.json()
   if (!body) throw error(400, 'PUT body was not parseable JSON.')
 
@@ -40,7 +40,7 @@ export async function PUT ({ url, request, locals }) {
 
 /** @type {import('./$types').RequestHandler} */
 export async function DELETE ({ url, request, locals }) {
-  if (!locals.isEditor) throw error(401)
+  if (!locals.isEditor) throw error(403)
   const id = idFromUrl(url)
   await Result.findByIdAndRemove(id)
   return json({ ok: true })

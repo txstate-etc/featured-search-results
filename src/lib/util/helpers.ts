@@ -38,7 +38,7 @@ export function idFromUrl (url: URL) {
 
 function statusToMessageType (status: number) {
   if (status === 200) return MessageType.SUCCESS
-  if (status === 401) return MessageType.SYSTEM
+  if ([401, 403, 404].includes(status)) return MessageType.SYSTEM
   /* Currently no warnings thrown so don't waste cycles checking:
   if (status > 200 && status < 300) return MessageType.WARNING */
   return MessageType.ERROR
@@ -61,10 +61,10 @@ export const ValidationChecks = {
       return [{ type, path, message }]
     } return []
   },
-  /** Careful with isEditor. If `validationOnly` this will return a message but not throw 401.
-   * It's up to the caller to inspect returned messages and throw 401 if Not Authorized. */
+  /** Careful with isEditor. If `validationOnly` this will return a message but not throw 403.
+   * It's up to the caller to inspect returned messages and throw 403 if Not Authorized. */
   isEditor: (verified: boolean, validationOnly: boolean = false) => {
-    return ValidationChecks.isTrue(verified, 401, 'Not Authorized', '', validationOnly)
+    return ValidationChecks.isTrue(verified, 403, 'Not Authorized', '', validationOnly)
   },
   isBlank: (param: any, name: string, validationOnly: boolean = false) => {
     return ValidationChecks.isTrue(!isBlank(param[name]), 400, `Posted request must contain a non-empty ${name}.`, name, validationOnly)

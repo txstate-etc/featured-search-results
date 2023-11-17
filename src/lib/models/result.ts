@@ -107,6 +107,9 @@ interface IResultMethods {
   fullWithCount: () => ResultFullWithCount
   /** Returns a `result`'s `entries` sorted by their decending `priority`. */
   sortedEntries: () => IResultEntry[]
+  /** Updates entries to the passed in entries, if at least one is defined, and resets the internal
+   * sorting of the entries. */
+  setEntries: (entries: IResultEntry[]) => void
   /** Tests `entries` of a `Result` for a match against `words` based on the entry's
    *  `mode` and returns the highest matching `priority` or `undefined` if no matches. */
   match: (words: string[]) => number | undefined
@@ -118,8 +121,6 @@ interface IResultMethods {
   /** Updates the result's values with those passed in via `input`.
    * Intended to be used with non-saving validation checks. */
   fromPartialJson: (input: TemplateResult) => void
-  /** Updates the result's values with those passed in via `input`. */
-  fromJson: (input: RawJsonResult) => void
   /** Tests if result already has an entry with the same `keywords` and `mode`.
    * @note `priority` is not tested. */
   hasEntry: (entry: IResultEntry) => boolean
@@ -358,6 +359,18 @@ ResultSchema.methods.sortedEntries = function () {
   return this._sortedEntries
 }
 
+ResultSchema.methods.resetSorting = function () {
+  this._sortedEntries = undefined
+}
+
+ResultSchema.methods.setEntries = function (entries: IResultEntry[] | undefined) {
+  if (!entries) return
+  if (entries.length > 0) {
+    this.entries = entries
+    this._sortedEntries = sortby([...this.entries], 'priority', true)
+  }
+}
+
 ResultSchema.methods.match = function (words) {
   for (const entry of this.sortedEntries()) {
     if (entryMatch(entry, words)) return entry.priority ?? 0
@@ -386,7 +399,6 @@ ResultSchema.methods.fromPartialJson = function (input: Partial<RawJsonResult>) 
   this.title = input.title?.trim()
   this.tags = []
   this.entries = []
-  this._sortedEntries = undefined
   for (const entry of input.entries ?? []) {
     const mode = entry.mode?.toLowerCase()
     this.entries.push({
@@ -395,31 +407,10 @@ ResultSchema.methods.fromPartialJson = function (input: Partial<RawJsonResult>) 
       priority: entry.priority
     })
   }
+  // Sort on new inputs to speed up fetching of Result arrays.
+  this._sortedEntries = sortby([...this.entries], 'priority', true)
   for (const tag of input.tags ?? []) {
     this.tags.push(tag.toLowerCase().trim())
-  }
-}
-
-ResultSchema.methods.fromJson = function (input: RawJsonResult) {
-  this.url = input.url.trim()
-  this.title = input.title.trim()
-  this.tags = []
-  this.entries = []
-  this._sortedEntries = undefined
-  for (const entry of input.entries) {
-    const lcmode = entry.mode.toLowerCase()
-    const mode = matchingModes.includes(lcmode) ? lcmode : 'keyword'
-    const words = querysplit(entry.keyphrase ?? '')
-    if (words.length > 0) {
-      this.entries.push({
-        keywords: words,
-        mode,
-        priority: entry.priority ?? 1 - (input.priority ?? 1)
-      })
-    }
-  }
-  for (const tag of input.tags ?? []) {
-    if (!isBlank(tag)) this.tags.push(tag.toLowerCase().trim())
   }
 }
 
@@ -521,6 +512,7 @@ ResultSchema.methods.healRecord = function (feedback?: Feedback[]) {
   if (!feedback || feedback.length === 0) return
   for (const v of feedback) {
     if (v.path?.startsWith('entries.')) {
+      // Even though this potentially affects the sorting order of the entries we're not resetting _sortedEntries here.
       const index = parseInt(v.path.split('.')[1])
       if (v.path.endsWith('priority')) {
         console.info(`Healing Result ${this.id} entries.${index}.priority from ${this.entries[index].priority ?? 'undefined'} to 0.`)

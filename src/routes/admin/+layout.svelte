@@ -1,15 +1,15 @@
 <script lang="ts">
   import { afterNavigate, goto } from '$app/navigation'
-  import { apiBase, appBase } from '$lib/util/globals'
+  import { apiBase, appBase, type ClientAuth } from '$lib/util/globals'
 
-  export let data: { isEditor?: boolean, login?: string }
+  export let data: ClientAuth
 
   afterNavigate(() => {
     // make sure we're still logged in, and as the same user
     // if not, refresh the page so that our code in +layout.server.ts kicks in
     fetch(`${apiBase}/self`).then(async resp => {
-      const { login, isEditor } = await resp.json() as { login?: string, isEditor?: boolean }
-      if (!login || !isEditor || login !== data.login) location.reload()
+      const { login, isEditor } = await resp.json() as ClientAuth
+      if (!login || login !== data.login) location.reload()
     }).catch(() => { location.reload() })
   })
 
@@ -31,7 +31,7 @@
       </div>
       <ul class='navlist navbar-flex navbar-right'>
         <li><a href={appBase + '/results/create'}>Add Search Result</a></li>
-        <li><a href='TODO'>Visitor Searches</a></li>
+        <li><a href={appBase + '/queries'}>Visitor Searches</a></li>
         <li><button type="button" on:click={onLogout}>Logout</button></li>
       </ul>
     </div>
@@ -47,7 +47,7 @@
     <div class='container-fluid'>
       <ul class='navlist'>
         <li><a href='https://tim.txstate.edu/onlinetoolkit/Home/Role-Management'>Manage Access</a></li>
-        <li><a href='TODO'>Report an Issue</a></li>
+        <li><a href='https://git.txstate.edu/gato/dosgato-txstate/issues/new/choose'>Report an Issue</a></li>
       </ul>
     </div>
   </nav>
