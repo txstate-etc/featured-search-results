@@ -6,7 +6,7 @@
   import { VALIDATE_ONLY, apiURL } from '$lib/util/globals'
   import { FieldHidden, FieldNumber, FieldSelect, FieldStandard, FieldText, Form, Icon, Input } from '@dosgato/dialog'
   import FieldMultiple from './FieldMultiple.svelte'
-  import helpCircle from '@iconify-icons/mdi/help-circle'
+  // import helpCircle from '@iconify-icons/mdi/help-circle'
   import deleteCircle from '@iconify-icons/mdi/delete'
 
   /**
@@ -40,13 +40,19 @@
     window.open(href, target)
   }
   const preload = {
-    title: 'HomePage',
-    url: 'https://www.txstate.edu/',
+    title: '',
+    url: 'https://',
     entries: [
-      { keyphrase: 'Texas State', mode: 'keyword', priority: 50 },
-      { keyphrase: 'Test', mode: 'keyword', priority: 50 }
+      { keyphrase: '', mode: 'keyword', priority: 50 }
     ]
   }
+
+  const keyphraseTooltip = 'The search words or phrase to find in the query.'
+  const modeTooltip = `The type of matching to perform:
+  Exact - Search Words must exactly match the query.
+  Phrase - Search Words must be present in the query in the same order as here.
+  Keyword - Search Words must be present in the query in any order.`
+  const priorityTooltip = 'The weight of this entry in the search results. Higher numbers are more important.'
 </script>
 <script lang=ts>
   /* TODO:
@@ -67,9 +73,6 @@
         - :global(:where(.class1, .class2)) - For grouping common rules with zero specificity.
     4) Add confirmation dialog when [Save] is pressed. Possibly the same when [Delete] is pressed
        if they want a [Delete] button for the entire Rusult record.
-    5) Replace Matching Aliases help icon with original helptext and add tooltips
-       to items specified in the ticket. Tooltip can span width of row. I think Nick provided
-       a use:Action for that.
   */
   import { onMount } from 'svelte'
 
@@ -87,20 +90,31 @@
     })).json()
     console.log('ResultEditor.submit <= RESP: ', JSON.stringify(resp))
     const messages = resp.messages ?? []
-    return { success: true, data: resp, messages }
+    if (messages.length > 0) {
+      console.log('ResultEditor.submit <= ERRORS: ', JSON.stringify(messages))
+      return { success: false, data: state, messages }
+    } else messages.push({ type: MessageType.SUCCESS, message: 'Successfully saved.' })
+    return { success: true, data: resp.result ?? resp, messages }
   }
 
   async function validate (state: ResultState): Promise<Feedback[]> {
     const resp = await (await fetch(`${apiURL}/result?${VALIDATE_ONLY}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state)
     })).json()
+    /* For some reason the auto-validate first call to /result POST doens't have values for login.
+     * Check for that response and don't validate further else we'll get all sorts of errors trying
+     * to work with properties of undefined parents that the API didn't return because its first call
+     * might not have thought we were logged in - May be a dev env only thing. */
+    if (resp.message && resp.message === 'Error: 403') {
+      return [{ type: MessageType.WARNING, path: 'login', message: 'API was not able to identify you.' }]
+    }
     const messages: Feedback[] = resp.messages ?? []
     if (isBlank(state.id) && resp.result?.id) {
       // Validation found a pre-existing id for our Result. Add message and add `id` to store.
       messages.push({ type: MessageType.WARNING, path: 'id', message: 'URL corresponds to a pre-existing record.' })
       await store?.setField('id', resp.result.id, { initialize: true })
     }
-    if (state.url !== resp.result?.url && new URL(resp.result.url).hostname.endsWith('txst.edu')) {
+    if (state?.url !== resp.result?.url && new URL(resp.result.url).hostname.endsWith('txst.edu')) {
       // `CurrencyTest` updated our URL. Add message and update our store with the updated url.
       messages.push({ type: MessageType.WARNING, path: 'url', message: 'URL migrated to txst.edu domain.' })
       await store?.setField('url', resp.result.url)
@@ -119,27 +133,35 @@
 
   onMount(() => {
     /* Remove the empty label from FieldMultiple. */
-    Array.from(entries.getElementsByTagName('label')).filter(l => isBlank(l.textContent)).forEach(e => { e.remove() })
+    // Array.from(entries.getElementsByTagName('label')).filter(l => isBlank(l.textContent)).forEach(e => { e.remove() })
   })
 </script>
 
 <Form bind:store name='result' {submit} {validate} {preload} let:saved>
   <div class='result-form'>
-    <FieldText path='title' label='Title:' defaultValue={''}/>
-    <FieldText path='url' label='URL:' defaultValue={''} required/>
+    <FieldText path='title' label='Title:' defaultValue={''} required/>
+    <FieldText path='url' label='URL:' defaultValue={'https://'} required/>
     <!-- svelte-forms(entries[]) -->
     <div class='result-entries' bind:this={entries}>
+      <!--
       <div class='label-with-helpicon'>
         <label for={'alias-help'}>Matching Aliases</label>
         <button id='alias-help' type='button' on:click|preventDefault|stopPropagation={openHelp}>
           <Icon icon={helpCircle} hiddenLabel='documentation on search result aliases'/>
         </button>
       </div>
-      <FieldMultiple path='entries' label='' removable={true} let:index>
+      -->
+      <FieldMultiple path='entries' label='Matching Aliases' helptext='' removable={true} let:index>
         <div class='result-entries-record'>
-          <FieldText path='keyphrase' label='Search Words:' defaultValue={''} required/>
-          <FieldSelect path='mode' label='Mode:' notNull defaultValue={'keyword'} {choices} required />
-          <FieldNumber path='priority' label='Weight:' defaultValue={50} step={10} required/>
+          <span data-tooltip={keyphraseTooltip} class={index === 0 ? 'tooltip-shown tooltipped' : 'tooltipped'}>
+            <FieldText path='keyphrase' label='Search Words:' defaultValue={''} required />
+          </span>
+          <span data-tooltip={modeTooltip} class={index === 0 ? 'tooltip-shown tooltipped' : 'tooltipped'}>
+            <FieldSelect path='mode' label='Mode:' notNull defaultValue={'keyword'} {choices} required />
+          </span>
+          <span data-tooltip={priorityTooltip} class={index === 0 ? 'tooltip-shown tooltipped' : 'tooltipped'}>
+            <FieldNumber path='priority' label='Weight:' defaultValue={50} step={10} required/>
+          </span>
         </div>
         <Icon slot='removeBtnIcon' icon={deleteCircle} hiddenLabel='remove from list'/>
       </FieldMultiple>
@@ -162,6 +184,42 @@
 
 <!-- <style lang="scss"> TODO: I need to get back to translating the below to scss. Lower priority right now. -->
 <style>
+  .tooltipped {
+    position: relative;
+  }
+  .tooltip-shown::before { /* Text */
+    content: attr(data-tooltip);
+    text-align: center;
+    font-size: small;
+    white-space: pre-wrap;
+    width: max-content;
+    max-width: 200%;
+    --scale: 0;
+    position: absolute;
+    top: -.25rem;
+    left: -3rem;
+    transform: translateX(-1rem) translateY(-90%) scale(var(--scale));
+    transition: 50ms transform ease-in-out;
+    transform-origin: bottom center;
+    padding: 0.2rem 0.5rem;
+    /* border: .25rem solid transparent; */
+    border-radius: .3rem;
+    background-color: var(--colors-help);
+    color: var(--colors-help-text);
+    z-index: 1;
+  }
+  .tooltip-shown:first-child::before {
+    left: 0;
+    transform: translateX(-.5rem) translateY(-90%) scale(var(--scale));
+  }
+  .tooltip-shown:nth-child(2)::before {
+    text-align: left;
+    left: -7rem;
+    max-width: 300%;
+  }
+  .tooltip-shown:hover::before {
+    --scale: 1;
+  }
   .submit-button.saved > span::after {
     content: 'Successful!';
     animation: replace normal forwards 10s;
@@ -205,7 +263,7 @@
     padding-bottom: var(--element-container-spacing);
     border-bottom: var(--container-borders);
   }
-  .label-with-helpicon {
+  /* .label-with-helpicon {
     & > label {
       display: inline-block;
       padding-right: 0;
@@ -225,16 +283,12 @@
     width: var(--help-icon-size);
     height: var(--help-icon-size);
     color: var(--colors-help);
-  }
+  } */
   .result-entries :global(.dialog-field-container) {
     padding: 0 !important;
   }
   .result-entries :global(:not(.result-form) > .dialog-field-container) {
     margin-top: 0 !important;
-  }
-  .result-entries :global(:not(.result-entries-record .dialog-field-container).dialog-field-container > .dialog-field-label) {
-    display: hidden;
-    margin: 0;
   }
   .result-entries :global(.dialog-multiple) {
     padding-top: var(--entries-multiple-spacing, 1.5rem);
@@ -263,7 +317,7 @@
   .result-entries-record {
     display: flex;
   }
-  .result-entries-record :global(.dialog-field-container) {
+  .result-entries-record > .tooltipped :global(.dialog-field-container) {
     margin-bottom: 0 !important;
     & select {
       margin-bottom: 0 !important;
@@ -274,19 +328,19 @@
     }*/
   }
   /* Search Words */
-  .result-entries-record :global(.dialog-field-container:first-child) {
+  .result-entries-record > .tooltipped:first-child {
     flex-grow: 1;
   }
   /* Mode */
-  .result-entries-record :global(.dialog-field-container:nth-child(2)) {
-    width: 7rem;
+  .result-entries-record > .tooltipped:nth-child(2) {
+    width: 10rem;
   }
   /* Priority */
-  .result-entries-record :global(.dialog-field-container:last-child) {
-    width: 5rem;
+  .result-entries-record > .tooltipped:last-child {
+    width: 8rem;
   }
   /* Spacing between the above inputs. */
-  .result-entries-record :global(.dialog-field-container:not(:last-child)) {
+  .result-entries-record > .tooltipped:not(:last-child) {
     margin-right: 0.5rem !important;
   }
   .submit-button {

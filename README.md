@@ -1,7 +1,7 @@
 # search-featured-results
 
-A RESTful API for storing/retrieving featured search results as well as a admin service that provides an
-interface to use the API for managing `Result` associations to searches, reviewing `Query` statistics, and
+A RESTful API for storing/retrieving featured search results as well as `Search Result Admin` app that provides
+an interface to use the API for managing `Result` associations to searches, reviewing `Query` statistics, and
 detecting malfunctioning urls/links associated with `Results`.
 
 In addition search-featured-results provides directory listings associated with `PeopleSearch` and the code for
@@ -29,6 +29,11 @@ The following endpoints are secured behind authenticated access via [unified-aut
 in the `App-MWS-featured-search` AD Group in PROD or the `$$staff-current` AD Group in QUAL.
 
 #### featured results
+
+Endpoints for manipulating the Mongo document store of Result document records. `GET` and `POST` operations inspect for an
+optional `validateonly` parameter (no value) to perform their normal tasks but not actually save the data - or throw errors
+when there are problems - but instead return a `Feedback` array describing any validation issues along with what they would
+otherwise have returned in the event of an actual submission of the data.
 
 * `GET /results` : Returns an array of ALL results similar to `/result` below but the alias `entries` include a query hit-`count` total.
 * `POST /result` : Creates a new result from a `RawJsonResult` or uses that data to update any existing result that has the same `url`.

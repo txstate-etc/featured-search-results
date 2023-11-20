@@ -256,6 +256,23 @@ ResultSchema.methods.outentries = function () {
   return outentries
 }
 
+ResultSchema.methods.sortedEntries = function () {
+  this._sortedEntries ??= sortby([...this.entries], 'priority', true)
+  return this._sortedEntries
+}
+
+ResultSchema.methods.resetSorting = function () {
+  this._sortedEntries = undefined
+}
+
+ResultSchema.methods.setEntries = function (entries: IResultEntry[] | undefined) {
+  if (!entries) return
+  if (entries.length > 0) {
+    this.entries = entries
+    this._sortedEntries = sortby([...this.entries], 'priority', true)
+  }
+}
+
 ResultSchema.methods.full = function () {
   const info = this.basicPlusId()
   const entries = this.outentries()
@@ -263,9 +280,9 @@ ResultSchema.methods.full = function () {
     ...info,
     brokensince: this.currency.brokensince,
     entries,
-    // Rather than run all entries, which are already sorted on priority, through the Math.max() function, just grab the first.
-    /** Used for storage of highest priority of matching entries during matching tests. */
-    priority: this.priority ?? entries[0].priority ?? 0,
+    /** Used for storage of highest priority of matching entries during matching tests.
+     * TODO: I'm not sure if we want to preserve the Document level `priority` of existing Result records. */
+    priority: this.priority ?? entries[0]?.priority ?? 0,
     tags: this.tags
   }
 }
@@ -351,23 +368,6 @@ const prefetchEntryMatch = function (entry: IResultEntry, searchWords: string[],
       // else if (keyword.startsWith(searchWords[-1])) prefixcount++
     }
     return (keywordCount === entry.keywords.length || (keywordCount === entry.keywords.length - 1 && prefixcount === 1))
-  }
-}
-
-ResultSchema.methods.sortedEntries = function () {
-  this._sortedEntries ??= sortby([...this.entries], 'priority', true)
-  return this._sortedEntries
-}
-
-ResultSchema.methods.resetSorting = function () {
-  this._sortedEntries = undefined
-}
-
-ResultSchema.methods.setEntries = function (entries: IResultEntry[] | undefined) {
-  if (!entries) return
-  if (entries.length > 0) {
-    this.entries = entries
-    this._sortedEntries = sortby([...this.entries], 'priority', true)
   }
 }
 

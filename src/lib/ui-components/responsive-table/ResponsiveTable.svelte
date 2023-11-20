@@ -1,5 +1,5 @@
 <script lang='ts' context='module'>
-  import { htmlEncode } from 'txstate-utils'
+  import { htmlEncode, isNotBlank } from 'txstate-utils'
 
   const incompatibleTypes = new Set(['undefined', 'function', 'symbol'])
   const nestingDefaultTypes = new Set(['object', 'array'])
@@ -9,9 +9,15 @@
   type EnhancedTypes = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function' | 'array'
   export interface TableData extends Record<string, any> {}
   export interface PropMeta { key: string, type: EnhancedTypes, shouldNest: boolean }
+  export interface GroupedMeta { groupIdx: number, rowspans: Record<string, number>, totalRowspan: number }
+  export interface GroupedData { group: TableData[], grpMeta: GroupedMeta }
   export interface HeadingTexts extends Record<string, string> {}
-  export interface Transforms extends Record<string, (value: any, record: any) => string> {}
-  export interface Sortings extends Record<string, (a: any, b: any) => number> {}
+  export type TransformFunction = (value: any, record: any) => string
+  export interface Transforms extends Record<string, TransformFunction> {}
+  export type SyncSortFunction = (a: any, b: any) => number
+  export type AsyncSortFunction = (options: { key: string, direction?: 'asc' | 'desc' }) => Promise<TableData[]>
+  export type SortFunction = SyncSortFunction | AsyncSortFunction
+  export interface Sortings extends Record<string, SortFunction> {}
   export interface ResponsiveTableProps {
     propsMetas: PropMeta[] | undefined
     caption: string | undefined
@@ -37,7 +43,7 @@
   /** Utility function for getting the `typeof` an object with `array` differentiated from `object`. */
   function getType (obj: any) {
     let type: EnhancedTypes = typeof obj
-    if (type === 'object' && obj?.length !== undefined) type = 'array'
+    if (type === 'object' && Array.isArray(obj)) type = 'array'
     return type
   }
 
@@ -61,83 +67,85 @@
   /** Transforms `data` creating new records for each element found in the subproperty arrays of `data`'s records. The
    * arrays that this is performed for is limited by inclusion in the `subrowMetas: PropMeta[]` parameter.
    *
-   * All records are clones of the original record, minus the array being interpolated into the data but including that
+   * All records are clones of an original source record, minus the array being interpolated into the data but including that
    * array's corresponding element data. If we were running this on one record and interpolating an array property of that
    * record then that record would be transformed into a number of records equal to the length of that array with each
    * record returned being the equivalent of the rest (`...element`) expanded values of the array's corresponding element,
    * and the rest expansion of the source record's values minus the interpolated array.
    *
    * Since we're transforming records into multiple clones of their source record a means of conveniently tracking the new
-   * record's context to the original record is provided with the following properties being added to the record under the
-   * exported `SpanningMetaSym` global Symbol:
-   - `groupIdx` - The index of the source record in the original array of records.
-   - `groupStartRecIdx` - The index value in the resulting array of records where the source record's group starts.
-   - `groupEndRecIdx` - The index value in the resulting array of records where the source record's group ends.
-   - `rowspan: { [interpolated_key]: source[interpolated_key].length }`
-   - `totalRowspan` - The sum of all the values in the `rowspan` object above. */
+   * record's context to the original record is provided by returning an array of `GroupedData` records each consisting of
+   * a property `group` that is an array of the interpolated records generated from the source record of the group and an
+   * additional property of `grpMeta` that includes rowspanning information. */
   function interpolateSpanning (data: any, subrowMetas: PropMeta[]) {
+    const groupItr = Object.values(data)
     const interpolated = subrowMetas.reduce((interpolate, meta) => {
       if (meta.type === 'array') {
         return interpolate.map((rec: any, idx: number) => {
           const rowspan = rec[meta.key].length
-          return rec[meta.key].map((element: any) => {
-            const { [meta.key]: _, ...rest } = rec
-            const ret = {
-              ...rest,
-              ...element,
-              [SpanningMetaSym]: {
-                groupIdx: rest.groupIdx ?? idx,
-                rowspan: {
-                  ...rest[SpanningMetaSym]?.rowspan,
-                  [meta.key]: rowspan
-                }
+          const { [meta.key]: _, ...rest } = rec
+          return rec[meta.key].map((element: any) => ({
+            ...rest,
+            ...element,
+            [SpanningMetaSym]: {
+              groupIdx: rest.groupIdx ?? idx,
+              rowspans: {
+                ...rest[SpanningMetaSym]?.rowspans,
+                [meta.key]: rowspan
               }
             }
-            return ret
-          })
+          }))
         }).flat()
       }
       return interpolate
     }, data)
 
-    let grpOffset = 0
-    for (let i = 0; i < interpolated.length; i++) {
-      const oref = interpolated[i][SpanningMetaSym]
-      const grpIdx = oref.groupIdx
-      const totalRowspan = Object.values<number>(oref.rowspan).reduce<number>((acc, curr) => acc + curr, 0)
-      const nextGrpStartRecIdx = grpOffset + totalRowspan
+    const groupedRecords = []
+    for (let i = 0; i < interpolated.length;) {
+      const group = []
+      const grpSpanningMeta = interpolated[i][SpanningMetaSym]
+      const grpIdx = grpSpanningMeta.groupIdx
+      grpSpanningMeta.totalRowspan = Object.values<number>(grpSpanningMeta.rowspans).reduce<number>((acc, curr) => acc + curr, 0)
       while (interpolated[i]?.[SpanningMetaSym].groupIdx === grpIdx) {
-        const iref = interpolated[i][SpanningMetaSym]
-        iref.groupStartRecIdx = grpOffset
-        iref.totalRowspan = totalRowspan
-        iref.groupEndRecIdx = nextGrpStartRecIdx - 1
-        i++
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete interpolated[i][SpanningMetaSym]
+        group.push(interpolated[i++])
       }
-      grpOffset = nextGrpStartRecIdx
+      groupedRecords.push({ group, grpMeta: grpSpanningMeta })
     }
-    return interpolated
+    return groupedRecords as GroupedData[]
   }
 
 </script>
 <script lang='ts'>
 
   /* TODO:
-     1) Add `rollupSize` option to resize rows that are `rollupSize` lines tall.
-     2) Add hidden sort <select> with <asc|desc> button(?) that displays in mobile media mode.
-       2 Addendum)
-        The whole sort approach here might not be the way to go. It's great for sorting in page
-        records that are fetched and displayed in the table but often times users will expect
-        sorts to operate on the whole paginated set bringing the data not displayed up to the top
-        of the displayed set.
-        - May consider revisiting sort to pass in optional `asyncSortings` that call API sorting
-          endpoints. With that as an option consumer paginators can have the callbacks passed in
-          reference pagination bounds for the API endpoints to return on their sort.
-        - The paginator could then control whether sorting refreshes from page 1 of the paginated
-          data - effectively resetting most of its state as well as the `data` bound to this - or
-          if they are required to do something funky they can.
-        - This async sort should become the default handling if provided but there should also be
-          an option to provide in page sorting or both options for users who are experts in data
-          analysis enough to recognise the value of different sorting granularities.
+    1) Add `rollupSize` option to resize rows that are `rollupSize` lines tall.
+    2) Fix Rowspanning issue with subsequent records as well as Rowspanning styling.
+       a. For styling consider different borders for alternating rowgroups with the alternatig
+          detail rows continuing to change background. Also consider the rollup option above
+          which still has the same styling between alternations problem... hrmm.
+    3) Add hidden sort <select> with <asc|desc> button(?) that displays in mobile media mode.
+      3 Addendum)
+       The whole sort approach here might not be the way to go. It's great for sorting in page
+       records that are fetched and displayed in the table but often times users will expect
+       sorts to operate on the whole paginated set bringing the data not displayed up to the top
+       of the displayed set.
+       - May consider revisiting sort to pass in optional `asyncSortings` that call API sorting
+         endpoints. With that as an option consumer paginators can have the callbacks passed in
+         reference pagination bounds for the API endpoints to return on their sort.
+       - The paginator could then control whether sorting refreshes from page 1 of the paginated
+         data - effectively resetting most of its state as well as the `data` bound to this - or
+         if they are required to do something funky they can.
+       - This async sort should become the default handling if provided but there should also be
+         an option to provide in page sorting or both options for users who are experts in data
+         analysis enough to recognise the value of different sorting granularities.
+    5) Update to make use of multipe tbody when using multiple rows to convey a source record.
+       This would eliminate the need to check for isBottom as styling could be applied to the
+       bottom of the tbody instead of determining which row is the bottom of the record.
+    6) With resizeable columns need to make sure clicking only the sort icon, and possibly the
+       title, updates the sorting.
+    7) Cleanup nesting of complex-container vs simple-container css classes in generated table.
   */
 
   /** Array of `TableData[]` records to generate a table for. Uses the first element to figure out the shape of the data. All
@@ -172,6 +180,7 @@
    * keys. */
   export let propsMetas: PropMeta[] | undefined = undefined
 
+  /** Gets the client defined heading text for `key` if defined or defaults to the value of `key`. Replaces any `_` with ` `. */
   function getHeadingText (key: string) {
     return headingTexts?.[key] ?? key.replace('_', ' ')
   }
@@ -217,42 +226,52 @@
 
   const nestingKeys = new Set(nesting ? getNestingKeys(data) : [])
   const rowspanKeys = new Set(!nesting ? getRowspanKeys(data) : [])
-  propsMetas = propsMetas ? sortByNesting(propsMetas) : sortByNesting(getMetaData(data[0]))
-
   const defaultMetas = getMetaData(data[0])
-  const simpleMetas = propsMetas ? propsMetas.filter(h => !nestingDefaultTypes.has(h.type)) : []
-  const plainMetas = propsMetas ? propsMetas.filter(h => !nestingKeys.has(h.key)) : []
+  // Should I do the following onMount?
+  const effectiveMetas = propsMetas
+    ? nesting ? sortByNesting(propsMetas) : propsMetas
+    : nesting ? sortByNesting(defaultMetas) : defaultMetas
+
+  const simpleMetas = effectiveMetas ? effectiveMetas.filter(h => !nestingDefaultTypes.has(h.type)) : []
+  const plainMetas = effectiveMetas ? effectiveMetas.filter(h => !nestingKeys.has(h.key)) : []
   const subrowMetas = plainMetas ? plainMetas.filter(h => !rowspanKeys.has(h.key)) : []
-  const nestedMetas = propsMetas ? propsMetas.filter(h => nestingKeys.has(h.key)) : []
+  const nestedMetas = effectiveMetas ? effectiveMetas.filter(h => nestingKeys.has(h.key)) : []
 
   const longestKey = simpleMetas.reduce((a, b) => Math.max(a, b.key.length), 0) + 1 + 'ch'
-  /*
-  let tableRoot: HTMLElement
-  $: tableRoot?.style.setProperty('--longest-key', longestKey)
-  */
-  const contextualizedData = spanning ? interpolateSpanning(data, defaultMetas.filter(h => !rowspanKeys.has(h.key))) : data
 
-  /** Sorts `meta` by meta.key exisiting in `nestingKeys` if `nesting` is enabled. */
+  // May need to make contextualizedData a reactive assignment.
+  const groupedData = spanning ? interpolateSpanning(data, defaultMetas.filter(h => !rowspanKeys.has(h.key))) : []
+
+
+  /** Sorts `meta` by meta.key exisiting in `nestingKeys` such that nestingKey values are at the end of `meta`. */
   function sortByNesting (meta: PropMeta[]) {
-    return nesting
-      ? meta.sort((a, b) => { return Number(nestingKeys.has(a.key)) - Number(nestingKeys.has(b.key)) })
-      : meta
+    return meta.sort((a, b) => { return Number(nestingKeys.has(a.key)) - Number(nestingKeys.has(b.key)) })
   }
 
   let ascending = true
   let selectedHeading = ''
-  /** Sorts `data` by the heading { key, type } data associated with the records in it. Array properties are sorted by their length.
-   * Also handles updating what heading is selected for soriting and toggling asc/desc. */
-  function sortByHeading (meta: PropMeta) {
+  /** By default this sorts `data` by the heading `{ key, type }` data associated with the records in it. Array and object properties
+   * are default sorted simply by their length. This also handles updating what heading is selected for soriting and toggling asc/desc.
+   *
+   * Default sorting methods can be overriden by the optional `sortings` bind which allows for associating the meta keys to a simple
+   * `(a,b) => boolean` sort function or even `async` sorting functions that will return an entire replacement `data` set to be displayed
+   * in the table - useful for sorting on the whole data set when only portions are given to the table to display in pagination schemes.
+   * The async fuctions take a single `options` object parameter as defined by the exported `AsyncSortFunction` type. */
+  async function sortByHeading (meta: PropMeta) {
     if (meta.key !== selectedHeading) { // Reset column state and resort.
       selectedHeading = meta.key
       ascending = true
       if (sortings?.[meta.key]) {
-        data = data.sort((a, b) => { return sortings![meta.key](a[meta.key], b[meta.key]) })
+        const sorter = sortings[meta.key]
+        if (sorter.length === 1) {
+          data = await (sorter as AsyncSortFunction)({ key: meta.key, direction: 'asc' })
+        } else {
+          data = data.sort((a, b) => { return (sorter as SyncSortFunction)(a[meta.key], b[meta.key]) })
+        }
       } else if (arithmeticTypes.has(meta.type)) {
         data = data.sort((a, b) => { return a[meta.key] - b[meta.key] })
       } else if (meta.type === 'string') {
-        data = data.sort((a, b) => { return a[meta.key]?.localeCompare(b[meta.key], undefined, { sensitivity: 'accent' }) })
+        data = data.sort((a, b) => { return a[meta.key]?.compare(b[meta.key], undefined, { sensitivity: 'accent' }) })
       } else if (meta.type === 'array') { // Sort by length of each array.
         data = data.sort((a, b) => { return a[meta.key].length - b[meta.key].length })
       } else { // Sort by number of keys in an object.
@@ -260,46 +279,54 @@
       }
     } else {
       ascending = !ascending
-      data = data.reverse()
+      if (sortings?.[meta.key]?.length === 1) {
+        data = await (sortings[meta.key] as AsyncSortFunction)({ key: meta.key, direction: ascending ? 'asc' : 'desc' })
+      } else {
+        data = data.reverse()
+      }
     }
   }
 
   /** Utility function for detecting when we're working with the bottom property of a record.
-   *  If `record` is included it will check if any props of record after `key` have data and
-   *  return true if everything after `key` is effectively empty. Useful for adding bottom of
-   *  record formatting. */
+   * If `record` is included it will check if any effectiveMetas props after `[key]:` have data
+   * in the record and return true if `[key]:` is the last prop in `effectiveMetas` or everything
+   * after `[key]:` is effectively empty in the record. Otherwise it next checks if there are any
+   * `nestedMetas` in our state and returns true if not. Finally it checks if our `key` corresponds
+   * to the last prop in `effectiveMetas` and returns true if so. Otherwise it returns false.
+   * Useful for adding bottom of record formatting. */
   function isBottomProp (key: string, record?: any) {
     if (record) {
-      return propsMetas!.findIndex(p => p.key === key) >= propsMetas!.findLastIndex(l => dataPresent(record[l.key]))
+      return effectiveMetas.findIndex(p => p.key === key) >= effectiveMetas.findLastIndex(m => hasSubstance(record[m.key]))
     } else if (nestedMetas.length === 0) return true
-    return propsMetas![propsMetas!.length - 1].key === key
+    return effectiveMetas[effectiveMetas.length - 1].key === key
   }
 
-  function dataPresent (obj: any) {
-    if (obj) {
-      if (obj.length !== undefined) return obj.length > 0
-      if (obj.size !== undefined) return obj.size > 0
-    }
-    return obj !== undefined
+  /** Recursively checks if `val` is not empty, nothing but spaces, or undefined/null. */
+  function hasSubstance (val: any): boolean {
+    return (
+      val !== undefined && val !== null &&
+      !(typeof val === 'string' && val.trim().length === 0) &&
+      !(Array.isArray(val) && !val.some(hasSubstance)) &&
+      !(typeof val === 'object' && !Object.values(val).some(hasSubstance))
+    )
   }
+  console.table(groupedData)
 </script>
 
-{#if propsMetas && contextualizedData.length > 0 }
+{#if effectiveMetas && data.length > 0 }
 <div class:table-container={true}>
   <table style={`--longestKey: ${longestKey}`}>
-    <slot name='caption' {contextualizedData}>
-      {#if caption}
-        <caption>{caption}</caption>
-      {/if}
+    <slot name='caption' contextualizedData={groupedData}>
+      {#if caption}<caption>{caption}</caption>{/if}
     </slot>
     <thead>
       {#if plainMetas.length}
         <tr class:bottom-heading-row={nestedMetas.length === 0}>
           {#each plainMetas as plainHead}
-            <th
+            <th id={plainHead.key}
               class:selected-heading={plainHead.key === selectedHeading}
               aria-sort={plainHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}
-              on:click={() => { sortByHeading(plainHead) }}>{getHeadingText(plainHead.key)}
+              on:click={async () => { await sortByHeading(plainHead) }}>{getHeadingText(plainHead.key)}
               <slot name='sortIcon' {ascending} {selectedHeading} key={plainHead.key}>
                 <span hidden={plainHead.key !== selectedHeading} class='order-icon'>{@html ascending ? '&#9661;' : '&#9651;'}</span>
               </slot>
@@ -309,12 +336,12 @@
       {/if}
       {#each nestedMetas as nestedHead}
         <tr class:bottom-heading-row={isBottomProp(nestedHead.key)}>
-          <th
+          <th id={nestedHead.key}
             class:nested-container={true}
-            colspan={plainMetas.length ?? 1}
+            colspan={plainMetas.length > 0 ? plainMetas.length : 1}
             class:selected-heading={nestedHead.key === selectedHeading}
             aria-sort={nestedHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}
-            on:click={() => { sortByHeading(nestedHead) }}>{getHeadingText(nestedHead.key)}
+            on:click={async () => { await sortByHeading(nestedHead) }}>{getHeadingText(nestedHead.key)}
             <slot name='sortIcon' {ascending} {selectedHeading} key={nestedHead.key}>
               <span hidden={nestedHead.key !== selectedHeading} class:order-icon={true}>{@html ascending ? '&#9661;' : '&#9651;'}</span>
             </slot>
@@ -322,116 +349,124 @@
         </tr>
       {/each}
     </thead>
-    <tbody>
-      {#each contextualizedData as record, i}<!-- Note that `i` cannot be passed directly to slots. -->
-        <slot name='record' {record} {propsMetas} {simpleMetas} {plainMetas} {nestedMetas} colspan={plainMetas.length ?? 1} {longestKey} {isBottomProp} {isAlternate} {dataPresent} {format}>
-          {#if plainMetas.length}
-            {#if !spanning || i === record[SpanningMetaSym].groupStartRecIdx}
-              <tr class:opaqued={isAlternate(i)}
-                class:group-opaqued={spanning && isAlternate(record[SpanningMetaSym].groupIdx)}
-                class:bottom-record-row={isBottomProp(plainMetas[plainMetas.length - 1].key, record)}>
-                <slot name='plainRowContent' {record} {plainMetas} {format}>
-                  {#each plainMetas as dataMeta}
-                    <td data-key={getHeadingText(dataMeta.key)}
-                      rowspan={rowspanKeys.has(dataMeta.key) ? record[SpanningMetaSym].totalRowspan : 1}
-                      class:complex-container={dataMeta.shouldNest}
-                      class:simple-container={!dataMeta.shouldNest}>
-                      <slot name='plainDataContent' {record} {dataMeta} {format}>
-                        <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
-                        {#if dataMeta.type === 'array'}
-                          <div class='complex-container array'>
-                            <slot name='plainArrayContent' {record} {dataMeta} {format}>
-                              {#each record[dataMeta.key] as element, idx}
-                                  <slot name='plainArrayElementContent' {record} {dataMeta} {element} {format}>
-                                    {@html format(dataMeta, record, idx)}
-                                  </slot>
-                              {/each}
-                            </slot>
-                          </div>
-                        {:else}
-                          <div class:complex-container={dataMeta.shouldNest}>
-                            <slot name='plainSingletonContent' {record} {dataMeta} {format}>
-                              {@html format(dataMeta, record)}
-                            </slot>
-                          </div>
-                        {/if}
-                      </slot>
-                    </td>
-                  {/each}
-                </slot>
+    {#if (spanning && subrowMetas.length > 0)} <!-- Possible multiple rows per record with subrow records spanned by source record data. -->
+      {#each groupedData as recordGroup, gidx}
+        <tbody>
+          {#each recordGroup.group as record, ridx}
+            {#if ridx === 0} <!-- First record in group. -->
+              <tr class:group-opaqued={isAlternate(gidx)}>
+                {#each effectiveMetas as dataMeta}
+                  <td data-key={getHeadingText(dataMeta.key)} headers={dataMeta.key}
+                    rowspan={rowspanKeys.has(dataMeta.key) ? recordGroup.grpMeta.totalRowspan : 1}
+                    class:spansrows={rowspanKeys.has(dataMeta.key)}
+                    class:opaqued={rowspanKeys.has(dataMeta.key) ? false : isAlternate(ridx + 1)}
+                    class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
+                    <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
+                    {#if dataMeta.type === 'array'}
+                      <div class='complex-container array'>
+                        {#each record[dataMeta.key] as element, idx}
+                          {@html format(dataMeta, record, idx)}
+                        {/each}
+                      </div>
+                    {:else}
+                      <div class:complex-container={dataMeta.shouldNest}>
+                        {@html format(dataMeta, record)}
+                      </div>
+                    {/if}
+                  </td>
+                {/each}
               </tr>
-            {:else if i !== record[SpanningMetaSym].groupStartRecIdx} <!-- Sub-Records of the source record's group. -->
-              <tr class:opaqued={isAlternate(i)}
-                class:group-opaqued={isAlternate(record[SpanningMetaSym].groupIdx)}
-                class:bottom-record-row={isBottomProp(plainMetas[plainMetas.length - 1].key, record)}>
-                {#each subrowMetas as dataMeta, subIdx}
-                  <td data-key={getHeadingText(dataMeta.key)}
-                    class:complex-container={dataMeta.shouldNest}
-                    class:simple-container={!dataMeta.shouldNest}>
-                    <slot name='plainDataContent' {record} {dataMeta} {format}>
-                      <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
-                      {#if dataMeta.type === 'array'}
-                        <div class='complex-container array'>
-                          <slot name='plainArrayContent' {record} {dataMeta} {format}>
-                            {#each record[dataMeta.key] as element, idx}
-                                <slot name='plainArrayElementContent' {record} {dataMeta} {element} {format}>
-                                  {@html format(dataMeta, record, idx)}
-                                </slot>
-                            {/each}
-                          </slot>
-                        </div>
-                      {:else}
-                        <div class:complex-container={dataMeta.shouldNest}>
-                          <slot name='plainSingletonContent' {record} {dataMeta} {format}>
-                            {@html format(dataMeta, record)}
-                          </slot>
-                        </div>
-                      {/if}
-                    </slot>
+            {:else} <!-- Remaining records in group. -->
+              <tr class:opaqued={isAlternate(ridx + 1)} class:group-opaqued={isAlternate(gidx)}>
+                {#each subrowMetas as dataMeta}
+                  <td data-key={getHeadingText(dataMeta.key)} headers={dataMeta.key}
+                    class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
+                    <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
+                    {#if dataMeta.type === 'array'}
+                      <div class='complex-container array'>
+                        {#each record[dataMeta.key] as element, idx}
+                          {@html format(dataMeta, record, idx)}
+                        {/each}
+                      </div>
+                    {:else}
+                      <div class:complex-container={dataMeta.shouldNest}>
+                        {@html format(dataMeta, record)}
+                      </div>
+                    {/if}
                   </td>
                 {/each}
               </tr>
             {/if}
-          {/if}
-          {#each nestedMetas as dataMeta}
-            {#if dataPresent(record[dataMeta.key])}
-              <slot name='nestedRows' {record} {nestedMetas} {dataMeta} colspan={plainMetas.length ?? 1} {isBottomProp} {isAlternate} {format}>
-                <tr class:opaqued={isAlternate(i)}
-                  class:group-opaqued={isAlternate(record[SpanningMetaSym].groupIdx)}
-                  class:bottom-record-row={isBottomProp(dataMeta.key, record)}>
-                  <slot name='nestedRowContent' {record} {dataMeta} colspan={plainMetas.length ?? 1} {format}>
-                    <td data-key={getHeadingText(dataMeta.key)}
-                      class:nested-container={true}
-                      colspan={plainMetas.length ?? 1}>
-                      <slot name='nestedDataContent' {record} {dataMeta} {format}>
-                      <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
-                        {#if dataMeta.type === 'array'}
-                          <div class='complex-container array'>
-                            <slot name='nestedArrayContent' {record} {dataMeta} {format}>
-                              {#each record[dataMeta.key] as element, idx}
-                                <slot name='nestedArrayElementContent' {record} {dataMeta} {element} {format}>
-                                  {@html format(dataMeta, record, idx)}
-                                </slot>
-                              {/each}
-                            </slot>
-                          </div>
-                        {:else}
-                          <div class:complex-container={dataMeta.shouldNest}>
-                            <slot name='nestedSingletonContent' {record} {dataMeta} {format}>
-                              {@html format(dataMeta, record)}
-                            </slot>
-                          </div>
-                        {/if}
-                      </slot>
-                    </td>
-                  </slot>
-                </tr>
-              </slot>
-            {/if}
           {/each}
-        </slot>
+        </tbody>
       {/each}
-    </tbody>
+    {:else if (nesting && nestedMetas.length > 0)} <!-- Possibly multiple rows per record with subrow records spaning width of row. -->
+      {#each data as record, idx}
+        <tbody>
+          <tr class:opaqued={isAlternate(idx)}>
+            {#each plainMetas as dataMeta}
+              <td data-key={getHeadingText(dataMeta.key)} headers={dataMeta.key}
+                class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
+                <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
+                {#if dataMeta.type === 'array'}
+                  <div class='complex-container array'>
+                    {#each record[dataMeta.key] as element, idx}
+                      {@html format(dataMeta, record, idx)}
+                    {/each}
+                  </div>
+                {:else}
+                  <div class:complex-container={dataMeta.shouldNest}>
+                    {@html format(dataMeta, record)}
+                  </div>
+                {/if}
+              </td>
+            {/each}
+          </tr>
+          {#each nestedMetas as dataMeta}
+            <tr class:opaqued={isAlternate(idx)}>
+              <td data-key={getHeadingText(dataMeta.key)} headers={dataMeta.key}
+                colspan={plainMetas.length > 0 ? plainMetas.length : 1}
+                class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
+                <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
+                {#if dataMeta.type === 'array'}
+                  <div class='complex-container array'>
+                    {#each record[dataMeta.key] as element, idx}
+                      {@html format(dataMeta, record, idx)}
+                    {/each}
+                  </div>
+                {:else}
+                  <div class:complex-container={dataMeta.shouldNest}>
+                    {@html format(dataMeta, record)}
+                  </div>
+                {/if}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      {/each}
+    {:else} <!-- No grouping of records. All values of record are on one single row. -->
+      {#each data as record, i}<!-- Note that `i` cannot be passed directly to slots. -->
+        <tr class:opaqued={isAlternate(i)}>
+          {#each effectiveMetas as dataMeta}
+            <td data-key={getHeadingText(dataMeta.key)} headers={dataMeta.key}
+                class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
+              <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
+              {#if dataMeta.type === 'array'}
+                <div class='complex-container array'>
+                    {#each record[dataMeta.key] as element, idx}
+                      {@html format(dataMeta, record, idx)}
+                    {/each}
+                </div>
+              {:else}
+                <div class:complex-container={dataMeta.shouldNest}>
+                  {@html format(dataMeta, record)}
+                </div>
+              {/if}
+            </td>
+          {/each}
+        </tr>
+      {/each}
+    {/if}
   </table>
 </div>
 {:else}
@@ -442,7 +477,7 @@
   .bottom-heading-row {
     border-bottom: var(--dialog-container-border ,1px solid hsl(0 0% 0% / 0.6));
   }
-  .bottom-record-row {
+  tbody {
     border-bottom: 1px solid hsl(0 0% 0% / 0.2);
   }
   .opaqued:not(.group-opaqued) {
@@ -487,15 +522,22 @@
     color: var(--table-header-text);
     text-transform: capitalize;
     cursor: pointer;
+    position: sticky;
+    top: 0;
+    overflow: auto;
+    min-width: min-content;
   }
   th:not(:last-child) {
     border-right: var(--dialog-container-border);
+    resize: horizontal;
   }
   th.nested-container {
     border-top: var(--dialog-container-border);
   }
   tr {
-    border-bottom: 1px solid hsl(0 0% 0% / 0.05);
+    vertical-align: center;
+  }
+  .spansrows {
     vertical-align: top;
   }
   @media (max-width: 650px) {

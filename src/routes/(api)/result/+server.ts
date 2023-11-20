@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit'
 import { Result, type ResultDocument, type RawJsonResult, type ResultFull, type TemplateResult } from '$lib/models/result.js'
 import type { Feedback } from '@txstate-mws/svelte-forms'
-import { VALIDATE_ONLY } from '$lib/util/globals.js'
+import { VALIDATE_ONLY, apiBase, type ClientAuth } from '$lib/util/globals.js'
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST ({ url, locals, request }) {
@@ -21,7 +21,7 @@ export async function POST ({ url, locals, request }) {
      so we'll also need to search for the alternatve conversion URL. Alternatively we could update all our urls from the start
      but what happens if we have a servie we're creating a Result for that isn't yet updated to use the new txst.edu domain? */
   let existingResult = await Result.findOne({ url: postedResult.url }) as ResultDocument | undefined
-  if (!existingResult && postedResult.url) {
+  if (!existingResult && postedResult.url?.length > 9) { // (http://a.b).length === 10
     const parsedUrl = new URL(postedResult.url)
     if (parsedUrl.hostname.endsWith('txstate.edu')) {
       parsedUrl.hostname = parsedUrl.hostname.replace(/txstate\.edu$/, 'txst.edu')
@@ -47,7 +47,7 @@ export async function POST ({ url, locals, request }) {
     throw error(400, 'Result did not validate.')
   } else if (messages.length > 0) console.table(messages) // TODO: Remove this server side table print of the messages.
   const respResult: Partial<ResultFull> = result.full()
-  // If just validating `newresult.id` gets thrown away and a new one generated on the next POST - don't pass it back.
-  if (result.id === postedResult.id) delete respResult.id
+  // If just validating `postedResult.id` gets thrown away and a new one generated on the next POST - don't pass it back.
+  if (respResult.id === postedResult.id) delete respResult.id
   return json({ result: respResult, messages })
 }

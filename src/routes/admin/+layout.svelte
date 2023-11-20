@@ -54,7 +54,6 @@
 </footer>
 
 <style>
-  /* Figure out how to set global colors, and how to reference them, by other components. */
   :global(html, body) {
     font-family: 'Roboto variant0';
     display: flex;
@@ -77,6 +76,7 @@
     --colors-input-background: var(--colors-paper);
     --colors-navbar-text: var(--colors-vellum);
     --colors-help: var(--colors-blue);
+    --colors-help-text: var(--colors-vellum);
     --colors-focus: var(--colors-blue);
 
     --dialog-container-border: 1px solid #999999;
