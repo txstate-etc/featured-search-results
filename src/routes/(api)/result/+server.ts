@@ -41,11 +41,9 @@ export async function POST ({ url, locals, request }) {
   if (!isValidation) {
     if (messages.length === 0) {
       await result.save()
-      return json(result.full())
+      return json({ result: result.full(), messages })
     }
-    // Perserve our non-feedback API contract with existing clients.
-    throw error(400, 'Result did not validate.')
-  } else if (messages.length > 0) console.table(messages) // TODO: Remove this server side table print of the messages.
+  }
   const respResult: Partial<ResultFull> = result.full()
   // If just validating `postedResult.id` gets thrown away and a new one generated on the next POST - don't pass it back.
   if (respResult.id === postedResult.id) delete respResult.id

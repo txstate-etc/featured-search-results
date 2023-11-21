@@ -1,5 +1,10 @@
 <script lang='ts' context='module'>
   import { htmlEncode, isNotBlank } from 'txstate-utils'
+  const sIconChars = {
+    asc: '&#9661;', // &#9661; ▲
+    desc: '&#9651;', // &#9651; ▼
+    none: '&#8693;' // &#8645;
+  }
 
   const incompatibleTypes = new Set(['undefined', 'function', 'symbol'])
   const nestingDefaultTypes = new Set(['object', 'array'])
@@ -19,14 +24,15 @@
   export type SortFunction = SyncSortFunction | AsyncSortFunction
   export interface Sortings extends Record<string, SortFunction> {}
   export interface ResponsiveTableProps {
+    data: TableData[]
     propsMetas: PropMeta[] | undefined
     caption: string | undefined
-    spanning: boolean | undefined
-    nesting: boolean | undefined
     headingTexts: HeadingTexts | undefined
     transforms: Transforms | undefined
     sortings: Sortings | undefined
+    nesting: boolean | undefined
     getNestingKeys: ((data: TableData[]) => string[]) | undefined
+    spanning: boolean | undefined
     getRowspanKeys: ((data: TableData[]) => string[]) | undefined
   }
   export const SpanningMetaSym = Symbol.for('SpanningMeta')
@@ -121,31 +127,21 @@
 
   /* TODO:
     1) Add `rollupSize` option to resize rows that are `rollupSize` lines tall.
-    2) Fix Rowspanning issue with subsequent records as well as Rowspanning styling.
-       a. For styling consider different borders for alternating rowgroups with the alternatig
-          detail rows continuing to change background. Also consider the rollup option above
-          which still has the same styling between alternations problem... hrmm.
-    3) Add hidden sort <select> with <asc|desc> button(?) that displays in mobile media mode.
-      3 Addendum)
-       The whole sort approach here might not be the way to go. It's great for sorting in page
-       records that are fetched and displayed in the table but often times users will expect
-       sorts to operate on the whole paginated set bringing the data not displayed up to the top
-       of the displayed set.
-       - May consider revisiting sort to pass in optional `asyncSortings` that call API sorting
-         endpoints. With that as an option consumer paginators can have the callbacks passed in
-         reference pagination bounds for the API endpoints to return on their sort.
-       - The paginator could then control whether sorting refreshes from page 1 of the paginated
-         data - effectively resetting most of its state as well as the `data` bound to this - or
-         if they are required to do something funky they can.
+    2) ? Add hidden sort <select> with <asc|desc> button(?) that displays in mobile media mode.
+      2 Addendum)
+       The original sort approach here might not have been the way to go. It's great for sorting
+       in page records that are fetched and displayed in the table but often times users will
+       expect sorts to operate on the whole paginated set bringing the data not displayed up to
+       the top of the displayed set.
+       - ADDED optional `asyncSortings` that can await API sorting.
+         With that as an option consumer pages can access paginator states and can have the
+         async sorting callbacks combine paginator, table key, and other state information to
+         handle sorting outside of the scope of the data handed to the table.
        - This async sort should become the default handling if provided but there should also be
          an option to provide in page sorting or both options for users who are experts in data
-         analysis enough to recognise the value of different sorting granularities.
-    5) Update to make use of multipe tbody when using multiple rows to convey a source record.
-       This would eliminate the need to check for isBottom as styling could be applied to the
-       bottom of the tbody instead of determining which row is the bottom of the record.
-    6) With resizeable columns need to make sure clicking only the sort icon, and possibly the
-       title, updates the sorting.
-    7) Cleanup nesting of complex-container vs simple-container css classes in generated table.
+         analysis enough to recognise the value of different sorting granularities. This can be
+         handled by the page through the asnyc sorting callback referencing user preferences.
+    3) Cleanup nesting of complex-container vs simple-container css classes in generated table.
   */
 
   /** Array of `TableData[]` records to generate a table for. Uses the first element to figure out the shape of the data. All
@@ -239,8 +235,7 @@
 
   const longestKey = simpleMetas.reduce((a, b) => Math.max(a, b.key.length), 0) + 1 + 'ch'
 
-  // May need to make contextualizedData a reactive assignment.
-  const groupedData = spanning ? interpolateSpanning(data, defaultMetas.filter(h => !rowspanKeys.has(h.key))) : []
+  $: groupedData = spanning ? interpolateSpanning(data, defaultMetas.filter(h => !rowspanKeys.has(h.key))) : []
 
 
   /** Sorts `meta` by meta.key exisiting in `nestingKeys` such that nestingKey values are at the end of `meta`. */
@@ -271,7 +266,7 @@
       } else if (arithmeticTypes.has(meta.type)) {
         data = data.sort((a, b) => { return a[meta.key] - b[meta.key] })
       } else if (meta.type === 'string') {
-        data = data.sort((a, b) => { return a[meta.key]?.compare(b[meta.key], undefined, { sensitivity: 'accent' }) })
+        data = data.sort((a, b) => { return a[meta.key]?.localeCompare(b[meta.key], undefined, { sensitivity: 'accent' }) })
       } else if (meta.type === 'array') { // Sort by length of each array.
         data = data.sort((a, b) => { return a[meta.key].length - b[meta.key].length })
       } else { // Sort by number of keys in an object.
@@ -310,7 +305,6 @@
       !(typeof val === 'object' && !Object.values(val).some(hasSubstance))
     )
   }
-  console.table(groupedData)
 </script>
 
 {#if effectiveMetas && data.length > 0 }
@@ -324,12 +318,14 @@
         <tr class:bottom-heading-row={nestedMetas.length === 0}>
           {#each plainMetas as plainHead}
             <th id={plainHead.key}
-              class:selected-heading={plainHead.key === selectedHeading}
-              aria-sort={plainHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}
-              on:click={async () => { await sortByHeading(plainHead) }}>{getHeadingText(plainHead.key)}
-              <slot name='sortIcon' {ascending} {selectedHeading} key={plainHead.key}>
-                <span hidden={plainHead.key !== selectedHeading} class='order-icon'>{@html ascending ? '&#9661;' : '&#9651;'}</span>
-              </slot>
+              aria-sort={plainHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}>
+              <button class='column-header' on:click={async () => { await sortByHeading(plainHead) }}>
+                {getHeadingText(plainHead.key)}
+                <slot name='sortIcons' {ascending} {selectedHeading} key={plainHead.key}>
+                  <div hidden={plainHead.key !== selectedHeading} class='order-icon'>{@html ascending ? sIconChars.asc : sIconChars.desc}</div>
+                  <div hidden={plainHead.key === selectedHeading} class='order-icon'>{@html sIconChars.none}</div>
+                </slot>
+              </button>
             </th>
           {/each}
         </tr>
@@ -339,12 +335,14 @@
           <th id={nestedHead.key}
             class:nested-container={true}
             colspan={plainMetas.length > 0 ? plainMetas.length : 1}
-            class:selected-heading={nestedHead.key === selectedHeading}
-            aria-sort={nestedHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}
-            on:click={async () => { await sortByHeading(nestedHead) }}>{getHeadingText(nestedHead.key)}
-            <slot name='sortIcon' {ascending} {selectedHeading} key={nestedHead.key}>
-              <span hidden={nestedHead.key !== selectedHeading} class:order-icon={true}>{@html ascending ? '&#9661;' : '&#9651;'}</span>
-            </slot>
+            aria-sort={nestedHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}>
+            <button class='column-header' on:click={async () => { await sortByHeading(nestedHead) }}>
+              {getHeadingText(nestedHead.key)}
+              <slot name='sortIcons' {ascending} {selectedHeading} key={nestedHead.key}>
+                <span hidden={nestedHead.key !== selectedHeading} class:order-icon={true}>{@html ascending ? sIconChars.asc : sIconChars.desc}</span>
+                <span hidden={nestedHead.key === selectedHeading} class='order-icon'>{@html sIconChars.none}</span>
+              </slot>
+            </button>
           </th>
         </tr>
       {/each}
@@ -354,14 +352,12 @@
         <tbody>
           {#each recordGroup.group as record, ridx}
             {#if ridx === 0} <!-- First record in group. -->
-              <tr class:group-opaqued={isAlternate(gidx)}>
+              <tr>
                 {#each effectiveMetas as dataMeta}
                   <td data-key={getHeadingText(dataMeta.key)} headers={dataMeta.key}
                     rowspan={rowspanKeys.has(dataMeta.key) ? recordGroup.grpMeta.totalRowspan : 1}
                     class:spansrows={rowspanKeys.has(dataMeta.key)}
-                    class:opaqued={rowspanKeys.has(dataMeta.key) ? false : isAlternate(ridx + 1)}
                     class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
-                    <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
                     {#if dataMeta.type === 'array'}
                       <div class='complex-container array'>
                         {#each record[dataMeta.key] as element, idx}
@@ -377,11 +373,10 @@
                 {/each}
               </tr>
             {:else} <!-- Remaining records in group. -->
-              <tr class:opaqued={isAlternate(ridx + 1)} class:group-opaqued={isAlternate(gidx)}>
+              <tr>
                 {#each subrowMetas as dataMeta}
                   <td data-key={getHeadingText(dataMeta.key)} headers={dataMeta.key}
                     class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
-                    <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
                     {#if dataMeta.type === 'array'}
                       <div class='complex-container array'>
                         {#each record[dataMeta.key] as element, idx}
@@ -403,11 +398,10 @@
     {:else if (nesting && nestedMetas.length > 0)} <!-- Possibly multiple rows per record with subrow records spaning width of row. -->
       {#each data as record, idx}
         <tbody>
-          <tr class:opaqued={isAlternate(idx)}>
+          <tr>
             {#each plainMetas as dataMeta}
               <td data-key={getHeadingText(dataMeta.key)} headers={dataMeta.key}
                 class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
-                <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
                 {#if dataMeta.type === 'array'}
                   <div class='complex-container array'>
                     {#each record[dataMeta.key] as element, idx}
@@ -415,7 +409,7 @@
                     {/each}
                   </div>
                 {:else}
-                  <div class:complex-container={dataMeta.shouldNest}>
+                  <div class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
                     {@html format(dataMeta, record)}
                   </div>
                 {/if}
@@ -423,11 +417,10 @@
             {/each}
           </tr>
           {#each nestedMetas as dataMeta}
-            <tr class:opaqued={isAlternate(idx)}>
+            <tr>
               <td data-key={getHeadingText(dataMeta.key)} headers={dataMeta.key}
                 colspan={plainMetas.length > 0 ? plainMetas.length : 1}
                 class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
-                <!-- By default we spread array elements into seperate blocks nested in complex-container responsiveness block. -->
                 {#if dataMeta.type === 'array'}
                   <div class='complex-container array'>
                     {#each record[dataMeta.key] as element, idx}
@@ -435,7 +428,7 @@
                     {/each}
                   </div>
                 {:else}
-                  <div class:complex-container={dataMeta.shouldNest}>
+                  <div class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
                     {@html format(dataMeta, record)}
                   </div>
                 {/if}
@@ -446,7 +439,7 @@
       {/each}
     {:else} <!-- No grouping of records. All values of record are on one single row. -->
       {#each data as record, i}<!-- Note that `i` cannot be passed directly to slots. -->
-        <tr class:opaqued={isAlternate(i)}>
+        <tr>
           {#each effectiveMetas as dataMeta}
             <td data-key={getHeadingText(dataMeta.key)} headers={dataMeta.key}
                 class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
@@ -458,7 +451,7 @@
                     {/each}
                 </div>
               {:else}
-                <div class:complex-container={dataMeta.shouldNest}>
+                <div class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
                   {@html format(dataMeta, record)}
                 </div>
               {/if}
@@ -474,27 +467,35 @@
 {/if}
 
 <style>
+  .column-header {
+    display: flex;
+    flex-direction: row;
+    /* justify-content: space-between; */
+    align-items: center;
+    cursor: pointer;
+    text-transform: capitalize;
+    border: none;
+    background: none;
+    padding: 0rem;
+    color: var(--table-header-text);
+    font-weight: 700;
+  }
   .bottom-heading-row {
     border-bottom: var(--dialog-container-border ,1px solid hsl(0 0% 0% / 0.6));
   }
   tbody {
     border-bottom: 1px solid hsl(0 0% 0% / 0.2);
   }
-  .opaqued:not(.group-opaqued) {
+  tbody:nth-child(odd) {
     background: hsl(0 0% 0% / 0.1); /* get the alpha version of var(--table-alternate-bg) */
+
   }
-  .group-opaqued:not(.opaqued) {
-    background: hsl(0 0% 0% / 0.1); /* get the alpha version of var(--table-alternate-bg) */
-  }
-  .opaqued.group-opaqued {
-    background: hsl(0 0% 0% / 0.5);
+  tbody > tr:only-child > td {
+    padding-bottom: 1rem;
   }
   .table-container {
     margin-inline: auto;
     overflow-x: auto;
-  }
-  .selected-heading {
-    font-weight: 700;
   }
   .nested-container {
     padding-left: 0.5rem;
@@ -505,9 +506,11 @@
   table {
     width: 100%;
     border-collapse: collapse;
+    border-spacing: 0.2rem;
   }
   caption,th,td {
-    padding: 0.2rem;
+    padding: 0.3rem;
+    margin: 0.2rem;
   }
   caption,th {
     text-align: left;
@@ -519,9 +522,6 @@
   }
   th {
     background: var(--table-header-bg, hsl(0 0% 0% / 0.5));
-    color: var(--table-header-text);
-    text-transform: capitalize;
-    cursor: pointer;
     position: sticky;
     top: 0;
     overflow: auto;
@@ -537,12 +537,36 @@
   tr {
     vertical-align: center;
   }
+  :not(tbody) > tr {
+    vertical-align: top;
+  }
+  :not(tbody) > tr:nth-child(odd) {
+    background: hsl(0 0% 0% / 0.1); /* get the alpha version of var(--table-alternate-bg) */
+  }
   .spansrows {
     vertical-align: top;
+  }
+  td:not(.spansrows) {
+    border-bottom: 1px solid hsl(0 0% 0% / 0.1);
+  }
+  tbody > tr:first-child > td:not(.spansrows) {
+    border-top: 1px solid hsl(0 0% 0% / 0.2);
+  }
+  tbody > tr:last-child > td:not(.spansrows) {
+    border-bottom: 1px solid hsl(0 0% 0% / 0.2);
   }
   @media (max-width: 650px) {
     th {
       display: none;
+    }
+    tr,td {
+      border: none !important;
+    }
+    tbody > tr {
+      border-bottom: 1px solid hsl(0 0% 0% / 0.2);
+    }
+    div.simple-container {
+      padding-left: 0.7rem;
     }
     div.complex-container {
       columns: 12rem auto;
@@ -563,16 +587,15 @@
       padding-left: 0rem;
     }
     td:first-child {
-      padding-top: 0.1rem;
+      padding-top: 0.2rem;
     }
     td:last-child {
-      padding-bottom: 0.1rem;
+      padding-bottom: 0.2rem;
     }
     td::before {
       content: attr(data-key) ':';
       font-weight: 630;
       text-transform: capitalize;
-      padding-left: 0.3rem;
     }
   }
 </style>

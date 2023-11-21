@@ -7,12 +7,7 @@
   import { DateTime } from 'luxon'
 
   /** @type {import('./$types').PageData} */
-  export let data: { query: string, results: ResultFullWithCount[] }
-
-  /* data.results = data.results.map(rec => {
-    const { priority, ...rest } = rec
-    return { ...rec }
-  }) */
+  export let data: { query: string, results: ResultFullWithCount[] | undefined }
 
   const propsMetas: PropMeta[] = [
     { key: 'title', type: 'string', shouldNest: false },
@@ -55,12 +50,12 @@
 
 <h1>Featured Search Results</h1>
 <SearchBar target={`${appBase}/results`} search={data.query}/>
-{#if data.results.length > 0}
+{#if data.results && data.results.length > 0}
   <div class='results-root-container'>
     <ResponsiveTable data={data.results} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} />
   </div>
 {:else}
-  <p>Hmmm... We couldn't find any matches for "{data.query}".<br/>
+  <p>Hmmm... We couldn't find any matches for "{data.query ?? ''}".<br/>
   Double check your search spelling for errors or try different search terms.</p>
 {/if}
 <!-- Stubbing a pagination concept. May put this in the respective lists instead of here.

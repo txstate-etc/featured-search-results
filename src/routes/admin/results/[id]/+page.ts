@@ -1,12 +1,10 @@
-import { error } from '@sveltejs/kit'
+import { error, json } from '@sveltejs/kit'
 import type { TemplateResult } from '$lib/models/result.js'
 import { apiBase } from '$lib/util/globals.js'
 
 /** @type {import('./$types').PageLoad} */
 export async function load ({ fetch, params }) {
-  console.log('results/[id] - params:', JSON.stringify(params))
-  const resp = (await fetch(`${apiBase}/result?id=${params.id}`))?.json()
-  console.log('results/[id] - resp:', JSON.stringify(resp))
-  if (resp) return { ...resp }
+  const resp = await (await fetch(`${apiBase}/result/${params.id}`))?.json()
+  if (resp) return resp.result
   throw error(404, 'Not Found')
 }

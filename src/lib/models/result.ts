@@ -371,7 +371,7 @@ const prefetchEntryMatch = function (entry: IResultEntry, searchWords: string[],
   }
 }
 
-ResultSchema.methods.match = function (words) {
+ResultSchema.methods.match = function (words: string[]) {
   for (const entry of this.sortedEntries()) {
     if (entryMatch(entry, words)) return entry.priority ?? 0
   }
@@ -414,7 +414,7 @@ ResultSchema.methods.fromPartialJson = function (input: Partial<RawJsonResult>) 
   }
 }
 
-ResultSchema.methods.hasEntry = function (entry) {
+ResultSchema.methods.hasEntry = function (entry: IResultEntry) {
   const inKeys = entry.keywords.join(' ')
   for (const e of this.entries) {
     if (e.mode === entry.mode && e.keywords.join(' ') === inKeys) return true
@@ -422,7 +422,7 @@ ResultSchema.methods.hasEntry = function (entry) {
   return false
 }
 
-ResultSchema.methods.hasTag = function (tag) {
+ResultSchema.methods.hasTag = function (tag: string) {
   return this.tags.includes(tag)
 }
 
