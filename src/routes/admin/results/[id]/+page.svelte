@@ -3,12 +3,11 @@
   import type { ResultDocument, TemplateResult } from '$lib/models/result.js'
 
   /** @type {import('./$types').PageData} */
-  export let data: TemplateResult
-  console.log(data)
+  export let data: { result: TemplateResult }
 </script>
 
 <h1>Edit Featured Search Result</h1>
-<ResultEditor {data} />
+<ResultEditor data={data.result} />
 
 <style>
 

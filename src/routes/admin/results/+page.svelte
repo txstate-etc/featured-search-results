@@ -22,7 +22,7 @@
     title: 'Page Name',
     brokensince: 'Broken',
     count: 'Hits',
-    keyphrase: 'Matching Aliases',
+    keyphrase: 'Match Words',
     mode: 'Type'
   }
   const transforms: Transforms = {
@@ -32,6 +32,11 @@
     },
     brokensince: (value, record) => {
       return DateTime.fromISO(value).toRelative() ?? ''
+    },
+    tags: (value, record) => {
+      return `<div class='tags'>${value.map((tag: string) => {
+        return `<div class='tag'><a href='${appBase}/results?q=${tag}'>${tag}</a></div>`
+      }).join('')}</div>`
     }
   }
   /*
@@ -67,5 +72,15 @@
 <style>
   .results-root-container {
     margin-top: var(--element-container-spacing);
+    margin-bottom: var(--element-container-spacing);
+  }
+  :global(.tags) {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  :global(.tag) {
+    margin-right: 0.3rem;
+    font-size: small;
   }
 </style>

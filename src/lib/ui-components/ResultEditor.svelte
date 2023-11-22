@@ -39,13 +39,6 @@
     const target = '_blank'
     window.open(href, target)
   }
-  const preload = {
-    title: '',
-    url: 'https://',
-    entries: [
-      { keyphrase: '', mode: 'keyword', priority: 50 }
-    ]
-  }
 
   const keyphraseTooltip = 'The search words or phrase to find in the query.'
   const modeTooltip = `The type of matching to perform:
@@ -79,22 +72,29 @@
   /** A `TemplateResult` compatible object to preload the editor form with. */
   export let data: TemplateResult | undefined
 
+  const preload = data ?? {
+    title: '',
+    url: 'https://',
+    entries: [
+      { keyphrase: '', mode: 'keyword', priority: 50 }
+    ]
+  }
+
   let store: FormStore<ResultState>
   let entries: HTMLElement
   let tagsinputelement: HTMLInputElement = undefined as any
 
   async function submit (state: ResultState): Promise<SubmitResponse<ResultState>> {
-    console.log('ResultEditor.submit => ', JSON.stringify(state))
-    const resp = await (await fetch(`${apiURL}/result`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state)
-    })).json()
-    console.log('ResultEditor.submit <= RESP: ', JSON.stringify(resp))
-    const messages = resp.messages ?? []
+    console.log('ResultEditor.submit - POST (api)/result => body: ', JSON.stringify(state))
+    const postResp = await (await fetch(`${apiURL}/result`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) })).json()
+    console.log('ResultEditor.submit <= RESP: ', JSON.stringify(postResp))
+    const messages = postResp.messages ?? []
     if (messages.length > 0) {
-      console.log('ResultEditor.submit <= ERRORS: ', JSON.stringify(messages))
+      console.log('ResultEditor.submit <= RESP: POST Failed with messages:', JSON.stringify(messages))
       return { success: false, data: state, messages }
     } else messages.push({ type: MessageType.SUCCESS, message: 'Successfully saved.' })
-    return { success: true, data: resp.result ?? resp, messages }
+    console.log('ResultEditor.submit <= RESP: POST Succeeded with messages:', JSON.stringify(messages))
+    return { success: true, data: postResp.result ?? postResp, messages }
   }
 
   async function validate (state: ResultState): Promise<Feedback[]> {
@@ -166,7 +166,7 @@
         <Icon slot='removeBtnIcon' icon={deleteCircle} hiddenLabel='remove from list'/>
       </FieldMultiple>
     </div>
-    <FieldStandard path='tags' label='Administrative Tags:' defaultValue={data?.tags ?? ''} serialize={tagsSerialize} deserialize={tagsDeserialise} let:value let:valid let:invalid let:id let:onBlur let:onChange let:messagesid let:helptextid>
+    <FieldStandard path='tags' label='Administrative Tags:' defaultValue={''} serialize={tagsSerialize} deserialize={tagsDeserialise} let:value let:valid let:invalid let:id let:onBlur let:onChange let:messagesid let:helptextid>
       <Input bind:inputelement={tagsinputelement} name='tags' {value} {id} class="dialog-input" {onChange} {onBlur} {valid} {invalid} {messagesid} {helptextid} ></Input>
     </FieldStandard>
   </div>

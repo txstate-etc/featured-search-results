@@ -8,7 +8,6 @@ import { VALIDATE_ONLY } from '$lib/util/globals.js'
 export async function GET ({ params, locals }) {
   if (!locals.isEditor) throw error(403)
   const result = await Result.findById(params.id)
-  console.table(result.full())
   return json({ result: result.full(), messages: [] })
 }
 

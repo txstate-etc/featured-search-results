@@ -14,15 +14,20 @@
   type EnhancedTypes = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function' | 'array'
   export interface TableData extends Record<string, any> {}
   export interface PropMeta { key: string, type: EnhancedTypes, shouldNest: boolean }
+
   export interface GroupedMeta { groupIdx: number, rowspans: Record<string, number>, totalRowspan: number }
   export interface GroupedData { group: TableData[], grpMeta: GroupedMeta }
+
   export interface HeadingTexts extends Record<string, string> {}
+
   export type TransformFunction = (value: any, record: any) => string
   export interface Transforms extends Record<string, TransformFunction> {}
+
   export type SyncSortFunction = (a: any, b: any) => number
   export type AsyncSortFunction = (options: { key: string, direction?: 'asc' | 'desc' }) => Promise<TableData[]>
   export type SortFunction = SyncSortFunction | AsyncSortFunction
   export interface Sortings extends Record<string, SortFunction> {}
+
   export interface ResponsiveTableProps {
     data: TableData[]
     propsMetas: PropMeta[] | undefined
@@ -63,11 +68,6 @@
       }
       return wanted
     }, [])
-  }
-
-  /** Utility function for verbalizing the purpose of checking for even or odd values. Returns true if `i` is even. */
-  function isAlternate (i: number) {
-    return (i % 2) > 0
   }
 
   /** Transforms `data` creating new records for each element found in the subproperty arrays of `data`'s records. The
@@ -158,6 +158,7 @@
   export let transforms: Transforms | undefined = {}
   /** Pass in any special sort handling functions, keyed by the property names in your data. */
   export let sortings: Sortings | undefined = {}
+  /** Pass in any heading renaming for your data properties. */
   export let headingTexts: HeadingTexts | undefined = {}
   /** Optional function bind to return an array of property names to nest on their own row.
    * Useful for overriding default behavior of doing so for all objects and arrays when `nesting` is enabled. */
@@ -236,7 +237,6 @@
   const longestKey = simpleMetas.reduce((a, b) => Math.max(a, b.key.length), 0) + 1 + 'ch'
 
   $: groupedData = spanning ? interpolateSpanning(data, defaultMetas.filter(h => !rowspanKeys.has(h.key))) : []
-
 
   /** Sorts `meta` by meta.key exisiting in `nestingKeys` such that nestingKey values are at the end of `meta`. */
   function sortByNesting (meta: PropMeta[]) {

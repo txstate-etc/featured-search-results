@@ -6,7 +6,8 @@
   import type { ResultBasicPlusId } from '$lib/models/result'
 
   /* TODO: Run queries against the api to generate queries to search for.
-    localhost/search?q=texas+state       */
+    localhost/search?q=texas+state
+    featured.search.qual.txstate.edu/search?q=bubba+hotep       */
 
   /** @type {import('./$types').PageData} */
   export let data: { query: string, results: QueryBasic[] | undefined }
@@ -45,6 +46,7 @@
 <style>
   .results-root-container {
     margin-top: var(--element-container-spacing);
+    margin-bottom: var(--element-container-spacing);
   }
   :global(.result:not(:last-child)) {
     margin-bottom: 0.8rem;

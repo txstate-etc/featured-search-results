@@ -76,7 +76,7 @@
     --colors-input-background: var(--colors-paper);
     --colors-navbar-text: var(--colors-vellum);
     --colors-help: var(--colors-blue);
-    --colors-help-text: var(--colors-vellum);
+    --colors-help-text: var(--colors-paper);
     --colors-focus: var(--colors-blue);
 
     --dialog-container-border: 1px solid #999999;
