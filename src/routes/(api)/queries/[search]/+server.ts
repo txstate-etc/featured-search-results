@@ -2,6 +2,7 @@ import { Query, type QueryDocument } from '$lib/models/query.js'
 import { error, json } from '@sveltejs/kit'
 
 function resultFilter (search: string, query: QueryDocument): boolean {
+  /* TODO: Move filtering to the model and add an advanced search option. */
   for (const word of query.query.split(' ')) {
     if (search.includes(word)) return true
   }

@@ -97,6 +97,13 @@ All `Search Result Admin` (app) endpoints are secured behind authenticated acces
 Use `npm run dev` then use `ctrl-c` to immediately exit once that has generated the local development files and types.
 From there you should be able to use the following sections to run tests and have `docker` generate a development instance.
 
+## subsequent updates
+
+Note that updates to the Mongoose/Mongo models will require a rebuild and restart to pick up in running developement instances since Mongoose doesn't currently
+have a means of updating its models at runtime - or if it does we haven't found it yet anyways.
+
+If you're planning on pushing an image to qual make sure to both update the version number to signify the change in builds but also to tag the commit the build is built from with the same version number. This helps us to correlate archived logs to both their associated build and the code commit associated with that build. You can use the `qual.sh` script and pass it a version number for a convenient way to push a versioned build image to the repository. It's up to you to tag your commit and push it with `git push orgin --tags`.
+
 ## run tests
 
 `./test.sh` in the root directory

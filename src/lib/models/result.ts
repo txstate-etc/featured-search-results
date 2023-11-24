@@ -25,33 +25,12 @@ const { Schema, models, model, Error } = mongoose
 // const { ValidationError, ValidatorError } = Error
 import type { Model, Document, ObjectId } from 'mongoose'
 import { isBlank, isNotNull, sortby, eachConcurrent, isNotBlank } from 'txstate-utils'
-import { querysplit } from '../util/helpers.js'
+import { getUrlEqivalencies, isValidUrl, querysplit } from '../util/helpers.js'
 import type { QueryDocument } from './query.js'
 import { MessageType, type Feedback } from '@txstate-mws/svelte-forms'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
 const matchingModes = ['keyword', 'phrase', 'exact']
-export interface ValidationError extends Error {
-  errors: Record<string, {
-    properties: {
-      validator: (value: any) => boolean
-      message: string
-      type: string
-      path: string
-      value: any
-    }
-    kind: string
-    path: string
-    value: any
-    reason?: any
-  }>
-}
-
-/** A `Partial<RawJsonResult>`, with optional `id`, useful for initializing form data from
- * either custom template values or values fetched for editing an existing Result. */
-export interface TemplateResult extends Partial<RawJsonResult> {
-  id?: string
-}
 
 export interface ResultEntry {
   /** Space delimited list of words to associate with the URL based on the `mode`. */
@@ -60,7 +39,6 @@ export interface ResultEntry {
   /** Preferably a percentage, expressed as an integer, of how strongly the keywords associate to the parent featured Result. */
   priority: number
 }
-
 export interface ResultEntryWithCount extends ResultEntry {
   count: number
 }
@@ -69,7 +47,6 @@ export interface ResultBasic {
   url: string
   title: string
 }
-
 export interface ResultBasicPlusId extends ResultBasic {
   id: string
 }
@@ -78,13 +55,11 @@ export interface ResultFull extends ResultBasicPlusId {
   entries: ResultEntry[]
   tags: string[]
 }
-
 export interface ResultFullWithCount extends ResultFull {
   entries: ResultEntryWithCount[]
 }
 
 export type ResultDocument = Document<ObjectId> & IResult & IResultMethods
-
 export type ResultDocumentWithQueries = ResultDocument & {
   queries: QueryDocument[]
 }
@@ -148,6 +123,8 @@ interface ResultModel extends Model<IResult, any, IResultMethods> {
   getByQuery: (words: string[]) => Promise<ResultDocument[]>
   /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `match()` on the tokenized `query`. */
   findByQuery: (query?: string) => Promise<ResultDocument[]>
+  /** @async Returns array of all `Result` documents with `url` that match any of the `url` equivalencies. */
+  findByUrl: (url: string) => Promise<ResultDocument[]>
   /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `prefetchMatch()` on the tokenized `query`. */
   findByQueryCompletion: (query?: string, offset?: number) => Promise<ResultDocument[]>
   /** @async Concurrently runs currencyTest() on all `Result` documents with an `currency.tested` date older than 1 day or `undefined`. */
@@ -188,7 +165,14 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
     type: String,
     required: [true, 'Required.'],
     unique: true, // Note `unique` here is a hint for MongoDB indexes, not a validator.
-    validate: [/^(\w+:)?\/\//i, 'URL must start with a scheme.']
+    validate: {
+      validator: (value: string) => {
+        const conforms = isValidUrl(value)
+        // TODO: Do we want to enforce http/https scheme?
+        return conforms
+      },
+      message: 'Invalid URL.'
+    }
   },
   title: { type: String, required: [true, 'Required.'] },
   currency: {
@@ -221,14 +205,30 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
   }],
   tags: { type: [String], lowercase: true }
 })
+export interface ValidationError extends Error {
+  errors: Record<string, {
+    properties: {
+      validator: (value: any) => boolean
+      message: string
+      type: string
+      path: string
+      value: any
+    }
+    kind: string
+    path: string
+    value: any
+    reason?: any
+  }>
+}
+
 ResultSchema.virtual('queries', {
   ref: 'Query',
   localField: '_id',
   foreignField: 'results'
 })
-
 ResultSchema.index({ 'entries.keywords': 1 })
 ResultSchema.index({ 'currency.tested': 1 })
+ResultSchema.index({ url: 1 })
 
 ResultSchema.methods.basic = function () {
   return {
@@ -236,14 +236,12 @@ ResultSchema.methods.basic = function () {
     title: this.title
   }
 }
-
 ResultSchema.methods.basicPlusId = function () {
   return {
     id: this._id.toString(),
     ...this.basic()
   }
 }
-
 ResultSchema.methods.outentries = function () {
   const outentries = []
   for (const entry of this.sortedEntries()) {
@@ -255,24 +253,24 @@ ResultSchema.methods.outentries = function () {
   }
   return outentries
 }
-
 ResultSchema.methods.sortedEntries = function () {
   this._sortedEntries ??= sortby([...this.entries], 'priority', true)
   return this._sortedEntries
 }
-
 ResultSchema.methods.resetSorting = function () {
   this._sortedEntries = undefined
 }
-
+/** Replaces the ResultDocument's `entries` with the passed in `entries` if they have any values with non-empty `keywords` arrays.
+ * Updates the ResultDocument's `_sortedEntries` if the `entries` are updated. */
 ResultSchema.methods.setEntries = function (entries: IResultEntry[] | undefined) {
   if (!entries) return
   if (entries.length > 0) {
-    this.entries = entries
-    this._sortedEntries = sortby([...this.entries], 'priority', true)
+    if (entries.some(e => e.keywords.length > 0)) {
+      this.entries = [...entries]
+      this._sortedEntries = sortby([...this.entries], 'priority', true)
+    }
   }
 }
-
 ResultSchema.methods.full = function () {
   const info = this.basicPlusId()
   const entries = this.outentries()
@@ -286,7 +284,6 @@ ResultSchema.methods.full = function () {
     tags: this.tags
   }
 }
-
 ResultSchema.methods.fullWithCount = function () {
   const info = this.full()
   const ret: ResultFullWithCount = {
@@ -308,12 +305,10 @@ ResultSchema.methods.fullWithCount = function () {
   }
   return ret
 }
-
 /** Returns `[ new Set(words), words.join(' ') ] as const` */
 function wordsProcessed (words: string[]) {
   return [new Set(words), words.join(' ')] as const
 }
-
 /** Tests `entry` for a match against `searchWords` based on the entry's `mode`:
  * * `exact` - `entry.keywords.join(' ')` EXACTLY matches `searchWords.join(' ')`
  * * `phrase` - `searchWords.join(' ').includes(entry.keywords.join(' '))`
@@ -330,7 +325,6 @@ const entryMatch = function (entry: IResultEntry, searchWords: string[]) {
     return (keysMinusQs <= 0 && entry.keywords.filter(keyword => searchSet.has(keyword)).length === entry.keywords.length)
   }
 }
-
 /** Implementation of `entryMatch` that's useful for autocomplete suggestion prefetching.
  * Impletements the same rules as entryMatch except the last word of the `searchWords` is
  * compared using `.startsWith()` rather than exact matching. */
@@ -370,14 +364,12 @@ const prefetchEntryMatch = function (entry: IResultEntry, searchWords: string[],
     return (keywordCount === entry.keywords.length || (keywordCount === entry.keywords.length - 1 && prefixcount === 1))
   }
 }
-
 ResultSchema.methods.match = function (words: string[]) {
   for (const entry of this.sortedEntries()) {
     if (entryMatch(entry, words)) return entry.priority ?? 0
   }
   return undefined
 }
-
 ResultSchema.methods.prefetchMatch = function (words: string[], offset?: number) {
   for (const entry of this.sortedEntries()) {
     if (prefetchEntryMatch(entry, words, offset)) return entry.priority ?? 0
@@ -393,8 +385,12 @@ export interface RawJsonResult {
   /** Used for storage of highest priority of matching entries during matching tests. */
   priority?: number
 }
-
-ResultSchema.methods.fromPartialJson = function (input: Partial<RawJsonResult>) {
+/** A `Partial<RawJsonResult>`, with optional `id`, useful for initializing form data from
+ * either custom template values or values fetched for editing an existing Result. */
+export interface TemplateResult extends Partial<RawJsonResult> {
+  id?: string
+}
+ResultSchema.methods.fromPartialJson = function (input: TemplateResult) {
   this.url = input.url?.trim()
   this.title = input.title?.trim()
   this.tags = []
@@ -413,7 +409,6 @@ ResultSchema.methods.fromPartialJson = function (input: Partial<RawJsonResult>) 
     this.tags.push(tag.toLowerCase().trim())
   }
 }
-
 ResultSchema.methods.hasEntry = function (entry: IResultEntry) {
   const inKeys = entry.keywords.join(' ')
   for (const e of this.entries) {
@@ -421,11 +416,9 @@ ResultSchema.methods.hasEntry = function (entry: IResultEntry) {
   }
   return false
 }
-
 ResultSchema.methods.hasTag = function (tag: string) {
   return this.tags.includes(tag)
 }
-
 ResultSchema.methods.valid = function () {
   // this.validate() will only throw errors for us to catch. Use validateSync() instead.
   const validation: ValidationError = this.validateSync()
@@ -436,15 +429,12 @@ ResultSchema.methods.valid = function () {
     : []
   return resp
 }
-
 ResultSchema.statics.getAllWithQueries = async function () {
   return this.find().populate('queries')
 }
-
 ResultSchema.statics.getWithQueries = async function (id) {
   return this.findById(id).populate('queries')
 }
-
 ResultSchema.statics.getByQuery = async function (words: string[]) {
   if (words.length === 0) throw new Error('Attempted Result.getByQuery(words: string[]) with an empty array.')
   const ret = await this.find({
@@ -454,7 +444,10 @@ ResultSchema.statics.getByQuery = async function (words: string[]) {
   })
   return ret
 }
-
+ResultSchema.statics.findByUrl = async function (url: string) {
+  const equivalencies = getUrlEqivalencies(url)
+  return this.find({ url: { $in: equivalencies } })
+}
 ResultSchema.statics.findByQuery = async function (query: string) {
   if (isBlank(query)) return []
   const words = querysplit(query)
@@ -463,7 +456,6 @@ ResultSchema.statics.findByQuery = async function (query: string) {
   const filteredresults = results.filter(r => isNotNull(r.priority))
   return sortby(filteredresults, 'priority', true, 'title')
 }
-
 ResultSchema.statics.findByQueryCompletion = async function (query: string, offset?: number) {
   if (isBlank(query)) return []
   const words = querysplit(query)
@@ -472,7 +464,6 @@ ResultSchema.statics.findByQueryCompletion = async function (query: string, offs
   const filteredresults = results.filter(r => isNotNull(r.priority))
   return sortby(filteredresults, 'priority', true, 'title')
 }
-
 ResultSchema.methods.currencyTest = async function () {
   try {
     let alreadypassed = false
@@ -507,7 +498,6 @@ ResultSchema.methods.currencyTest = async function () {
     console.error(e)
   }
 }
-
 ResultSchema.methods.healRecord = function (feedback?: Feedback[]) {
   if (!feedback || feedback.length === 0) return
   for (const v of feedback) {
@@ -525,7 +515,6 @@ ResultSchema.methods.healRecord = function (feedback?: Feedback[]) {
     }
   }
 }
-
 ResultSchema.statics.currencyTestAll = async function () {
   const results = await this.find({
     $or: [{
@@ -536,7 +525,6 @@ ResultSchema.statics.currencyTestAll = async function () {
   }) as ResultDocument[]
   await eachConcurrent(results, async result => { await result.currencyTest() })
 }
-
 ResultSchema.statics.currencyTestLoop = async function () {
   try {
     await this.currencyTestAll()

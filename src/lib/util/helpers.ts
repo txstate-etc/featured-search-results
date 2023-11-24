@@ -1,10 +1,54 @@
 /* eslint-disable quote-props */
-import { isBlank } from 'txstate-utils'
+import { isBlank, isNotBlank } from 'txstate-utils'
 import { error } from '@sveltejs/kit'
 import { MessageType } from '@txstate-mws/svelte-forms'
 
-/** Function for doing things in svelte curly bracers without generating output that gets added to the DOM. */
-export function noOp (..._: any[]) { return '' }
+/** Uses URL constructor to test if `urlString` is a value conformant to valid URL standards. */
+export function isValidUrl (urlString: string) {
+  try { return Boolean(new URL(urlString)) } catch (e) { return false }
+}
+
+const domainEqivalencies: Record<string, string[]> = {
+  'txstate.edu': ['txst.edu', 'txstate.edu'],
+  'txst.edu': ['txst.edu', 'txstate.edu']
+}
+/** Gets permutations of `url` that are its equivalents given our domain and sub-domain equivalencies as well as common
+ * routing equivalencies. Usefull for checking uniqueness integrity of indexed URLs beyond their simple string values. */
+export function getUrlEqivalencies (url: string): string[] {
+  if (!isValidUrl(url)) return []
+  const parsedUrl = new URL(url)
+  const splitHost = parsedUrl.hostname.split('.')
+  const protocol = parsedUrl.protocol
+  const box = splitHost.length > 2 ? splitHost[0] : ''
+  const domain = splitHost.slice(-2).join('.')
+  const port = parsedUrl.port ? `:${parsedUrl.port}` : ''
+  const pathCleaned = parsedUrl.pathname.replace(/\/$/, '')
+  const params = isNotBlank(parsedUrl.search) ? '?' + parsedUrl.search : ''
+  const hash = parsedUrl.hash
+  const equivalencies: string[] = []
+  if (domainEqivalencies[domain]) {
+    equivalencies.push(...Object.keys(domainEqivalencies).filter(key => key === domain).map(de => {
+      return domainEqivalencies[de].map(domain => {
+        return getEquivalencies(protocol, box, domain, port, pathCleaned, params, hash)
+      })
+    }).flat(2))
+  } else {
+    equivalencies.push(...getEquivalencies(protocol, box, domain, port, pathCleaned, params, hash))
+  }
+  return equivalencies
+}
+function getEquivalencies (protocol: string, box: string, domain: string, port: string, cleanedPath: string, params: string, hash: string): string[] {
+  const base = `${domain}${port}${cleanedPath}`
+  const fullParams = `${params}${hash}`
+  const pathEquivalencies = [`${base}${fullParams}`, `${base}/${fullParams}`]
+  return getSubDomainEquivalencies(protocol, box, pathEquivalencies)
+}
+function getSubDomainEquivalencies (protocol: string, box: string, pathEquivalencies: string[]): string[] {
+  const expanded = box !== '' && box !== 'www'
+    ? pathEquivalencies.map(url => { return [`${protocol}//${box}.${url}`] })
+    : pathEquivalencies.map(url => { return [`${protocol}//www.${url}`, `${protocol}//${url}`] })
+  return expanded.flat(2)
+}
 
 /** "Cleans" `query` to all lowercase, with all whitespaces reduced to single space, and trims that result.
  * If there's anything left the result is returned as a tokenized string array split on the spaces. Else an
@@ -36,14 +80,13 @@ export function idFromUrl (url: URL) {
   return id
 }
 
-function statusToMessageType (status: number) {
+/** Returns the associcated `Feedback MessageType` from common HTML status codes and ranges. */
+export function statusToMessageType (status: number) {
   if (status === 200) return MessageType.SUCCESS
   if ([401, 403, 404].includes(status)) return MessageType.SYSTEM
-  /* Currently no warnings thrown so don't waste cycles checking:
-  if (status > 200 && status < 300) return MessageType.WARNING */
+  if (status > 200 && status < 300) return MessageType.WARNING
   return MessageType.ERROR
 }
-
 /** A set of common checks that handle the difference between validation only checks and
  * full blown throw an error checks. If they're not `validationOnly` then errors will be
  * thrown before a value can be returned. If they ARE `validationOnly` then an array of
@@ -54,7 +97,7 @@ function statusToMessageType (status: number) {
  * Hence these checks are more for whether the API was provided everything it needs to
  * interact with Mongoose. */
 export const ValidationChecks = {
-  isTrue: (condition: boolean, status: number, message: string, path: string, validationOnly: boolean = false) => {
+  ifFails: (condition: boolean, status: number, message: string, path: string, validationOnly: boolean = false) => {
     if (!condition) {
       if (!validationOnly) throw error(status, { message })
       const type = statusToMessageType(status)
@@ -64,10 +107,10 @@ export const ValidationChecks = {
   /** Careful with isEditor. If `validationOnly` this will return a message but not throw 403.
    * It's up to the caller to inspect returned messages and throw 403 if Not Authorized. */
   isEditor: (verified: boolean, validationOnly: boolean = false) => {
-    return ValidationChecks.isTrue(verified, 403, 'Not Authorized', '', validationOnly)
+    return ValidationChecks.ifFails(verified, 403, 'Not Authorized', '', validationOnly)
   },
   isBlank: (param: any, name: string, validationOnly: boolean = false) => {
-    return ValidationChecks.isTrue(!isBlank(param[name]), 400, `Posted request must contain a non-empty ${name}.`, name, validationOnly)
+    return ValidationChecks.ifFails(!isBlank(param[name]), 400, `Posted request must contain a non-empty ${name}.`, name, validationOnly)
   }
 }
 
@@ -79,7 +122,6 @@ interface SearchMappings {
   /** Convenience reference of distinct table fields available to compare against. */
   fields: Set<string>
 }
-
 /** Get the distinct values from `hash` as the field names in an SQL table. */
 export function getFields (hash: any) {
   return new Set<string>(Object.values(hash)) // Set() to just the distinct field names.
@@ -179,7 +221,6 @@ export function getWhereClause (tableDef: SearchMappings, search: string) {
   }
   return { sql: ' where ' + whereClause.join(' and '), binds }
 }
-
 type SortOptions = string | { fields: string, order: 'd' | 'desc' } | undefined
 /** Takes multiple sortOption parameters after tableDef.
  * @param {SearchMappings} tableDef - A utility object used to associate search aliases and defaults to table fields.
@@ -214,7 +255,6 @@ export function getSortClause (tableDef: SearchMappings, ...sortOptions: SortOpt
   }
   return 'order by ' + (sortClause.length === 0 ? sortDefault + ' asc' : sortClause.join(', ')) + ', email'
 }
-
 /** Generates an SQL limit clause from base 10 numeric parameters.
  * @param {number} pageNum The page number of the result subset for subsets of size = or rounded up to `pageSizes`.
  * - Sanity checked for truthy greater than 0, else defaults to 0 by way of an empty string.

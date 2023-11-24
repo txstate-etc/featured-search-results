@@ -15,6 +15,7 @@ import { isNotBlank } from 'txstate-utils'
       priority >= 50 */
 
 function resultFilter (search: string, result: ResultDocument): boolean {
+  /* TODO: Move filtering to the model and add an advanced search option. */
   if (search.includes(result.title)) return true
   if (result.tags) { for (const tag of result.tags) { if (search.includes(tag)) return true } }
   if (result.entries) {

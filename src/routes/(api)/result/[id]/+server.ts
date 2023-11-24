@@ -20,7 +20,7 @@ export async function PUT ({ params, url, request, locals }) {
   const isValidation = url.searchParams.has(VALIDATE_ONLY)
   const messages: Feedback[] = []
   const result = await Result.findById(params.id) as ResultDocument | undefined
-  messages.push(...ValidationChecks.isTrue(!result, 404, `Result ${params.id} does not exist.`, 'id', isValidation))
+  messages.push(...ValidationChecks.ifFails(!!result, 404, `Result ${params.id} does not exist.`, 'id', isValidation))
   if (!result) return json({ result: undefined, messages })
 
   result.fromPartialJson(body)

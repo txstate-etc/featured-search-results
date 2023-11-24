@@ -1,13 +1,15 @@
 <script lang='ts' context='module'>
-  import type { TemplateResult, RawJsonResult } from '$lib/models/result.js'
+  import type { TemplateResult, RawJsonResult, ResultFull } from '$lib/models/result.js'
   import type { PopupMenuItem } from '@txstate-mws/svelte-components'
   import { MessageType, type Feedback, type FormStore, type SubmitResponse } from '@txstate-mws/svelte-forms'
-  import { isBlank } from 'txstate-utils'
-  import { VALIDATE_ONLY, apiURL } from '$lib/util/globals'
+  import FeedbackLinks from './FeedbackLinks.svelte'
+  import { VALIDATE_ONLY, apiURL, appURL } from '$lib/util/globals'
   import { FieldHidden, FieldNumber, FieldSelect, FieldStandard, FieldText, Form, Icon, Input } from '@dosgato/dialog'
   import FieldMultiple from './FieldMultiple.svelte'
   // import helpCircle from '@iconify-icons/mdi/help-circle'
   import deleteCircle from '@iconify-icons/mdi/delete'
+
+  const equivIdsRegex = /equivalent\.(?<id>[^.]*)\.(?<title>.*)/
 
   /**
   ```ts
@@ -47,7 +49,7 @@
   Keyword - Search Words must be present in the query in any order.`
   const priorityTooltip = 'The weight of this entry in the search results. Higher numbers are more important.'
 </script>
-<script lang=ts>
+<script lang='ts'>
   /* TODO:
     1) Fix submit errors. Done. - Need to work out asyoutype validations.
     2) Validate checks with fetches against API.
@@ -71,6 +73,8 @@
 
   /** A `TemplateResult` compatible object to preload the editor form with. */
   export let data: TemplateResult | undefined
+  /** The API endpoint and method to submit the form data to. */
+  export let apiTarget: { url: string, method: string } = { url: `${apiURL}/result`, method: 'POST' }
 
   const preload = data ?? {
     title: '',
@@ -81,44 +85,33 @@
   }
 
   let store: FormStore<ResultState>
-  let entries: HTMLElement
   let tagsinputelement: HTMLInputElement = undefined as any
 
   async function submit (state: ResultState): Promise<SubmitResponse<ResultState>> {
-    console.log('ResultEditor.submit - POST (api)/result => body: ', JSON.stringify(state))
-    const postResp = await (await fetch(`${apiURL}/result`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) })).json()
-    console.log('ResultEditor.submit <= RESP: ', JSON.stringify(postResp))
-    const messages = postResp.messages ?? []
+    /* TODO:
+      - Add confirmation dialog with possible diff resolve of record state. */
+    const resp = await (await fetch(`${apiTarget.url}`, { method: apiTarget.method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) })).json()
+    const messages = resp.messages ?? []
     if (messages.length > 0) {
-      console.log('ResultEditor.submit <= RESP: POST Failed with messages:', JSON.stringify(messages))
       return { success: false, data: state, messages }
     } else messages.push({ type: MessageType.SUCCESS, message: 'Successfully saved.' })
-    console.log('ResultEditor.submit <= RESP: POST Succeeded with messages:', JSON.stringify(messages))
-    return { success: true, data: postResp.result ?? postResp, messages }
+    return { success: true, data: resp.result, messages }
   }
 
   async function validate (state: ResultState): Promise<Feedback[]> {
-    const resp = await (await fetch(`${apiURL}/result?${VALIDATE_ONLY}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state)
-    })).json()
+    const resp = await (await fetch(`${apiTarget.url}?${VALIDATE_ONLY}`, {
+      method: apiTarget.method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state)
+    })).json() as ({ result: Partial<ResultFull>, messages: Feedback[] } | { message: string })
     /* For some reason the auto-validate first call to /result POST doens't have values for login.
      * Check for that response and don't validate further else we'll get all sorts of errors trying
      * to work with properties of undefined parents that the API didn't return because its first call
      * might not have thought we were logged in - May be a dev env only thing. */
-    if (resp.message && resp.message === 'Error: 403') {
-      return [{ type: MessageType.WARNING, path: 'login', message: 'API was not able to identify you.' }]
+    const thrownResp = resp as { message: string }
+    if (thrownResp.message && thrownResp.message === 'Error: 403') {
+      return apiTarget.method === 'PUT' ? [] : [{ type: MessageType.WARNING, path: 'login', message: 'API was not able to identify you.' }]
     }
-    const messages: Feedback[] = resp.messages ?? []
-    if (isBlank(state.id) && resp.result?.id) {
-      // Validation found a pre-existing id for our Result. Add message and add `id` to store.
-      messages.push({ type: MessageType.WARNING, path: 'id', message: 'URL corresponds to a pre-existing record.' })
-      await store?.setField('id', resp.result.id, { initialize: true })
-    }
-    if (state?.url !== resp.result?.url && new URL(resp.result.url).hostname.endsWith('txst.edu')) {
-      // `CurrencyTest` updated our URL. Add message and update our store with the updated url.
-      messages.push({ type: MessageType.WARNING, path: 'url', message: 'URL migrated to txst.edu domain.' })
-      await store?.setField('url', resp.result.url)
-    }
+    const processedResp = resp as { result: Partial<ResultFull>, messages: Feedback[] }
+    const messages: Feedback[] = processedResp.messages ?? []
     // Translate message paths to match our store's paths.
     return messages.map(m => ({ ...m, path: m.path?.replace(/keywords/, 'keyphrase') }))
   }
@@ -135,14 +128,21 @@
     /* Remove the empty label from FieldMultiple. */
     // Array.from(entries.getElementsByTagName('label')).filter(l => isBlank(l.textContent)).forEach(e => { e.remove() })
   })
+  $: submitContext = data?.id ? 'Update' : 'Create'
 </script>
+<!--
+  @component
+  TODO: Add reference description for component that's displayed in VSCode editors.
+-->
 
-<Form bind:store name='result' {submit} {validate} {preload} let:saved>
+<Form bind:store name='result' {submit} {validate} {preload} let:saved let:messages>
   <div class='result-form'>
     <FieldText path='title' label='Title:' defaultValue={''} required/>
     <FieldText path='url' label='URL:' defaultValue={'https://'} required/>
+    <FeedbackLinks data={messages} path={equivIdsRegex} targetURL={`${appURL}/results/`} pathKeys={['id', 'title']}
+      buildSlugs={(found, keys) => found.id} preamble='Edit ' getText={(found, keys) => found.title} postscript="'s record."/>
     <!-- svelte-forms(entries[]) -->
-    <div class='result-entries' bind:this={entries}>
+    <div class='result-entries'>
       <!--
       <div class='label-with-helpicon'>
         <label for={'alias-help'}>Matching Aliases</label>
@@ -171,12 +171,13 @@
     </FieldStandard>
   </div>
   {#if data?.id}<FieldHidden path='id' bind:value={data.id}/>{/if}
-  <svelte:fragment slot='submit' let:saved let:submitting let:validating let:valid let:invalid let:allMessages>
-    <button class='submit-button' class:validating class:submitting class:saved type='submit'>
+  <svelte:fragment slot='submit' let:saved let:submitting let:validating let:valid let:invalid let:messages>
+    <button class='submit-button' style={`--submit-context: '${submitContext}';`}
+      class:validating class:submitting class:saved type='submit' disabled={!valid}>
       {#if submitting}Submitting...
       {:else if validating}Validating...
       {:else if saved}<span></span>
-      {:else}Save
+      {:else}{submitContext}
       {/if}
     </button>
   </svelte:fragment>
@@ -225,7 +226,7 @@
     animation: replace normal forwards 10s;
   }
   @keyframes replace {
-    to { content: 'Save'; }
+    to { content: var(--submit-context); }
   }
   .result-form {
     --entries-multiple-spacing: 1.0rem;/*var(--element-container-spacing);   They liked 1.5rem. */
@@ -345,5 +346,11 @@
   }
   .submit-button {
     margin-bottom: 1rem;
+  }
+  .submit-button:disabled {
+    margin-bottom: 1rem;
+    color: black;
+    background-color: var(--dg-button-disabled-bg);
+    cursor: auto;
   }
 </style>

@@ -39,14 +39,15 @@
       }).join('')}</div>`
     }
   }
-  /*
   const sortings: Sortings = {
-    entries: (a, b) => {
-      const aHighest = a.reduce((y: any, z: any) => Math.max(y, z.priority), -1000)
-      const bHighest = b.reduce((y: any, z: any) => Math.max(y, z.priority), -1000)
-      return aHighest - bHighest
-    }
-  } */
+  /* TODO: Fix sorting so that entries sub-sort before passing to interpollator.
+    priority: async (options: {key: string, direction: 'asc' | 'desc'}): Promise<TableData[]> => {
+      return data = await fetch(`${apiBase}/results/${data.query}/entries.priority/${direction}`)
+    } */
+    // const aHighest = a.reduce((y: any, z: any) => Math.max(y, z.priority), -1000)
+    // const bHighest = b.reduce((y: any, z: any) => Math.max(y, z.priority), -1000)
+    // return aHighest - bHighest
+  }
 
   function getRowspanKeys (data: Record<string, any>[]) {
     return ['title', 'brokensince', 'tags', 'id', 'url']
