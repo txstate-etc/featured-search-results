@@ -35,7 +35,7 @@
   </div>
 {:else}
   <p>Hmmm... We couldn't find any matches for "{data.query ?? ''}".<br/>
-  Double check your search spelling for errors or try different search terms.</p>
+  Double check your search for spelling errors or try different search terms.</p>
 {/if}
 <!-- Stubbing a pagination concept.
 <Pagination>

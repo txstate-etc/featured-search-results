@@ -54,8 +54,13 @@
   }
 </script>
 
-<h1>Featured Search Results</h1>
-<SearchBar target={`${appBase}/results`} search={data.query}/>
+<h1>Moc-Up Testing</h1>
+<form name='FilterInput' action={`${appBase}/mocup`} method='GET'>
+  <div class='searchbar'>
+    <textarea name='q' placeholder='Filter...' rows='30' cols='100'>{data.query ?? '{}'}</textarea>
+    <button type='submit' class='submit-button'>Search</button>
+  </div>
+</form>
 {#if data.results && data.results.length > 0}
   <div class='results-root-container'>
     <ResponsiveTable data={data.results} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} />

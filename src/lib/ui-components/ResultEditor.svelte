@@ -48,6 +48,7 @@
   Phrase - Search Words must be present in the query in the same order as here.
   Keyword - Search Words must be present in the query in any order.`
   const priorityTooltip = 'The weight of this entry in the search results. Higher numbers are more important.'
+  const tagsTooltip = 'Administrative tags to help organize and filter Result records.'
 </script>
 <script lang='ts'>
   /* TODO:
@@ -108,7 +109,7 @@
      * might not have thought we were logged in - May be a dev env only thing. */
     const thrownResp = resp as { message: string }
     if (thrownResp.message && thrownResp.message === 'Error: 403') {
-      return apiTarget.method === 'PUT' ? [] : [{ type: MessageType.WARNING, path: 'login', message: 'API was not able to identify you.' }]
+      return [{ type: MessageType.WARNING, path: 'login', message: 'API was not able to identify you.' }]
     }
     const processedResp = resp as { result: Partial<ResultFull>, messages: Feedback[] }
     const messages: Feedback[] = processedResp.messages ?? []
@@ -157,7 +158,7 @@
             <FieldText path='keyphrase' label='Search Words:' defaultValue={''} required />
           </span>
           <span data-tooltip={modeTooltip} class={index === 0 ? 'tooltip-shown tooltipped' : 'tooltipped'}>
-            <FieldSelect path='mode' label='Mode:' notNull defaultValue={'keyword'} {choices} required />
+            <FieldSelect path='mode' label='Type:' notNull defaultValue={'keyword'} {choices} required />
           </span>
           <span data-tooltip={priorityTooltip} class={index === 0 ? 'tooltip-shown tooltipped' : 'tooltipped'}>
             <FieldNumber path='priority' label='Weight:' defaultValue={50} step={10} required/>

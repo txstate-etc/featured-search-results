@@ -1,8 +1,16 @@
-<script lang=ts>
+<script lang='ts'>
+  import { invalidate } from '$app/navigation'
+
   /** Two-way bind for sharing the `search` value with sibling components. */
   export let search: string = ''
   /** The endpoint to direct search requests to. */
   export let target: string
+
+  /** STUB: Looking into getting unchanged searches to go ahead and reload the page data despite the url not being changed.
+   *  Need to look into overloading the submit button. */
+  async function rerunLoad () {
+    await invalidate((url) => url.pathname.includes(target))
+  }
 </script>
 
 <form name='SearchBar' action={target} method='GET'>

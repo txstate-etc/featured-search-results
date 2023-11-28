@@ -37,8 +37,9 @@ function resultFilter (search: string, result: ResultDocument): boolean {
 }
 
 /** @type {import('./$types').RequestHandler} */
-export async function GET ({ params, locals }) {
+export async function GET ({ url, params, locals }) {
   if (!locals.isEditor) throw error(403)
+  // Would need to replace params.sort below with our actual search which we'd get from url.searchParams.get('q')
   const matches = (await Result.getAllWithQueries()).filter(r => resultFilter(params.search, r)).map(result => { return result.fullWithCount() })
   return json(matches)
 }

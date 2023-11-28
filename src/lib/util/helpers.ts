@@ -114,9 +114,20 @@ export const ValidationChecks = {
   }
 }
 
+/** `typeof` operator doesn't distinguish between 'object' and 'array' and we want the distinction here. */
+export type EnhancedTypes = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function' | 'array'
+export type EnhancedTypesSubProp = Record<string, EnhancedTypes>
+export type EnhancedTypesArray = Record<'array', EnhancedTypes | EnhancedTypesSubProp>
+/** Utility function for getting the `typeof` an object with `array` differentiated from `object`. */
+export function getType (obj: any) {
+  let type: EnhancedTypes = typeof obj
+  if (type === 'object' && Array.isArray(obj)) type = 'array'
+  return type
+}
 interface SearchMappings {
   /** A mapping of search aliases to the table field they correspond to. */
   hash: Record<string, string>
+  metas?: Record<string, EnhancedTypes | EnhancedTypesArray>
   /** The default fields to compare search values against when none are specified. */
   defaults: string[]
   /** Convenience reference of distinct table fields available to compare against. */
@@ -171,6 +182,58 @@ export function getPeopleDef (): SearchMappings {
     fields: getFields(hash)
   } as const
 }
+/** Returns an object reference to a utility representation of the relationship between search
+ *  terms and the underlying `Result` documents. */
+export function getResultsDef (): SearchMappings {
+  const hash: Record<string, string> = {
+    'title': 'title',
+    'page name': 'title',
+    'tag': 'tags',
+    'tags': 'tags',
+    'url': 'url',
+    'path': 'url',
+    'domain': 'url',
+    'subdomain': 'url',
+    'hostname': 'url',
+    'broken': 'brokensince',
+    'brokensince': 'brokensince',
+    'match words': 'entries.keywords',
+    'keyphrase': 'entries.keywords',
+    'aliases': 'entries.keywords',
+    'keywords': 'entries.keywords',
+    'mode': 'entries.mode',
+    'type': 'entries.mode',
+    'priority': 'entries.priority',
+    'weight': 'entries.priority',
+    'search': 'query',
+    'query': 'query',
+    'hits': 'queries.count',
+    'count': 'queries.count'
+  }
+  const metas: Record<string, EnhancedTypes | EnhancedTypesArray> = {
+    'title': 'string',
+    'tags': { 'array': 'string' },
+    'url': 'string',
+    'priority': 'number',
+    'brokensince': 'string',
+    'entries.keywords': { 'array': { 'keywords': 'array' } },
+    'entries.mode': { 'array': { 'mode': 'string' } },
+    'entries.priority': { 'array': { 'priority': 'number' } },
+    'queries.count': { 'array': { 'count': 'number' } },
+    'query': 'string'
+  }
+  const defaults: string[] = ['title', 'url', 'tags', 'entries.keywords', 'entries.mode']
+  return {
+    hash,
+    defaults,
+    fields: getFields(hash)
+  } as const
+}
+/** What to search for. Quoted things as a single what-for or anything that's either an escaped [comma, semicolon, space]
+ *  or is not a [comma, semicolon or space] - making commas, semicolons, or spaces our delimiters when not grouped by quotes. */
+export const whatfors = /(?<whatfor>"(?:\\"|[^"])*"|'(?:\\'|[^'])*'|(?:\\[,; ]|[^,; ])+)/
+export const wildcardops = /(?<wildcardop>:|<=|>=|=|<|>|\b(?:contains?|(?:ends|begins|starts)\s?with|is)\b)\s*/ // Add wildcards to search?
+export const likeops = /(?<likeop>\+|-|\b(?:not|and)\b\s*)/ // Like, or Not Like?
 
 /** Returns an SQL `where` clause using `tableDef` and parsable `search` string as parameters.
  * @param {SearchMappings} tableDef - A utility object used to associate search aliases and defaults to table fields.
@@ -195,10 +258,7 @@ export function getWhereClause (tableDef: SearchMappings, search: string) {
   const fieldAliases = getAliases(tableDef.hash).join('|')
   // We need to break the RegEx down to interpolate the fieldAliases. While we're at it might as well tokenize
   // the parts into their respective purposes for easier editing if we decide to change functionality.
-  const whatfors = /(?<whatfor>"(?:\\"|[^"])*"|'(?:\\'|[^'])*'|(?:\\[,; ]|[^,; ])+)/ // What to search for.
-  const wildcardops = /(?<wildcardop>:|=|<|>|contains?|(?:ends|begins|starts)\s?with|is)\s*/ // Add wildcards to search?
-  const likeops = /(?<likeop>\+|-|not\s+|and\s+)/ // Like, or Not Like?
-  const aliases = new RegExp(`(?<alias>${fieldAliases})\\s*`) // Aliases that translate to fields we search.
+  const aliases = new RegExp(`\\b(?<alias>${fieldAliases})\\b\\s*`) // Aliases that translate to fields we search.
   const parser = new RegExp(`(?:${likeops.source})?(?:${aliases.source + wildcardops.source})?${whatfors.source}[,;]?\\s*`, 'gi')
 
   const whereClause = []
@@ -271,4 +331,63 @@ export function getLimitClause (pageNum: number, pageSizes: number) {
   const limitDefault = ''
   const offset = (pageNum > 1) ? `${(pageNum - 1) * pageSizes}, ` : ''
   return (pageSizes > 0) ? ` limit ${offset}${pageSizes}` : limitDefault
+}
+
+/** Returns an MQL `match` clause using `tableDef` and parsable `search` string as parameters.
+ * @param {SearchMappings} tableDef - A utility object used to associate search aliases and defaults to table fields.
+ * @param {string} search
+ * * A string that will be parsed for tokens of simple search terms, tokens of advanced search phrases, or combos of the two.
+ * @returns
+ * ```
+ *   { mql: string, binds: [string] }
+ * ```
+ * @example
+ * ```
+ *   getMatchClause(someTableDef,'alias1 is a, alias2 begins with b')
+ *   // Returns:
+ *   { mql: '{ field1: ?, field2: /$?/i }', binds: ['a', 'b'] }
+ * ``` */
+export function getMatchClause (tableDef: SearchMappings, search: string) {
+  /* Advanced search phrases consist of the following RegEx-ish form.
+  (and |not |+|-)?((tableDef.hash.keys) *(contains|(ends|begins|starts) with|is|:|<=|>=|=|<|>) *)?(["']*|[,; ]+)<what to search for>\5+[,;]? *
+  <   likeops   >  <     aliases      >  <                 wildcardops                       >   <<     \5     >      whatfor      >
+  */
+  const binds = []
+  // TODO: Need a way of differentiationg between numbers, strings, dates, arrays, and objects.
+  /* const arrays = tableDef.fields.reduce((acc, cur) => {
+    if (cur.includes('.')) {
+      const [field, subfield] = cur.split('.')
+      if (!acc[field]) acc[field] = []
+      acc[field].push(subfield)
+    }
+  }, []) */
+  const fieldAliases = getAliases(tableDef.hash).join('\b|')
+  // We need to break the RegEx down to interpolate the fieldAliases. While we're at it might as well tokenize
+  // the parts into their respective purposes for easier editing if we decide to change functionality.
+  const aliases = new RegExp(`\\b(?<alias>${fieldAliases})\\b\\s*`) // Aliases that translate to fields we search.
+  const parser = new RegExp(`(?:${likeops.source})?(?:${aliases.source + wildcardops.source})?${whatfors.source}[,;]?\\s*`, 'gi')
+
+  const matchClause = []
+  for (const token of search.matchAll(parser)) {
+    const { likeop, alias, wildcardop, whatfor } = token.groups as any
+    const whatforbind = whatfor.replace(/^(["'])(.*?)\1$/, '$2') // Strip any grouping quotes.
+    let regExBind = ''
+    if (!wildcardop || /^(?:contains|:)/.test(wildcardop))/**/ regExBind = `/${whatforbind}/i`
+    else if (/^(?:ends\s?with)/.test(wildcardop)) /*        */ regExBind = `/${whatforbind}$/i`
+    else if (/^(?:(?:begins|starts)\s?with)/.test(wildcardop)) regExBind = `/^${whatforbind}/i`
+    else /*                     /^(?:is|=)/                 */ regExBind = whatforbind
+    // We've created our bind parameter for this token, now let's build the clause.
+    let clause = '?'
+    if (/^(?:<=)/.test(likeop)) clause = `{ $lte: ${clause} }`
+    else if (/^(?:>=)/.test(likeop)) clause = `{ $gte: ${clause} }`
+    else if (/^(?:<)/.test(likeop)) clause = `{ $lt: ${clause} }`
+    else if (/^(?:>)/.test(likeop)) clause = `{ $gt: ${clause} }`
+    if (/^(?:not\s+|-)$/.test(likeop)) clause = `{ $ne: ${clause} }`
+    else /*  /^(?:and\s+|\+)$/ or !likeop */ clause = `${clause}`
+    // Prepend our alias's property name, if alias was parsed, else default to tableDef.defaults.
+    if (alias) binds.push(regExBind) && (clause = `${tableDef.hash[alias]}: ${clause}`)
+    else clause = tableDef.defaults.map((field: string) => (binds.push(regExBind) && `(${field} ${clause})`)).join(' or ')
+    matchClause.push(`(${clause})`)
+  }
+  return { sql: ' where ' + matchClause.join(' and '), binds }
 }

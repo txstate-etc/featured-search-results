@@ -1,5 +1,6 @@
 <script lang='ts' context='module'>
-  import { htmlEncode, isNotBlank } from 'txstate-utils'
+  import { getType, type EnhancedTypes } from '$lib/util'
+  import { htmlEncode } from 'txstate-utils'
   const sIconChars = {
     asc: '&#9661;', // &#9661; ▲
     desc: '&#9651;', // &#9651; ▼
@@ -10,8 +11,6 @@
   const nestingDefaultTypes = new Set(['object', 'array'])
   const arithmeticTypes = new Set(['number', 'bigint', 'boolean'])
 
-  /** `typeof` operator doesn't distinguish between 'object' and 'array' and we want the distinction here. */
-  type EnhancedTypes = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function' | 'array'
   export interface TableData extends Record<string, any> {}
   export interface PropMeta { key: string, type: EnhancedTypes, shouldNest: boolean }
 
@@ -49,13 +48,6 @@
   function getRowspanKeysDefaults (data: TableData[]) {
     const meta = getMetaData(data[0])
     return meta.filter(m => !m.shouldNest).map(m => m.key)
-  }
-
-  /** Utility function for getting the `typeof` an object with `array` differentiated from `object`. */
-  function getType (obj: any) {
-    let type: EnhancedTypes = typeof obj
-    if (type === 'object' && Array.isArray(obj)) type = 'array'
-    return type
   }
 
   /** Returns an array of { key, type, shouldNest } records that describe the properties of the `obj`. */

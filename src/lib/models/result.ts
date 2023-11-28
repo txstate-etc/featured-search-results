@@ -25,7 +25,7 @@ const { Schema, models, model, Error } = mongoose
 // const { ValidationError, ValidatorError } = Error
 import type { Model, Document, ObjectId } from 'mongoose'
 import { isBlank, isNotNull, sortby, eachConcurrent, isNotBlank } from 'txstate-utils'
-import { getUrlEqivalencies, isValidUrl, querysplit } from '../util/helpers.js'
+import { getMatchClause, getResultsDef, getUrlEqivalencies, isValidUrl, querysplit } from '../util/helpers.js'
 import type { QueryDocument } from './query.js'
 import { MessageType, type Feedback } from '@txstate-mws/svelte-forms'
 
@@ -115,6 +115,8 @@ interface IResultMethods {
 }
 
 interface ResultModel extends Model<IResult, any, IResultMethods> {
+  /** @async Returns an array of `Result` documents matching search,  with their associated queries populated in the documents. */
+  findAdvanced: (search: string, sort?: string, limit?: number, offset?: number) => Promise<ResultDocumentWithQueries[]>
   /** @async Returns an array of all `Result` documents with their associated queries populated in the documents. */
   getAllWithQueries: () => Promise<ResultDocumentWithQueries[]>
   /** @async Returns the `Result` document identified by `id` with its associated queries populated in the document. */
@@ -428,6 +430,14 @@ ResultSchema.methods.valid = function () {
     )
     : []
   return resp
+}
+ResultSchema.statics.findAdvanced = async function (search: string, sort?: string, limit?: number, offset?: number) {
+  const resultDef = getResultsDef()
+  const matchClause = getMatchClause(resultDef, search)
+  const count = await this.countDocuments(matchClause)
+  // const sortClause = getMongoSortClause(resultDef, sort)
+  // const limitClause = getMongoLimitClause(resultDef, offset, limit)
+  // const resultSet = await this.find(matchClause).sort(sortClause).limit(limitClause)
 }
 ResultSchema.statics.getAllWithQueries = async function () {
   return this.find().populate('queries')
