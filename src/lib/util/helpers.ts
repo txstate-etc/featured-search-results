@@ -10,6 +10,10 @@ export function isValidUrl (urlString: string) {
   // return URL.canParse(urlString)
 }
 
+export function isValidHttpUrl (urlString: string) {
+  try { return /https?:/.test(new URL(urlString).protocol) } catch (e) { return false }
+}
+
 const domainEqivalencies: Record<string, string[]> = {
   'txstate.edu': ['txst.edu', 'txstate.edu'],
   'txst.edu': ['txst.edu', 'txstate.edu']
