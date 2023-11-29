@@ -57,6 +57,7 @@ const validOrigins = new Set(['txstate.edu', 'txst.edu', 'tsus.edu', 'tjctc.org'
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle ({ event, resolve }) {
   const token = event.cookies.get('token')
+  console.log('hooks - token:', JSON.stringify(token))
   if (token?.length) {
     const payload = await authenticator.get(token)
     if (payload?.sub?.length) {

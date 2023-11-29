@@ -9,6 +9,7 @@ export const load = async (input) => {
   const requestedUrl = input.url.searchParams.get('requestedUrl')
   const token = input.url.searchParams.get('unifiedJwt')
   if (requestedUrl?.length && token?.length) {
+    console.log('layout.server - setting token in cookie:', JSON.stringify(token))
     // set the token unified auth gave us in a local cookie
     input.cookies.set('token', token, { sameSite: 'strict', path: base ?? '/', httpOnly: true })
     // redirect the browser to wherever it was going when the login process began
