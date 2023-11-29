@@ -1,7 +1,7 @@
 import { Cache } from 'txstate-utils'
 import { Result } from '$lib/models/result.js'
 import { Query } from '$lib/models/query.js'
-import { authenticator } from '$lib/util/auth'
+import { authenticator } from '$lib/util/auth.js'
 import { loadPeople } from '$lib/util/loadPeople.js'
 import reloadPeopleCron from '$lib/util/loadPeople_Cron.js'
 import { migrate } from '$lib/util/migrations.js'

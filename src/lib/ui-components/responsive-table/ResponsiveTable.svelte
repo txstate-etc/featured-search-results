@@ -1,5 +1,5 @@
 <script lang='ts' context='module'>
-  import { getType, type EnhancedTypes } from '$lib/util'
+  import { getType, type EnhancedTypes } from '$lib/util/helpers.js'
   import { htmlEncode } from 'txstate-utils'
   const sIconChars = {
     asc: '&#9661;', // &#9661; ▲

@@ -1,6 +1,6 @@
 import { Result, type RawJsonResult, type ResultDocument, type TemplateResult } from '$lib/models/result.js'
 import { error, json } from '@sveltejs/kit'
-import { ValidationChecks } from '$lib/util'
+import { ValidationChecks } from '$lib/util/helpers.js'
 import type { Feedback } from '@txstate-mws/svelte-forms'
 import { VALIDATE_ONLY } from '$lib/util/globals.js'
 
