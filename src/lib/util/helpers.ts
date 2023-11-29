@@ -6,6 +6,8 @@ import { MessageType } from '@txstate-mws/svelte-forms'
 /** Uses URL constructor to test if `urlString` is a value conformant to valid URL standards. */
 export function isValidUrl (urlString: string) {
   try { return Boolean(new URL(urlString)) } catch (e) { return false }
+  // Once we're able to upgrade to Node.js 19+ we can use the following instead:
+  // return URL.canParse(urlString)
 }
 
 const domainEqivalencies: Record<string, string[]> = {
@@ -14,7 +16,7 @@ const domainEqivalencies: Record<string, string[]> = {
 }
 /** Gets permutations of `url` that are its equivalents given our domain and sub-domain equivalencies as well as common
  * routing equivalencies. Usefull for checking uniqueness integrity of indexed URLs beyond their simple string values. */
-export function getUrlEqivalencies (url: string): string[] {
+export function getUrlEquivalencies (url: string): string[] {
   if (!isValidUrl(url)) return []
   const parsedUrl = new URL(url)
   const splitHost = parsedUrl.hostname.split('.')
@@ -23,7 +25,7 @@ export function getUrlEqivalencies (url: string): string[] {
   const domain = splitHost.slice(-2).join('.')
   const port = parsedUrl.port ? `:${parsedUrl.port}` : ''
   const pathCleaned = parsedUrl.pathname.replace(/\/$/, '')
-  const params = isNotBlank(parsedUrl.search) ? '?' + parsedUrl.search : ''
+  const params = isNotBlank(parsedUrl.search) ? parsedUrl.search : ''
   const hash = parsedUrl.hash
   const equivalencies: string[] = []
   if (domainEqivalencies[domain]) {
@@ -45,9 +47,12 @@ function getEquivalencies (protocol: string, box: string, domain: string, port: 
 }
 function getSubDomainEquivalencies (protocol: string, box: string, pathEquivalencies: string[]): string[] {
   const expanded = box !== '' && box !== 'www'
-    ? pathEquivalencies.map(url => { return [`${protocol}//${box}.${url}`] })
-    : pathEquivalencies.map(url => { return [`${protocol}//www.${url}`, `${protocol}//${url}`] })
-  return expanded.flat(2)
+    ? pathEquivalencies.map(url => { return [`//${box}.${url}`] })
+    : pathEquivalencies.map(url => { return [`//www.${url}`, `//${url}`] })
+  const protocoled = /https?:/.test(protocol)
+    ? expanded.flat(2).map(url => { return [`http:${url}`, `https:${url}`] })
+    : expanded.flat(2).map(url => { return [`${protocol}${url}`] })
+  return protocoled.flat(2)
 }
 
 /** "Cleans" `query` to all lowercase, with all whitespaces reduced to single space, and trims that result.

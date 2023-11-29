@@ -141,7 +141,7 @@
     <FieldText path='title' label='Title:' defaultValue={''} required/>
     <FieldText path='url' label='URL:' defaultValue={'https://'} required/>
     <FeedbackLinks data={messages} path={equivIdsRegex} targetURL={`${appURL}/results/`} pathKeys={['id', 'title']}
-      buildSlugs={(found, keys) => found.id} preamble='Edit ' getText={(found, keys) => found.title} postscript="'s record."/>
+      buildPath={(found, keys) => found.id} preamble='Edit ' getText={(found, keys) => found.title} postscript="'s record."/>
     <!-- svelte-forms(entries[]) -->
     <div class='result-entries'>
       <!--

@@ -1,6 +1,7 @@
-<script lang='ts'>
+<script lang='ts' context='module'>
   import type { Feedback } from '@txstate-mws/svelte-forms'
-
+</script>
+<script lang='ts'>
   /** The the Feedback messages to inspect for building links. */
   export let data: Feedback[]
   /** The regular expression to match against the `path` property of each `Feedback` object.
@@ -14,7 +15,7 @@
   export let pathKeys: string[]
   /** A callback that takes the `found` Record and the `keys` array and returns the sveltekit
    * slugs to append to the `targetURL` to build the link. */
-  export let buildSlugs: (found: Record<string, string>, keys: string[]) => string
+  export let buildPath: (found: Record<string, string>, keys: string[]) => string
   /** A callback that takes the `found` Record and the `keys` array and returns the text to
    * display in the link. */
   export let getText: (found: Record<string, string>, keys: string[]) => string
@@ -43,7 +44,7 @@
 {#if targetParams.length > 0}
   <div class='feedback-links'>
     {#each targetParams as target}
-      {preamble}<a href='{`${targetURL}${buildSlugs(target, pathKeys)}`}'>{getText(target, pathKeys)}</a>{postscript}
+      {preamble}<a href='{`${targetURL}${buildPath(target, pathKeys)}`}'>{getText(target, pathKeys)}</a>{postscript}
     {/each}
   </div>
 {/if}

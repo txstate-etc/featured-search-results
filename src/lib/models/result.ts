@@ -25,7 +25,7 @@ const { Schema, models, model, Error } = mongoose
 // const { ValidationError, ValidatorError } = Error
 import type { Model, Document, ObjectId } from 'mongoose'
 import { isBlank, isNotNull, sortby, eachConcurrent, isNotBlank } from 'txstate-utils'
-import { getMatchClause, getResultsDef, getUrlEqivalencies, isValidUrl, querysplit } from '../util/helpers.js'
+import { getMatchClause, getResultsDef, getUrlEquivalencies, isValidHttpUrl, querysplit } from '../util/helpers.js'
 import type { QueryDocument } from './query.js'
 import { MessageType, type Feedback } from '@txstate-mws/svelte-forms'
 
@@ -169,9 +169,7 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
     unique: true, // Note `unique` here is a hint for MongoDB indexes, not a validator.
     validate: {
       validator: (value: string) => {
-        const conforms = isValidUrl(value)
-        // TODO: Do we want to enforce http/https scheme?
-        return conforms
+        return isValidHttpUrl(value)
       },
       message: 'Invalid URL.'
     }
@@ -455,7 +453,7 @@ ResultSchema.statics.getByQuery = async function (words: string[]) {
   return ret
 }
 ResultSchema.statics.findByUrl = async function (url: string) {
-  const equivalencies = getUrlEqivalencies(url)
+  const equivalencies = getUrlEquivalencies(url)
   return this.find({ url: { $in: equivalencies } })
 }
 ResultSchema.statics.findByQuery = async function (query: string) {

@@ -10,10 +10,18 @@ import { motion } from '$lib/util/motion.js'
 import { building } from '$app/environment'
 
 async function startup () {
-  await Promise.all([
-    mongoConnect(),
-    migrate()
-  ])
+  if (process.env.NODE_ENV !== 'development') {
+    console.log('Not in development, running people related data migrations...')
+    await Promise.all([
+      mongoConnect(),
+      migrate()
+    ])
+  } else {
+    console.log('In development, not bothering with people related data migrations.')
+    await Promise.all([
+      mongoConnect()
+    ])
+  }
   try {
     // Toggle this in development if needed to get fresh directory results. Otherwise - don't slam motion with needless requests.
     if (process.env.NODE_ENV !== 'development') {
