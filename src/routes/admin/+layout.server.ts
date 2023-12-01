@@ -4,19 +4,7 @@ import { apiBase, appBase, PUBLIC_AUTH_REDIRECT_URL, type ClientAuth } from '$li
 
 /** @type {import('./$types').LayoutServerLoad} */
 export const load = async (input) => {
-  // if we are coming back from unified auth, unified auth will have set
-  // both 'requestedUrl' and 'unifiedJwt' as parameters
-  const requestedUrl = input.url.searchParams.get('requestedUrl')
-  const token = input.url.searchParams.get('unifiedJwt')
-  if (requestedUrl?.length && token?.length) {
-    console.log('layout.server - setting token in cookie:', JSON.stringify(token))
-    // set the token unified auth gave us in a local cookie
-    input.cookies.set('token', token, { sameSite: 'strict', path: base ?? '/', httpOnly: true })
-    // redirect the browser to wherever it was going when the login process began
-    throw redirect(302, requestedUrl)
-  }
-
-  // regular page load, let's find out whether we're authenticated and who we are
+  // let's make a request to the API to find out whether we're authenticated and who we are
   let login: string | undefined
   let isEditor: boolean | undefined
   try {

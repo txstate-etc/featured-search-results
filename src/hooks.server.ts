@@ -8,6 +8,7 @@ import { migrate } from '$lib/util/migrations.js'
 import { mongoConnect } from '$lib/util/mongo.js'
 import { motion } from '$lib/util/motion.js'
 import { building } from '$app/environment'
+import { base } from '$app/paths'
 
 async function startup () {
   if (process.env.NODE_ENV !== 'development') {
@@ -56,8 +57,29 @@ const validOrigins = new Set(['txstate.edu', 'txst.edu', 'tsus.edu', 'tjctc.org'
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle ({ event, resolve }) {
+  const unifiedJwt = event.url.searchParams.get('unifiedJwt')
+  // if we are coming back from unified auth, unified auth will have set
+  // both 'requestedUrl' and 'unifiedJwt' as parameters
+  if (unifiedJwt) {
+    // redirect the browser to wherever it was going when the login process began,
+    // but do it in HTML after a 200 because browsers don't look at the redirect chain
+    // properly when evaluating whether to send a SameSite Strict cookie
+    const requestedUrl = event.url.searchParams.get('requestedUrl')
+    return new Response(`
+    <html>
+      <head>
+        <meta http-equiv="refresh" content="0;URL='${requestedUrl}'"/>
+      </head>
+      <body><p>Moved to <a href="${requestedUrl}">${requestedUrl}</a>.</p></body>
+    </html>
+    `, {
+      headers: {
+        'set-cookie': `token=${unifiedJwt}; HttpOnly; SameSite=Strict; Path=${base ?? '/'}`
+      }
+    })
+  }
+
   const token = event.cookies.get('token')
-  console.log('hooks - token:', JSON.stringify(token))
   if (token?.length) {
     const payload = await authenticator.get(token)
     if (payload?.sub?.length) {
