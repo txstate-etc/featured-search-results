@@ -108,7 +108,7 @@ QuerySchema.statics.getAllQueries = async function () {
       }
     },
     { $sort: { hitcount: -1 } },
-    { $limit: 5000 }
+    { $limit: 100 }
   ])).map(q => new Query(q))
   return await Query.populate(queries, 'results')
 }

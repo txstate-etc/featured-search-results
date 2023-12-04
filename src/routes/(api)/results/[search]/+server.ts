@@ -16,22 +16,23 @@ import { isNotBlank } from 'txstate-utils'
 
 function resultFilter (search: string, result: ResultDocument): boolean {
   /* TODO: Move filtering to the model and add an advanced search option. */
-  if (search.includes(result.title)) return true
-  if (result.tags) { for (const tag of result.tags) { if (search.includes(tag)) return true } }
+  const searchRegex = new RegExp(`^${search}$`, 'i')
+  if (searchRegex.test(result.title)) return true
+  if (result.tags) { for (const tag of result.tags) { if (searchRegex.test(tag)) return true } }
   if (result.entries) {
     for (const entry of result.entries) {
-      if (search.includes(entry.mode) || search.includes(entry.priority.toString())) return true
+      if (searchRegex.test(entry.mode) || searchRegex.test(entry.priority.toString())) return true
       for (const word of entry.keywords) {
-        if (search.includes(word)) return true
+        if (searchRegex.test(word)) return true
       }
     }
   }
   const parsedURL = new URL(result.url)
   for (const part of parsedURL.pathname.split('/')) {
-    if (isNotBlank(part) && search.includes(part.trim())) return true
+    if (isNotBlank(part) && searchRegex.test(part.trim())) return true
   }
   for (const part of parsedURL.hostname.split('.')) {
-    if (isNotBlank(part) && search.includes(part.trim())) return true
+    if (isNotBlank(part) && searchRegex.test(part.trim())) return true
   }
   return false
 }

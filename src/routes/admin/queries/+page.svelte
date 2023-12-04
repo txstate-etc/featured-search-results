@@ -14,13 +14,11 @@
   /** @type {import('./$types').PageData} */
   export let data: { query: string, results: QueryBasic[] | undefined }
 
-  console.log(data)
-
   const propsMetas: PropMeta[] = [
     { key: 'query', type: 'string', shouldNest: false },
     { key: 'hits', type: 'number', shouldNest: false },
     { key: 'lasthit', type: 'string', shouldNest: false },
-    { key: 'results', type: 'string', shouldNest: true }
+    { key: 'results', type: 'string', shouldNest: false }
   ]
   const headingTexts: HeadingTexts = {
     lasthit: 'Last Hit'
