@@ -16,7 +16,7 @@ import { isNotBlank } from 'txstate-utils'
 
 function resultFilter (search: string, result: ResultDocument): boolean {
   /* TODO: Move filtering to the model and add an advanced search option. */
-  const searchRegex = new RegExp(`^${search}$`, 'i')
+  const searchRegex = new RegExp(search, 'i')
   if (searchRegex.test(result.title)) return true
   if (result.tags) { for (const tag of result.tags) { if (searchRegex.test(tag)) return true } }
   if (result.entries) {

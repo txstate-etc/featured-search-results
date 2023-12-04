@@ -3,7 +3,7 @@ import { error, json } from '@sveltejs/kit'
 
 function resultFilter (search: string, query: QueryDocument): boolean {
   /* TODO: Move filtering to the model and add an advanced search option. */
-  const searchRegex = new RegExp(`^${search}$`, 'i')
+  const searchRegex = new RegExp(search, 'i')
   for (const word of query.query.split(' ')) {
     if (searchRegex.test(word)) return true
   }

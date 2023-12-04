@@ -41,7 +41,7 @@
   }
 </script>
 
-<h1>Visitor Queries</h1>
+<h1>Visitor Searches</h1>
 <SearchBar target={`${appBase}/queries`} search={data.query}/>
 {#if data.results && data.results.length > 0}
   <div class='results-root-container'>
