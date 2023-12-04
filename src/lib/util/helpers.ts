@@ -3,6 +3,65 @@ import { isBlank, isNotBlank } from 'txstate-utils'
 import { error } from '@sveltejs/kit'
 import { MessageType } from '@txstate-mws/svelte-forms'
 
+/* // Debugging fuctions
+import type { RequestEvent } from '../../routes/admin/$types'
+const interestHeaders = new Set(['connection', 'content-\\w+', 'host', 'origin', 'referer', 'x-\\w+', 'sec-fetch-\\w+'])
+const interestHeadersRegex = new RegExp(`^(${[...interestHeaders].join('|')})$`, 'i')
+export function parseHeaders (headers: Headers) {
+  const obj: Record<string, string> = {}
+  headers.forEach((value, key) => { if (interestHeadersRegex.test(key)) obj[key] = value })
+  return obj
+}
+export function logCookies (cookies: { name: string, value: string }[] | undefined | []) {
+  if (!cookies || cookies.length === 0) return
+  const obj: Record<string, string> = {}
+  cookies.forEach((cookie) => {
+    if (cookie.name === 'token') {
+      obj[cookie.name] = `present with length ${cookie.value.length}`
+    } else obj[cookie.name] = cookie.value
+  })
+  console.table([{ title: 'Cookies', ...obj }])
+}
+export function logResponse (res: Response) {
+  const obj: Record<string, string> = {}
+  if (res.status) obj.status = res.status.toString()
+  if (res.statusText) obj.statusText = res.statusText
+  if (res.redirected) obj.redirected = res.redirected.toString()
+  if (res.url) obj.url = res.url
+  if (res.type) obj.type = res.type
+  if (res.bodyUsed) obj.bodyUsed = res.bodyUsed.toString()
+  if (res.ok) obj.ok = res.ok.toString()
+  const cookies = res.headers.get('cookie')?.split(';').map<{ name: string, value: string }>(c => ({ name: (c.split('=')[0] ?? 'no-name'), value: c.split('=')[1] ?? 'no-value' }))
+  console.log('----- Response Status -----')
+  console.table([{ title: 'Headers', ...parseHeaders(res.headers) }])
+  logCookies(cookies)
+  console.table([obj])
+}
+export function logEvent (event: any) {
+  const requestedUrl = event.url.searchParams.get('requestedUrl')
+  const unifiedJwt = event.url.searchParams.get('unifiedJwt')
+  const token = event.cookies.get('token')
+  const obj: Record<string, string> = {}
+  if (event.request.method) obj['request.method'] = event.request.method
+  if (event.request.url) obj['request.url'] = event.request.url
+  if (event.request.referrer) obj['request.referrer'] = event.request.referrer
+  if (event.request.credentials) obj['request.credentials'] = event.request.credentials
+  if (event.request.destination) obj['request.destination'] = event.request.destination
+  if (event.request.mode) obj['request.mode'] = event.request.mode
+  if (event.request.cache) obj['request.cache'] = event.request.cache
+  if (event.request.redirect) obj['request.redirect'] = event.request.redirect
+  if (requestedUrl) obj['url.searchParams.unifiedJwt'] = event.url.searchParams.get('requestedUrl') ?? ''
+  if (unifiedJwt) obj['url.searchParams.unifiedJwt'] = `present with length ${unifiedJwt.length}`
+  if (event.isDataRequest) obj.isDataRequest = 'true'
+  if (event.isSubRequest) obj.isSubRequest = 'true'
+  if (event.route.id) obj['route.id'] = event.route.id
+  console.log('----- Event Status -----')
+  console.table([{ title: 'Headers', ...parseHeaders(event.request.headers) }])
+  logCookies(event.cookies.getAll())
+  console.table([obj])
+}
+*/
+
 /** Uses URL constructor to test if `urlString` is a value conformant to valid URL standards. */
 export function isValidUrl (urlString: string) {
   try { return Boolean(new URL(urlString)) } catch (e) { return false }

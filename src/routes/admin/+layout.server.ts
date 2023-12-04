@@ -1,5 +1,4 @@
 import { error, redirect } from '@sveltejs/kit'
-import { base } from '$app/paths'
 import { apiBase, appBase, PUBLIC_AUTH_REDIRECT_URL, type ClientAuth } from '$lib/util/globals.js'
 
 /** @type {import('./$types').LayoutServerLoad} */

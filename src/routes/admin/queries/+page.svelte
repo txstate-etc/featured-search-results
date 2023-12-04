@@ -1,9 +1,11 @@
 <script lang=ts>
   import SearchBar from '$lib/ui-components/SearchBar.svelte'
-  import ResponsiveTable, { type Transforms } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
+  import ResponsiveTable from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
+  import type { Transforms, PropMeta, HeadingTexts, Sortings } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import { appBase } from '$lib/util/globals'
   import type { QueryBasic } from '$lib/models/query'
   import type { ResultBasicPlusId } from '$lib/models/result'
+  import { DateTime } from 'luxon'
 
   /* TODO: Run queries against the api to generate queries to search for.
     localhost/search?q=texas+state
@@ -12,17 +14,31 @@
   /** @type {import('./$types').PageData} */
   export let data: { query: string, results: QueryBasic[] | undefined }
 
+  console.log(data)
+
+  const propsMetas: PropMeta[] = [
+    { key: 'query', type: 'string', shouldNest: false },
+    { key: 'hits', type: 'number', shouldNest: false },
+    { key: 'lasthit', type: 'string', shouldNest: false },
+    { key: 'results', type: 'string', shouldNest: true }
+  ]
+  const headingTexts: HeadingTexts = {
+    lasthit: 'Last Hit'
+  }
   const transforms: Transforms = {
     results: (value, record) => {
       if (Array.isArray(value) && value.length > 0) {
         return value.map((result: ResultBasicPlusId) => {
           return `<div class='result'>
-            <a href='${appBase}/results/${result.id}'>${result.title}</a><br>
-            <a style='font-size: small;' href='${result.url}'>${result.url}</a>
+            <a href='${appBase}/results/${result.id}' target='_blank'>${result.title}</a><br>
+            <a style='font-size: small;' href='${result.url}' target='_blank'>${result.url}</a>
             </div>`
         }).join('')
       }
       return ''
+    },
+    lasthit: (value, record) => {
+      return DateTime.fromISO(value).toRelative() ?? ''
     }
   }
 </script>
@@ -31,7 +47,7 @@
 <SearchBar target={`${appBase}/queries`} search={data.query}/>
 {#if data.results && data.results.length > 0}
   <div class='results-root-container'>
-    <ResponsiveTable data={data.results} {transforms}/>
+    <ResponsiveTable data={data.results} {propsMetas} {headingTexts} {transforms}/>
   </div>
 {:else}
   <p>Hmmm... We couldn't find any matches for "{data.query ?? ''}".<br/>

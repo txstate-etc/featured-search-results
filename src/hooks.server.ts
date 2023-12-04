@@ -65,16 +65,13 @@ export async function handle ({ event, resolve }) {
     // but do it in HTML after a 200 because browsers don't look at the redirect chain
     // properly when evaluating whether to send a SameSite Strict cookie
     const requestedUrl = event.url.searchParams.get('requestedUrl')
-    return new Response(`
-    <html>
-      <head>
-        <meta http-equiv="refresh" content="0;URL='${requestedUrl}'"/>
-      </head>
-      <body><p>Moved to <a href="${requestedUrl}">${requestedUrl}</a>.</p></body>
-    </html>
-    `, {
+    return new Response(null, {
       headers: {
-        'set-cookie': `token=${unifiedJwt}; HttpOnly; SameSite=Strict; Path=${base ?? '/'}`
+        location: requestedUrl ?? '/',
+        'set-cookie': `token=${unifiedJwt}; HttpOnly; SameSite=Strict; Path=${base ?? '/'}`,
+        'content-type': 'text/html',
+        status: '200',
+        refresh: `0;URL='${requestedUrl}'`
       }
     })
   }

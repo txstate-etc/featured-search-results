@@ -22,20 +22,20 @@
     title: 'Page Name',
     brokensince: 'Broken',
     count: 'Hits',
-    keyphrase: 'Match Words',
+    keyphrase: 'Terms',
     mode: 'Type'
   }
   const transforms: Transforms = {
     title: (value, record) => {
-      return `<a href='${appBase}/results/${record.id}'>${value}</a><br>
-      <a style='font-size: small;' href='${record.url}'>${record.url}</a>`
+      return `<a href='${appBase}/results/${record.id} target='_blank'>${value}</a><br>
+      <a style='font-size: small;' href='${record.url}' target='_blank'>${record.url}</a>`
     },
     brokensince: (value, record) => {
       return DateTime.fromISO(value).toRelative() ?? ''
     },
     tags: (value, record) => {
       return `<div class='tags'>${value.map((tag: string) => {
-        return `<div class='tag'><a href='${appBase}/results?q=${tag}'>${tag}</a></div>`
+        return `<div class='tag'><a href='${appBase}/results?q=${tag}' target='_blank'>${tag}</a></div>`
       }).join('')}</div>`
     }
   }

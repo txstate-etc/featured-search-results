@@ -46,8 +46,8 @@
   <nav class='navbar footer-nav'>
     <div class='container-fluid'>
       <ul class='navlist'>
-        <li><a href='https://tim.txstate.edu/onlinetoolkit/Home/Role-Management'>Manage Access</a></li>
-        <li><a href='https://git.txstate.edu/gato/dosgato-txstate/issues/new/choose'>Report an Issue</a></li>
+        <li><a href='https://tim.txstate.edu/onlinetoolkit/Home/Role-Management' target='_blank'>Manage Access</a></li>
+        <li><a href='https://git.txstate.edu/gato/dosgato-txstate/issues/new?assignees=rjc94&labels=featured-search&projects=gato/4' target='_blank'>Report an Issue</a></li>
       </ul>
     </div>
   </nav>

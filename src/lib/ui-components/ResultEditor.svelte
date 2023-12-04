@@ -36,19 +36,13 @@
     { value: 'phrase', label: 'Phrase' },
     { value: 'exact', label: 'Exact' }
   ]
-  function openHelp () {
-    const href = 'https://know.tr.txstate.edu/display/MWS/Featured+Search'
-    const target = '_blank'
-    window.open(href, target)
-  }
 
-  const keyphraseTooltip = 'The search words or phrase to find in the query.'
+  const keyphraseTooltip = 'The word, words, or phrase to find in the query.'
   const modeTooltip = `The type of matching to perform:
-  Exact - Search Words must exactly match the query.
-  Phrase - Search Words must be present in the query in the same order as here.
-  Keyword - Search Words must be present in the query in any order.`
-  const priorityTooltip = 'The weight of this entry in the search results. Higher numbers are more important.'
-  const tagsTooltip = 'Administrative tags to help organize and filter Result records.'
+  Exact - Terms must exactly match the query.
+  Phrase - Terms must be present in the query in the same order as here.
+  Keyword - Terms must be present in the query in any order.`
+  const priorityTooltip = 'Use a weight scale where 1 represents the lowest priority, 100 represents the highest priority, and reserve greater than 100 or less than 0 for extremely exceptional situations.'
 </script>
 <script lang='ts'>
   /* TODO:
@@ -78,10 +72,10 @@
   export let apiTarget: { url: string, method: string } = { url: `${apiURL}/result`, method: 'POST' }
 
   const preload = data ?? {
-    title: '',
+    title: undefined,
     url: 'https://',
     entries: [
-      { keyphrase: '', mode: 'keyword', priority: 50 }
+      { keyphrase: undefined, mode: 'keyword', priority: undefined }
     ]
   }
 
@@ -138,8 +132,8 @@
 
 <Form bind:store name='result' {submit} {validate} {preload} let:saved let:messages>
   <div class='result-form'>
-    <FieldText path='title' label='Title:' defaultValue={''} required/>
-    <FieldText path='url' label='URL:' defaultValue={'https://'} required/>
+    <FieldText path='title' label='Display Title:' defaultValue={''} required/>
+    <FieldText path='url' label='Target URL:' defaultValue={'https://'} required/>
     <FeedbackLinks data={messages} path={equivIdsRegex} targetURL={`${appURL}/results/`} pathKeys={['id', 'title']}
       buildPath={(found, keys) => found.id} preamble='Edit ' getText={(found, keys) => found.title} postscript="'s record."/>
     <!-- svelte-forms(entries[]) -->
@@ -152,10 +146,10 @@
         </button>
       </div>
       -->
-      <FieldMultiple path='entries' label='Matching Aliases' helptext='' removable={true} let:index>
+      <FieldMultiple path='entries' label='Matchings' helptext='' removable={true} let:index>
         <div class='result-entries-record'>
           <span data-tooltip={keyphraseTooltip} class={index === 0 ? 'tooltip-shown tooltipped' : 'tooltipped'}>
-            <FieldText path='keyphrase' label='Search Words:' defaultValue={''} required />
+            <FieldText path='keyphrase' label='Terms:' defaultValue={''} required />
           </span>
           <span data-tooltip={modeTooltip} class={index === 0 ? 'tooltip-shown tooltipped' : 'tooltipped'}>
             <FieldSelect path='mode' label='Type:' notNull defaultValue={'keyword'} {choices} required />
@@ -192,7 +186,7 @@
   .tooltip-shown::before { /* Text */
     content: attr(data-tooltip);
     text-align: center;
-    font-size: small;
+    font-size: medium;
     white-space: pre-wrap;
     width: max-content;
     max-width: 200%;

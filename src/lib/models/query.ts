@@ -23,7 +23,7 @@ import pkg from 'mongoose'
 const { models, model } = pkg
 import { Schema, type Model, type Document, type ObjectId } from 'mongoose'
 import { DateTime } from 'luxon'
-import { isEmpty, isBlank } from 'txstate-utils'
+import { isBlank } from 'txstate-utils'
 import type { ResultDocument, ResultBasicPlusId } from './result.js'
 
 interface IQuery {
@@ -31,6 +31,7 @@ interface IQuery {
   hits: Date[]
   results: Schema.Types.ObjectId[]
   hitcount: number
+  lasthit: Date | undefined
 }
 
 export interface QueryBasic {
@@ -39,7 +40,7 @@ export interface QueryBasic {
   /** The number of times this query's results have been asked for. */
   hits: number
   /** Last date-time this query's results were asked for. */
-  lasthit: Date
+  lasthit: Date | undefined
   /** Reference array to all basic Results, with their `id`, this query matches to. */
   results: ResultBasicPlusId[]
 }
@@ -74,11 +75,10 @@ const QuerySchema = new Schema<IQuery, QueryModel, IQueryMethods>({
   query: { type: String, unique: true },
   hits: [Date],
   results: [{ type: Schema.Types.ObjectId, ref: 'Result' }],
-  hitcount: Number
+  hitcount: Number,
+  lasthit: Date
 })
-
 QuerySchema.index({ query: 1 })
-
 // we always push later dates on the end of hits, so hits[0] is the minimum and the
 // only index we need - luckily mongo supports this with dot notation
 QuerySchema.index({ 'hits.0': 1 })
@@ -86,8 +86,8 @@ QuerySchema.index({ 'hits.0': 1 })
 QuerySchema.methods.basic = function () {
   return {
     query: this.query,
-    hits: this.hits.length ?? this.hitcount,
-    lasthit: isEmpty(this.lasthit) ? this.hits[this.hits.length - 1] : this.lasthit[0],
+    hits: this.hitcount ?? this.hits.length ?? 0,
+    lasthit: this.lasthit ?? this.hits[this.hits.length - 1] ?? undefined,
     results: this.results.map((result: ResultDocument) => result.basicPlusId())
   }
 }
@@ -104,7 +104,7 @@ QuerySchema.statics.getAllQueries = async function () {
         query: 1,
         results: 1,
         hitcount: { $size: '$hits' },
-        lasthit: { $slice: ['$hits', -1] }
+        lasthit: { $arrayElemAt: [{ $slice: ['$hits', -1] }, 0] }
       }
     },
     { $sort: { hitcount: -1 } },

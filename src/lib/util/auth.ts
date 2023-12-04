@@ -20,9 +20,8 @@ class Authenticator {
         if (this.issuerValidate.has(claims.iss)) {
           const validateUrl = new URL(this.issuerValidate.get(claims.iss)!)
           validateUrl.searchParams.set('unifiedJwt', token)
-          const resp = await fetch(validateUrl)
-          const validate = await resp.json() as { valid: boolean }
-          if (!validate.valid) return undefined
+          const validation = await (await fetch(validateUrl))?.json() as { valid: boolean }
+          if (!validation.valid) return undefined
         }
       }
       if (!verifyKey) {
