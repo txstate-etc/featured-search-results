@@ -69,7 +69,7 @@ interface QueryModel extends Model<IQuery, any, IQueryMethods> {
   cleanup: () => Promise<void>
   /** Runs `cleanup()` every 27 minutes after last execution and logs any caught errors. */
   cleanupLoop: () => Promise<void>
-  /** Updates all the hit counts in Result.entries based on queries that have been recorded */
+  /** Updates all the hit counts in Result.entries based on queries that have been recorded. */
   updateHitCounts: () => Promise<void>
 }
 
@@ -135,6 +135,7 @@ QuerySchema.statics.updateHitCounts = async function () {
   const resultIdsByKeyword: Record<string, string[]> = {}
   const resultIdsByPrefix: Record<string, string[]> = {}
   const resultsById = keyby(results, r => r.id)
+  // Build reverse indexes of keywords and prefixes to result ids.
   for (const r of results) {
     for (const e of r.entries) {
       for (const w of e.keywords) {
@@ -148,6 +149,7 @@ QuerySchema.statics.updateHitCounts = async function () {
       }
     }
   }
+  // For each query, use the reverse indexes we created to get matching Result entries and increment their hit counts by the query's hit count.
   const hitCounts: Record<string, number> = {}
   for (const q of queries) {
     const words = querysplit(q.query)
@@ -156,15 +158,16 @@ QuerySchema.statics.updateHitCounts = async function () {
     const lastword = words[words.length - 1]
     const resultIds = unique(words.flatMap(w => resultIdsByKeyword[w] ?? []).concat(resultIdsByPrefix[lastword] ?? []))
     for (const r of resultIds.map(rId => resultsById[rId]) as unknown as ResultDocument[]) {
-      for (const e of r.sortedEntries()) {
+      for (const e of r.sortedEntries()) { // Sorted on priority desc.
         if (entryMatch(e, words, wordset, wordsjoined)) {
           hitCounts[e.id] ??= 0
           hitCounts[e.id] += q.hitcount
-          break
+          break // Only update the hitcount of the highest priority entry that first matched the query.
         }
       }
     }
   }
+  // Build our update operations and bulk update the hitCountCached of the Result.entries.
   const ops: any[] = []
   for (const r of results) {
     for (let i = 0; i < r.entries.length; i++) {

@@ -1,5 +1,5 @@
 import { Result, type ResultDocument } from '$lib/models/result.js'
-import { DEFAULT_PAGINATION_SIZE } from '$lib/util/globals.js'
+import { DEFAULT_PAGINATION_SIZE, type SearchResponse } from '$lib/util/globals.js'
 import { getMatchClause, getResultsDef } from '$lib/util/helpers.js'
 import { error, json } from '@sveltejs/kit'
 import { isBlank, isNotBlank } from 'txstate-utils'
@@ -18,13 +18,6 @@ import { isBlank, isNotBlank } from 'txstate-utils'
 const pagesize = DEFAULT_PAGINATION_SIZE
 const resultDef = getResultsDef()
 
-export interface SearchResponse {
-  query: string
-  count: number
-  lastpage: number
-  results: any[]
-}
-
 const filterRegex = /^\s*{/m
 const emptyRegex = /^\s*{\s*}/m
 
@@ -37,7 +30,7 @@ export async function GET ({ url, locals }) {
   let p: string | null | number = url.searchParams.get('p')
   if (isNotBlank(n)) n = (parseInt(n) > 0) ? parseInt(n) : DEFAULT_PAGINATION_SIZE // Normalize the n results returned/page.
   if (isNotBlank(p)) p = (parseInt(p) > 0) ? parseInt(p) : 1 // Normalize the p page number requested. default = 1
-  const response: SearchResponse = { query: q, count: 0, lastpage: 1, results: [] as any[] }
+  const response: SearchResponse<ResultDocument> = { query: q, count: 0, lastpage: 1, results: [] as any[] }
 
   const parsedQuery = JSON.parse(q)
   if (isBlank(q) || emptyRegex.test(q) || emptyRegex.test(parsedQuery)) return json(response) // Handle empty request.

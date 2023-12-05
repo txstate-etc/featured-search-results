@@ -91,8 +91,6 @@ interface IResultMethods {
 }
 
 interface ResultModel extends Model<IResult, any, IResultMethods> {
-  /** @async Returns an array of `Result` documents matching search,  with their associated queries populated in the documents. */
-  findAdvanced: (search: string, sort?: string, limit?: number, offset?: number) => Promise<ResultDocument[]>
   /** @async Returns array of all `Result` documents with `keywords` that start with any of the `words`. */
   getByQuery: (words: string[]) => Promise<ResultDocument[]>
   /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `match()` on the tokenized `query`. */
@@ -326,15 +324,6 @@ ResultSchema.methods.valid = function () {
     )
     : []
   return resp
-}
-ResultSchema.statics.findAdvanced = async function (search: string, sort?: string, limit?: number, offset?: number) {
-  // const resultDef = getResultsDef()
-  // const matchClause = getMatchClause(resultDef, search)
-  // const count = await this.countDocuments(matchClause)
-  // const sortClause = getMongoSortClause(resultDef, sort)
-  // const limitClause = getMongoLimitClause(resultDef, offset, limit)
-  // const resultSet = await this.find(matchClause).sort(sortClause).limit(limitClause)
-  return 'TODO'
 }
 ResultSchema.statics.getByQuery = async function (words: string[]) {
   if (words.length === 0) throw new Error('Attempted Result.getByQuery(words: string[]) with an empty array.')
