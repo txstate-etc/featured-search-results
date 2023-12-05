@@ -194,7 +194,6 @@ export interface ValidationError extends Error {
 ResultSchema.index({ 'entries.keywords': 1 })
 ResultSchema.index({ 'currency.tested': 1 })
 ResultSchema.index({ url: 1 })
-ResultSchema.index({ hitCountCached: 1 })
 
 ResultSchema.methods.basic = function () {
   return {
