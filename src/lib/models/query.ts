@@ -23,8 +23,9 @@ import pkg from 'mongoose'
 const { models, model } = pkg
 import { Schema, type Model, type Document, type ObjectId } from 'mongoose'
 import { DateTime } from 'luxon'
-import { isBlank } from 'txstate-utils'
-import type { ResultDocument, ResultBasicPlusId } from './result.js'
+import { isBlank, keyby, unique } from 'txstate-utils'
+import { type ResultDocument, type ResultBasicPlusId, entryMatch } from './result.js'
+import { querysplit } from '$lib/util/helpers.js'
 
 interface IQuery {
   query: string
@@ -69,6 +70,8 @@ interface QueryModel extends Model<IQuery, any, IQueryMethods> {
   cleanup: () => Promise<void>
   /** Runs `cleanup()` every 27 minutes after last execution and logs any caught errors. */
   cleanupLoop: () => Promise<void>
+  /** Updates all the hit counts in Result.entries based on queries that have been recorded */
+  updateHitCounts: () => Promise<void>
 }
 
 const QuerySchema = new Schema<IQuery, QueryModel, IQueryMethods>({
@@ -121,6 +124,58 @@ QuerySchema.statics.cleanup = async function () {
     { multi: true }
   )
   await Query.deleteMany({ hits: { $eq: [] } })
+  await Query.updateHitCounts()
+}
+
+QuerySchema.statics.updateHitCounts = async function () {
+  const queries = await this.getAllQueries()
+  const Result = model('Result')
+  const results = (await Result.find()) as unknown as ResultDocument[]
+  const resultIdsByKeyword: Record<string, string[]> = {}
+  const resultIdsByPrefix: Record<string, string[]> = {}
+  const resultsById = keyby(results, r => r.id)
+  for (const r of results) {
+    for (const e of r.entries) {
+      for (const w of e.keywords) {
+        resultIdsByKeyword[w] ??= []
+        resultIdsByKeyword[w].push(r.id)
+        for (let i = 1; i <= w.length; i++) {
+          const ss = w.slice(0, i)
+          resultIdsByPrefix[ss] ??= []
+          resultIdsByPrefix[ss].push(r.id)
+        }
+      }
+    }
+  }
+  const hitCounts: Record<string, number> = {}
+  for (const q of queries) {
+    const words = querysplit(q.query)
+    const wordset = new Set(words)
+    const wordsjoined = words.join(' ')
+    const lastword = words[words.length - 1]
+    const resultIds = unique(words.flatMap(w => resultIdsByKeyword[w] ?? []).concat(resultIdsByPrefix[lastword] ?? []))
+    for (const r of resultIds.map(rId => resultsById[rId]) as unknown as ResultDocument[]) {
+      for (const e of r.entries) {
+        if (entryMatch(e, words, wordset, wordsjoined)) {
+          hitCounts[e.id] ??= 0
+          hitCounts[e.id] += q.hitcount
+          break
+        }
+      }
+    }
+  }
+  const ops: any[] = []
+  for (const r of results) {
+    for (let i = 0; i < r.entries.length; i++) {
+      ops.push({
+        updateOne: {
+          filter: { _id: r._id },
+          update: { [`entries.${i}.hitCountCached`]: hitCounts[r.entries[i].id] ?? 0 }
+        }
+      })
+    }
+  }
+  await Result.bulkWrite(ops)
 }
 
 QuerySchema.statics.cleanupLoop = async function () {

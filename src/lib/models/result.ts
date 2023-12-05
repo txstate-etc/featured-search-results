@@ -24,9 +24,8 @@ import mongoose from 'mongoose'
 const { Schema, models, model, Error } = mongoose
 // const { ValidationError, ValidatorError } = Error
 import type { Model, Document, ObjectId } from 'mongoose'
-import { isBlank, isNotNull, sortby, eachConcurrent, isNotBlank } from 'txstate-utils'
-import { getMatchClause, getResultsDef, getUrlEquivalencies, isValidHttpUrl, querysplit } from '../util/helpers.js'
-import type { QueryDocument } from './query.js'
+import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
+import { getUrlEquivalencies, isValidHttpUrl, querysplit } from '../util/helpers.js'
 import { MessageType, type Feedback } from '@txstate-mws/svelte-forms'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
@@ -38,8 +37,6 @@ export interface ResultEntry {
   mode: ResultModes
   /** Preferably a percentage, expressed as an integer, of how strongly the keywords associate to the parent featured Result. */
   priority: number
-}
-export interface ResultEntryWithCount extends ResultEntry {
   count: number
 }
 
@@ -55,14 +52,8 @@ export interface ResultFull extends ResultBasicPlusId {
   entries: ResultEntry[]
   tags: string[]
 }
-export interface ResultFullWithCount extends ResultFull {
-  entries: ResultEntryWithCount[]
-}
 
 export type ResultDocument = Document<ObjectId> & IResult & IResultMethods
-export type ResultDocumentWithQueries = ResultDocument & {
-  queries: QueryDocument[]
-}
 
 interface IResultMethods {
   /** Returns an object of just the `title` and `url` of the `Result`. Useful for efficient search hits. */
@@ -74,12 +65,6 @@ interface IResultMethods {
   outentries: () => ResultEntry[]
   /** Returns an object composite of `basicPlusId` and `outentries` with `tags` and currency's `brokensince` added. */
   full: () => ResultFull
-  /** Returns an object composite of `full` with `entries` getting a `count` property added to them that is the sum
-   * of all associated query hits with that entry's `keyphrase`.
-   * @note Aggregation of query hits for elements in the `entries` array stops for each associated `Query` after the
-   * first matching entry to that `Query` is found. This might not be a problem as that would also be the highest
-   * priority match for that query as well. */
-  fullWithCount: () => ResultFullWithCount
   /** Returns a `result`'s `entries` sorted by their decending `priority`. */
   sortedEntries: () => IResultEntry[]
   /** Updates entries to the passed in entries, if at least one is defined, and resets the internal
@@ -87,12 +72,7 @@ interface IResultMethods {
   setEntries: (entries: IResultEntry[]) => void
   /** Tests `entries` of a `Result` for a match against `words` based on the entry's
    *  `mode` and returns the highest matching `priority` or `undefined` if no matches. */
-  match: (words: string[]) => number | undefined
-  /** Tests `entries` of a `Result` for a match against `words` based on the entry's
-   *  `mode` and returns the highest matching `priority` or `undefined` if no matches.
-   *  Prefetch matching permits last word in words to be a `keyword.startsWith()` match
-   *  so that matches work for autocomplete suggestions. */
-  prefetchMatch: (words: string[], offset?: number) => number | undefined
+  match: (words: string[], wordset: Set<string>, wordsjoined: string) => number | undefined
   /** Updates the result's values with those passed in via `input`.
    * Intended to be used with non-saving validation checks. */
   fromPartialJson: (input: TemplateResult) => void
@@ -115,20 +95,12 @@ interface IResultMethods {
 }
 
 interface ResultModel extends Model<IResult, any, IResultMethods> {
-  /** @async Returns an array of `Result` documents matching search,  with their associated queries populated in the documents. */
-  findAdvanced: (search: string, sort?: string, limit?: number, offset?: number) => Promise<ResultDocumentWithQueries[]>
-  /** @async Returns an array of all `Result` documents with their associated queries populated in the documents. */
-  getAllWithQueries: () => Promise<ResultDocumentWithQueries[]>
-  /** @async Returns the `Result` document identified by `id` with its associated queries populated in the document. */
-  getWithQueries: (id: string) => Promise<ResultDocumentWithQueries>
   /** @async Returns array of all `Result` documents with `keywords` that start with any of the `words`. */
   getByQuery: (words: string[]) => Promise<ResultDocument[]>
   /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `match()` on the tokenized `query`. */
   findByQuery: (query?: string) => Promise<ResultDocument[]>
   /** @async Returns array of all `Result` documents with `url` that match any of the `url` equivalencies. */
   findByUrl: (url: string) => Promise<ResultDocument[]>
-  /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `prefetchMatch()` on the tokenized `query`. */
-  findByQueryCompletion: (query?: string, offset?: number) => Promise<ResultDocument[]>
   /** @async Concurrently runs currencyTest() on all `Result` documents with an `currency.tested` date older than 1 day or `undefined`. */
   currencyTestAll: () => Promise<void>
   /** @async Runs `currencyTestAll` followed by a 10 minute timeout interval before running it again. */
@@ -136,7 +108,7 @@ interface ResultModel extends Model<IResult, any, IResultMethods> {
 }
 
 /** Inteface for MongoDB storage of the `result` collection. */
-interface IResult {
+export interface IResult {
   url: string
   title: string
   /** Currency is whether the URL associated with the `result` doesn't get a 200 response on tests.
@@ -153,10 +125,12 @@ interface IResult {
 /** Inteface for MongoDB storage of alias `entries` within the MongoDB `result` collection.
  * Note that the `keyphrase: string` of `ResultEntry` is broken into `keywords: string[]`
  * to allow for more efficient indexing by Mongoose. */
-interface IResultEntry {
+export interface IResultEntry {
+  id: string
   keywords: string[]
   mode: ResultModes
   priority: number
+  hitCountCached: number
 }
 
 // TODO: I wonder if making entries it's own sub-Schema/Model in here would
@@ -187,8 +161,7 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
       lowercase: true,
       validate: {
         validator: (value: string[]) => {
-          const notEmpty = value.length > 0
-          return notEmpty ? value.every(str => isNotBlank(str)) : false
+          return value.length > 0
         },
         message: 'Required.'
       }
@@ -201,7 +174,8 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
       },
       required: [true, 'Required.']
     },
-    priority: { type: Number, required: [true, 'Required.'] }
+    priority: { type: Number, required: [true, 'Required.'] },
+    hitCountCached: { type: Number }
   }],
   tags: { type: [String], lowercase: true }
 })
@@ -221,14 +195,10 @@ export interface ValidationError extends Error {
   }>
 }
 
-ResultSchema.virtual('queries', {
-  ref: 'Query',
-  localField: '_id',
-  foreignField: 'results'
-})
 ResultSchema.index({ 'entries.keywords': 1 })
 ResultSchema.index({ 'currency.tested': 1 })
 ResultSchema.index({ url: 1 })
+ResultSchema.index({ hitCountCached: 1 })
 
 ResultSchema.methods.basic = function () {
   return {
@@ -248,7 +218,8 @@ ResultSchema.methods.outentries = function () {
     outentries.push({
       keyphrase: entry.keywords.join(' '),
       mode: entry.mode,
-      priority: entry.priority ?? 0
+      priority: entry.priority ?? 0,
+      count: entry.hitCountCached ?? 0
     })
   }
   return outentries
@@ -284,95 +255,40 @@ ResultSchema.methods.full = function () {
     tags: this.tags
   }
 }
-ResultSchema.methods.fullWithCount = function () {
-  const info = this.full()
-  const ret: ResultFullWithCount = {
-    ...info,
-    entries: info.entries.map(e => ({ ...e, count: 0 }))
-  }
-  for (const query of this.queries) {
-    const words = querysplit(query.query)
-    for (let i = 0; i < info.entries.length; i++) {
-      if (entryMatch(this.entries[i], words)) {
-        ret.entries[i].count += query.hits.length
-        break
-        /* Commit says each entry but the above breaks the loop after the first matching entry is found.
-           Intended?
-             That would be the highest priority match since info.entries is sorted by priority desc.
-        */
-      }
-    }
-  }
-  return ret
-}
-/** Returns `[ new Set(words), words.join(' ') ] as const` */
-function wordsProcessed (words: string[]) {
-  return [new Set(words), words.join(' ')] as const
-}
-/** Tests `entry` for a match against `searchWords` based on the entry's `mode`:
- * * `exact` - `entry.keywords.join(' ')` EXACTLY matches `searchWords.join(' ')`
- * * `phrase` - `searchWords.join(' ').includes(entry.keywords.join(' '))`
- * * `keyword` - ALL `entry.keywords` are found in `searchWords`. */
-const entryMatch = function (entry: IResultEntry, searchWords: string[]) {
-  const [searchSet, searchJoined] = wordsProcessed(searchWords)
-  /** Used for short-circuit detections of false conditions. */
-  const keysMinusQs = entry.keywords.length - searchWords.length
-  if (entry.mode === 'exact') { // "query must match exactly"
-    return (keysMinusQs === 0 && searchJoined === entry.keywords.join(' '))
-  } else if (entry.mode === 'phrase') { // "all words must be present, in order"
-    return (keysMinusQs <= 0 && searchJoined.includes(entry.keywords.join(' ')))
-  } else { // entry.mode === 'keyword' - "all words must be present, but in any order"
-    return (keysMinusQs <= 0 && entry.keywords.filter(keyword => searchSet.has(keyword)).length === entry.keywords.length)
-  }
-}
-/** Implementation of `entryMatch` that's useful for autocomplete suggestion prefetching.
- * Impletements the same rules as entryMatch except the last word of the `searchWords` is
- * compared using `.startsWith()` rather than exact matching. */
-const prefetchEntryMatch = function (entry: IResultEntry, searchWords: string[], offset?: number) {
+
+export function entryMatch (entry: IResultEntry, words: string[], wordset: Set<string>, wordsjoined: string) {
   // given a query string, determine whether this entry is a match
   // after accounting for mode
-  const [searchSet, searchJoined] = wordsProcessed(searchWords)
-  if (entry.mode === 'exact') { // "query must match exactly" - last query word exception
-    return (entry.keywords.length === searchWords.length && entry.keywords.join(' ').startsWith(searchJoined))
-  } else if (entry.mode === 'phrase') { // "all words must be present, in order" - last query word exception
-    let keywordIndex = 0
+  if (entry.mode === 'exact') {
+    if (entry.keywords.length === words.length && entry.keywords.join(' ').startsWith(wordsjoined)) return true
+  } else if (entry.mode === 'phrase') {
+    let count = 0
     let prefixcount = 0
-    for (let i = 0; i < searchWords.length; i++) {
-      const searchWord = searchWords[i]
-      if (searchWord === entry.keywords[keywordIndex]) {
-        keywordIndex++
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i]
+      if (word === entry.keywords[count]) {
+        count++
         prefixcount = 0
-      } else if (i === searchWords.length - 1 && entry.keywords[keywordIndex]?.startsWith(searchWord)) {
-        prefixcount++
-      } else if (keywordIndex < i) return false // Go ahead an stop comparing - it not match enough to continue.
+      } else if (i === words.length - 1 && entry.keywords[count]?.startsWith(word)) prefixcount++
     }
-    return (keywordIndex === entry.keywords.length || (keywordIndex === entry.keywords.length - 1 && prefixcount === 1))
-    /* An easier to read but less performant alternative:
-    return (entry.keywords.slice(0, -1).join(' ') === searchWords.slice(0, -1).join(' ') && entry.keywords[-1].startsWith(searchWords[-1]))
-    */
-  } else { // entry.mode === 'keyword' - "all words must be present, but in any order" - last query word excetpion
-    let keywordCount = 0
+    if (count === entry.keywords.length || (count === entry.keywords.length - 1 && prefixcount === 1)) return true
+  } else { // entry.mode == 'keyword'
+    let count = 0
     let prefixcount = 0
+    const lastword = words[words.length - 1]
     for (const keyword of entry.keywords) {
-      if (searchSet.has(keyword)) keywordCount++
-      else if (searchWords.some(sw => keyword.startsWith(sw))) prefixcount++
-      /* The above `else if` ends up letting any word being edited in the search to match
-         for the keywords instead of just the last `searchWord`. Is this intended or do we
-         want to limit to the last? If so the following would be more performant and accurate. */
-      // else if (keyword.startsWith(searchWords[-1])) prefixcount++
+      if (wordset.has(keyword)) count++
+      else if (keyword.startsWith(lastword)) prefixcount++
     }
-    return (keywordCount === entry.keywords.length || (keywordCount === entry.keywords.length - 1 && prefixcount === 1))
+    if (count === entry.keywords.length || (count === entry.keywords.length - 1 && prefixcount >= 1)) return true
   }
+
+  return false
 }
-ResultSchema.methods.match = function (words: string[]) {
+
+ResultSchema.methods.match = function (words: string[], wordset: Set<string>, wordsjoined: string) {
   for (const entry of this.sortedEntries()) {
-    if (entryMatch(entry, words)) return entry.priority ?? 0
-  }
-  return undefined
-}
-ResultSchema.methods.prefetchMatch = function (words: string[], offset?: number) {
-  for (const entry of this.sortedEntries()) {
-    if (prefetchEntryMatch(entry, words, offset)) return entry.priority ?? 0
+    if (entryMatch(entry, words, wordset, wordsjoined)) return entry.priority ?? 0
   }
   return undefined
 }
@@ -429,20 +345,6 @@ ResultSchema.methods.valid = function () {
     : []
   return resp
 }
-ResultSchema.statics.findAdvanced = async function (search: string, sort?: string, limit?: number, offset?: number) {
-  const resultDef = getResultsDef()
-  const matchClause = getMatchClause(resultDef, search)
-  const count = await this.countDocuments(matchClause)
-  // const sortClause = getMongoSortClause(resultDef, sort)
-  // const limitClause = getMongoLimitClause(resultDef, offset, limit)
-  // const resultSet = await this.find(matchClause).sort(sortClause).limit(limitClause)
-}
-ResultSchema.statics.getAllWithQueries = async function () {
-  return this.find().populate('queries')
-}
-ResultSchema.statics.getWithQueries = async function (id) {
-  return this.findById(id).populate('queries')
-}
 ResultSchema.statics.getByQuery = async function (words: string[]) {
   if (words.length === 0) throw new Error('Attempted Result.getByQuery(words: string[]) with an empty array.')
   const ret = await this.find({
@@ -459,16 +361,10 @@ ResultSchema.statics.findByUrl = async function (url: string) {
 ResultSchema.statics.findByQuery = async function (query: string) {
   if (isBlank(query)) return []
   const words = querysplit(query)
+  const wordset = new Set(words)
+  const wordsjoined = words.join(' ')
   const results = await this.getByQuery(words) as (ResultDocument & { priority?: number })[]
-  for (const r of results) r.priority = r.match(words)
-  const filteredresults = results.filter(r => isNotNull(r.priority))
-  return sortby(filteredresults, 'priority', true, 'title')
-}
-ResultSchema.statics.findByQueryCompletion = async function (query: string, offset?: number) {
-  if (isBlank(query)) return []
-  const words = querysplit(query)
-  const results = await this.getByQuery(words) as (ResultDocument & { priority?: number })[]
-  for (const r of results) r.priority = r.prefetchMatch(words, offset)
+  for (const r of results) r.priority = r.match(words, wordset, wordsjoined)
   const filteredresults = results.filter(r => isNotNull(r.priority))
   return sortby(filteredresults, 'priority', true, 'title')
 }
