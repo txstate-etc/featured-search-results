@@ -8,6 +8,7 @@ import { isNotBlank } from 'txstate-utils'
 import { building } from '$app/environment'
 
 export interface ClientAuth { login?: string, isEditor?: boolean }
+export interface SearchResponse<T> { query: string, count: number, lastpage: number, results: T[] | undefined }
 
 export const PUBLIC_AUTH_REDIRECT_URL = !building
   ? `${env.PUBLIC_AUTH_BASE_URL!}/login?clientId=${env.PUBLIC_AUTH_CLIENT_ID ?? 'search-featured-results'}`

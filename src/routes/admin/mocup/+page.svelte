@@ -1,13 +1,14 @@
 <script lang=ts>
   import SearchBar from '$lib/ui-components/SearchBar.svelte'
-  import type { ResultFullWithCount } from '$lib/models/result'
-  import { appBase } from '$lib/util/globals'
+  import type { ResultDocument } from '$lib/models/result'
+  import { appBase, type SearchResponse } from '$lib/util/globals'
   import ResponsiveTable from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import type { Transforms, PropMeta, HeadingTexts, Sortings } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import { DateTime } from 'luxon'
+  import { isNotBlank } from 'txstate-utils'
 
   /** @type {import('./$types').PageData} */
-  export let data: { query: string, results: ResultFullWithCount[] | undefined }
+  export let data: SearchResponse<ResultDocument> & { transform?: string }
 
   const propsMetas: PropMeta[] = [
     { key: 'title', type: 'string', shouldNest: false },
@@ -52,15 +53,31 @@
   function getRowspanKeys (data: Record<string, any>[]) {
     return ['title', 'brokensince', 'tags', 'id', 'url']
   }
+  function normalizeQueryForArea (query: string | undefined, transform: string | undefined) {
+    if (!query) return '{\r}'
+    if (transform) return transform
+    if (isNotBlank(data.query)) {
+      return data.query.startsWith('{') ? data.query : `{${data.query}}`
+    }
+    return '{\r}'
+  }
+  function normalizeQueryForSearchBar (query: string | undefined) {
+    if (!query) return ''
+    if (isNotBlank(data.query)) {
+      return data.query.startsWith('{') ? '' : data.query
+    }
+    return ''
+  }
 </script>
 
 <h1>Moc-Up Testing</h1>
 <form name='FilterInput' action={`${appBase}/mocup`} method='GET'>
-  <div class='searchbar'>
-    <textarea name='q' placeholder='Filter...' rows='30' cols='100'>{data.query ?? '{}'}</textarea>
+  <div class='jsonsearch'>
+    <textarea name='q' placeholder='Filter...' rows='30' cols='100'>{normalizeQueryForArea(data.query, data.transform)}</textarea>
     <button type='submit' class='submit-button'>Search</button>
   </div>
 </form>
+<SearchBar target={`${appBase}/mocup`} search={normalizeQueryForSearchBar(data.query)}/>
 {#if data.results && data.results.length > 0}
   <div class='results-root-container'>
     <ResponsiveTable data={data.results} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} />

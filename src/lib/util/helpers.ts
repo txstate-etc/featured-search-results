@@ -68,10 +68,13 @@ export function isValidUrl (urlString: string) {
   // return URL.canParse(urlString)
 }
 
+/** Casts `urlString` as a new URL to check for URL validity and tests the `protocol` of that URL
+ * object to see if it's a HTTP or HTTPS protocol - returning true, or false if not. */
 export function isValidHttpUrl (urlString: string) {
   try { return /https?:/.test(new URL(urlString).protocol) } catch (e) { return false }
 }
 
+/** Used in `getUrlEquivalences` to build domain permutations based on the original domain. */
 const domainEqivalencies: Record<string, string[]> = {
   'txstate.edu': ['txst.edu', 'txstate.edu'],
   'txst.edu': ['txst.edu', 'txstate.edu']
@@ -101,12 +104,21 @@ export function getUrlEquivalencies (url: string): string[] {
   }
   return equivalencies
 }
+/** Takes the URL `protocol` of the original URL, the sub-domain/host portion of the original URL as the `box` parameter,
+ * the cleaned (no trailing slash) path portion of the original URL as `cleanedPath`, along with the two part `domain`,
+ * and the `port`, `params`, and `hash` portions of the original URL. Combines the `domain`, `port`, `cleanedPath`, `params`,
+ * and `hash` into an array of pre-evaluated domain+path+params+hash equivalencies with both path equivalencies (trailing
+ * slash and without) and calls a routine with the `protocol`, sub-domain, and those path equivalencies to build and return
+ * an array of equivalent URLs with all our desired equivalent permutations of the `protocol`, `box`, and `pathEquivalencies`. */
 function getEquivalencies (protocol: string, box: string, domain: string, port: string, cleanedPath: string, params: string, hash: string): string[] {
   const base = `${domain}${port}${cleanedPath}`
   const fullParams = `${params}${hash}`
   const pathEquivalencies = [`${base}${fullParams}`, `${base}/${fullParams}`]
   return getSubDomainEquivalencies(protocol, box, pathEquivalencies)
 }
+/** Takes the URL `protocol` of the original URL, the sub-domain/host portion of the original URL as the `box` parameter,
+ * and an array of pre-evaluated domain+path+params+hash equivalencies as `pathEquivalencies`. Returns an array of equivalent
+ * URLs with all our desired equivalent permutations of the `protocol`, `box`, and `pathEquivalencies`. */
 function getSubDomainEquivalencies (protocol: string, box: string, pathEquivalencies: string[]): string[] {
   const expanded = box !== '' && box !== 'www'
     ? pathEquivalencies.map(url => { return [`//${box}.${url}`] })
@@ -128,8 +140,13 @@ export function querysplit (query: string) {
 
 /** `typeof` operator doesn't distinguish between 'object' and 'array' and we want the distinction here. */
 export type EnhancedTypes = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function' | 'array'
-export type EnhancedTypesSubProp = Record<string, EnhancedTypes>
-export type EnhancedTypesArray = Record<'array', EnhancedTypes | EnhancedTypesSubProp>
+export type NestingTypes = 'object' | 'array'
+export type AggOp = 'count' | 'sum' | 'avg' | 'min' | 'max'
+export type NestedProp<T> = T | NestedMetas<T>
+// eslint-disable-next-line @typescript-eslint/consistent-indexed-object-style
+export interface NestedMetas<T> { [key: string]: NestedProp<T> }
+export type SearchMetas<T> = Record<string, NestedMetas<T> | EnhancedTypes>
+// export type EnhancedTypesArray = Record<'array', EnhancedTypes | EnhancedTypesSubProp>
 /** Utility function for getting the `typeof` an object with `array` differentiated from `object`. */
 export function getType (obj: any) {
   let type: EnhancedTypes = typeof obj
@@ -139,13 +156,14 @@ export function getType (obj: any) {
 interface SearchMappings {
   /** A mapping of search aliases to the table field they correspond to. */
   hash: Record<string, string>
-  metas?: Record<string, EnhancedTypes | EnhancedTypesArray>
+  /** The fields of the record set and their associated primative-ish type. */
+  metas?: SearchMetas<EnhancedTypes | AggOp>
   /** The default fields to compare search values against when none are specified. */
   defaults: string[]
   /** Convenience reference of distinct table fields available to compare against. */
   fields: Set<string>
 }
-/** Get the distinct values from `hash` as the field names in an SQL table. */
+/** Get the distinct values from `hash` as the field names in an SQL table or Mongo Collection. */
 export function getFields (hash: any) {
   return new Set<string>(Object.values(hash)) // Set() to just the distinct field names.
 }
@@ -188,53 +206,6 @@ export function getPeopleDef (): SearchMappings {
     'category': 'category'
   }
   const defaults: string[] = ['lastname', 'firstname', 'userid', 'phone', 'email']
-  return {
-    hash,
-    defaults,
-    fields: getFields(hash)
-  } as const
-}
-/** Returns an object reference to a utility representation of the relationship between search
- *  terms and the underlying `Result` documents. */
-export function getResultsDef (): SearchMappings {
-  const hash: Record<string, string> = {
-    'title': 'title',
-    'page name': 'title',
-    'tag': 'tags',
-    'tags': 'tags',
-    'url': 'url',
-    'path': 'url',
-    'domain': 'url',
-    'subdomain': 'url',
-    'hostname': 'url',
-    'broken': 'brokensince',
-    'brokensince': 'brokensince',
-    'match words': 'entries.keywords',
-    'keyphrase': 'entries.keywords',
-    'aliases': 'entries.keywords',
-    'keywords': 'entries.keywords',
-    'mode': 'entries.mode',
-    'type': 'entries.mode',
-    'priority': 'entries.priority',
-    'weight': 'entries.priority',
-    'search': 'query',
-    'query': 'query',
-    'hits': 'queries.count',
-    'count': 'queries.count'
-  }
-  const metas: Record<string, EnhancedTypes | EnhancedTypesArray> = {
-    'title': 'string',
-    'tags': { 'array': 'string' },
-    'url': 'string',
-    'priority': 'number',
-    'brokensince': 'string',
-    'entries.keywords': { 'array': { 'keywords': 'array' } },
-    'entries.mode': { 'array': { 'mode': 'string' } },
-    'entries.priority': { 'array': { 'priority': 'number' } },
-    'queries.count': { 'array': { 'count': 'number' } },
-    'query': 'string'
-  }
-  const defaults: string[] = ['title', 'url', 'tags', 'entries.keywords', 'entries.mode']
   return {
     hash,
     defaults,
@@ -345,6 +316,50 @@ export function getLimitClause (pageNum: number, pageSizes: number) {
   return (pageSizes > 0) ? ` limit ${offset}${pageSizes}` : limitDefault
 }
 
+/** Returns an object reference to a utility representation of the relationship between search
+ *  terms and the underlying `Result` documents. */
+export function getResultsDef (): SearchMappings {
+  const hash: Record<string, string> = {
+    'title': 'title',
+    'page name': 'title',
+    'tag': 'tags',
+    'tags': 'tags',
+    'url': 'url',
+    'path': 'url',
+    'domain': 'url',
+    'subdomain': 'url',
+    'hostname': 'url',
+    'broken': 'brokensince',
+    'brokensince': 'brokensince',
+    'match words': 'entries.keywords',
+    'keyphrase': 'entries.keywords',
+    'aliases': 'entries.keywords',
+    'keywords': 'entries.keywords',
+    'mode': 'entries.mode',
+    'type': 'entries.mode',
+    'priority': 'entries.priority',
+    'weight': 'entries.priority',
+    'search': 'query',
+    'query': 'query',
+    'hits': 'queries.count',
+    'count': 'queries.count'
+  }
+  const metas: SearchMetas<EnhancedTypes | AggOp> = {
+    'title': 'string',
+    'tags': 'string',
+    'url': 'string',
+    'priority': 'number',
+    'brokensince': 'string',
+    'entries.keywords': { 'array': { 'keywords': 'string' } },
+    'entries.mode': { 'array': { 'mode': 'string' } },
+    'entries.priority': { 'array': { 'priority': 'number' } },
+    'queries.count': { 'array': 'count' },
+    'query': 'string'
+  }
+  const defaults: string[] = ['title', 'url', 'tags', 'entries.keywords', 'entries.mode']
+  return { hash, metas, defaults, fields: getFields(hash) } as const
+}
+
 /** Returns an MQL `match` clause using `tableDef` and parsable `search` string as parameters.
  * @param {SearchMappings} tableDef - A utility object used to associate search aliases and defaults to table fields.
  * @param {string} search
@@ -357,7 +372,7 @@ export function getLimitClause (pageNum: number, pageSizes: number) {
  * ```
  *   getMatchClause(someTableDef,'alias1 is a, alias2 begins with b')
  *   // Returns:
- *   { mql: '{ field1: ?, field2: /$?/i }', binds: ['a', 'b'] }
+ *   { mql: '{ field1: ?, field2: /$?/i }' }
  * ``` */
 export function getMatchClause (tableDef: SearchMappings, search: string) {
   /* Advanced search phrases consist of the following RegEx-ish form.
@@ -380,16 +395,50 @@ export function getMatchClause (tableDef: SearchMappings, search: string) {
   const parser = new RegExp(`(?:${likeops.source})?(?:${aliases.source + wildcardops.source})?${whatfors.source}[,;]?\\s*`, 'gi')
 
   const matchClause = []
+  console.log(`helpers.getMatchClause(..., ${search})`)
   for (const token of search.matchAll(parser)) {
+    console.log(`helpers.getMatchClause - token: ${token.toString()}`)
     const { likeop, alias, wildcardop, whatfor } = token.groups as any
     const whatforbind = whatfor.replace(/^(["'])(.*?)\1$/, '$2') // Strip any grouping quotes.
+    if (!alias) {
+      // Build default match clause for whatforbind
+      const filterObj: any = {}
+      for (const field of tableDef.defaults) {
+        const fieldName = tableDef.hash[field]
+        const fieldType = tableDef.metas?.[fieldName]
+        if (!fieldType) {
+          console.error(`helpers.getMatchClause - fieldType not found for fieldName "${fieldName}" of alias "${alias}".`)
+          continue
+        }
+        if (fieldType === 'string') filterObj[fieldName] = { $regex: `/${whatforbind}/`, $options: 'i' }
+        if (['number', 'bigint'].includes(fieldType as string)) filterObj[fieldName] = { $eq: parseInt(whatforbind) }
+        if (fieldType === 'boolean') filterObj[fieldName] = { $eq: whatforbind !== 'false' }
+        if (fieldType === 'array') {
+          filterObj[fieldName] = { $in: [whatforbind] }
+        }
+        if (fieldType === 'object') {
+          filterObj[fieldName] = { $eq: whatforbind }
+        }
+      }
+      matchClause.push(filterObj)
+      continue
+    }
+    const fieldName = tableDef.hash[alias]
+    const fieldType = tableDef.metas?.[fieldName]
+    if (!fieldType) {
+      console.error(`helpers.getMatchClause - fieldType not found for fieldName "${fieldName}" of alias "${alias}".`)
+      continue
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      console.log(`helpers.getMatchClause - typeof fieldType: ${typeof fieldType}: ${typeof fieldType === 'object' ? fieldType.toString() : fieldType}`)
+    }
     let regExBind = ''
     if (!wildcardop || /^(?:contains|:)/.test(wildcardop))/**/ regExBind = `/${whatforbind}/i`
     else if (/^(?:ends\s?with)/.test(wildcardop)) /*        */ regExBind = `/${whatforbind}$/i`
     else if (/^(?:(?:begins|starts)\s?with)/.test(wildcardop)) regExBind = `/^${whatforbind}/i`
     else /*                     /^(?:is|=)/                 */ regExBind = whatforbind
     // We've created our bind parameter for this token, now let's build the clause.
-    let clause = '?'
+    let clause = regExBind
     if (/^(?:<=)/.test(likeop)) clause = `{ $lte: ${clause} }`
     else if (/^(?:>=)/.test(likeop)) clause = `{ $gte: ${clause} }`
     else if (/^(?:<)/.test(likeop)) clause = `{ $lt: ${clause} }`
@@ -397,9 +446,9 @@ export function getMatchClause (tableDef: SearchMappings, search: string) {
     if (/^(?:not\s+|-)$/.test(likeop)) clause = `{ $ne: ${clause} }`
     else /*  /^(?:and\s+|\+)$/ or !likeop */ clause = `${clause}`
     // Prepend our alias's property name, if alias was parsed, else default to tableDef.defaults.
-    if (alias) binds.push(regExBind) && (clause = `${tableDef.hash[alias]}: ${clause}`)
-    else clause = tableDef.defaults.map((field: string) => (binds.push(regExBind) && `(${field} ${clause})`)).join(' or ')
-    matchClause.push(`(${clause})`)
+    if (alias) (clause = `{'${tableDef.hash[alias]}': ${clause}}`)
+    else clause = tableDef.defaults.map((field: string) => (`{'${field}': ${clause}}`)).join('\n $or ')
+    matchClause.push(clause)
   }
-  return { sql: ' where ' + matchClause.join(' and '), binds }
+  return { mql: '{ ' + matchClause.join('} $and {') + ' }' }
 }

@@ -20,6 +20,7 @@ const editorGroupCache = new Cache(async () => {
 })
 
 const validOrigins = new Set(['txstate.edu', 'txst.edu', 'tsus.edu', 'tjctc.org'])
+const validAuthReferers = new Set([...validOrigins, 'duosecurity.com'])
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle ({ event, resolve }) {
@@ -31,15 +32,25 @@ export async function handle ({ event, resolve }) {
     // but do it in HTML after a 200 because browsers don't look at the redirect chain
     // properly when evaluating whether to send a SameSite Strict cookie
     const requestedUrl = event.url.searchParams.get('requestedUrl')
-    return new Response(null, {
-      headers: {
-        location: requestedUrl ?? '/',
-        'set-cookie': `token=${unifiedJwt}; HttpOnly; SameSite=Strict; Path=${base ?? '/'}`,
-        'content-type': 'text/html',
-        status: '200',
-        refresh: `0;URL='${requestedUrl}'`
+    // TODO: We may need to look into sanitizing the requestedUrl as one of ours (log if not so we can get an alert to broken routing).
+    /* Test if unifiedJwt is from an authorized jwt provider to make sure jwt is coming from a trusted source.
+       Otherwise we're open to someone sending us an intercepted token that could still be valid. */
+    const referer = event.request.headers.get('referer')
+    console.log('hooks.server - referer: ', referer)
+    if (referer) {
+      const referrerDomain = new URL(referer).hostname.split('.').slice(-2).join('.')
+      if (validAuthReferers.has(referrerDomain) || event.url.hostname === 'localhost') {
+        return new Response(null, {
+          headers: {
+            location: requestedUrl ?? '/',
+            'set-cookie': `token=${unifiedJwt}; HttpOnly; SameSite=Strict; Path=${base ?? '/'}`,
+            'content-type': 'text/html',
+            status: '200',
+            refresh: `0;URL='${requestedUrl}'`
+          }
+        })
       }
-    })
+    }
   }
 
   const token = event.cookies.get('token')
