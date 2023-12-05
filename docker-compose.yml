@@ -26,6 +26,22 @@ services:
     depends_on:
       - mongodb
       - mysql
+  search-featured-results-cron:
+    build:
+      context: .
+      dockerfile: Dockerfile.cron
+    environment:
+      NODE_ENV: development
+      DB_HOST: mongodb
+      MOTION_URL: https://motion.tr.qual.txstate.edu/v2/api
+      MOTION_TOKEN: set this in docker-compose.override.yml
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: peoplesearch
+      MYSQL_PORT: 3306
+      MYSQL_PASS: secret
+    depends_on:
+      - mongodb
+      - mysql
   mysql:
     # Switched to using local instance of mysql for development so we can
     # docker-compose down -v to reset when we want to rebuild a table.

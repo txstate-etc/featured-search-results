@@ -22,11 +22,10 @@ import axios from 'axios'
 import { DateTime } from 'luxon'
 import mongoose from 'mongoose'
 const { Schema, models, model, Error } = mongoose
-// const { ValidationError, ValidatorError } = Error
 import type { Model, Document, ObjectId } from 'mongoose'
 import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
 import { getUrlEquivalencies, isValidHttpUrl, querysplit } from '../util/helpers.js'
-import { MessageType, type Feedback } from '@txstate-mws/svelte-forms'
+import type { Feedback } from '@txstate-mws/svelte-forms'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
 const matchingModes = ['keyword', 'phrase', 'exact']
@@ -48,7 +47,7 @@ export interface ResultBasicPlusId extends ResultBasic {
   id: string
 }
 export interface ResultFull extends ResultBasicPlusId {
-  brokensince: Date
+  brokensince?: Date
   entries: ResultEntry[]
   tags: string[]
 }
@@ -67,9 +66,6 @@ interface IResultMethods {
   full: () => ResultFull
   /** Returns a `result`'s `entries` sorted by their decending `priority`. */
   sortedEntries: () => IResultEntry[]
-  /** Updates entries to the passed in entries, if at least one is defined, and resets the internal
-   * sorting of the entries. */
-  setEntries: (entries: IResultEntry[]) => void
   /** Tests `entries` of a `Result` for a match against `words` based on the entry's
    *  `mode` and returns the highest matching `priority` or `undefined` if no matches. */
   match: (words: string[], wordset: Set<string>, wordsjoined: string) => number | undefined
@@ -116,7 +112,7 @@ export interface IResult {
   currency: {
     broken: boolean
     tested: Date
-    brokensince: Date
+    brokensince?: Date
     // isRedirect: boolean
   }
   entries: IResultEntry[]
@@ -225,22 +221,11 @@ ResultSchema.methods.outentries = function () {
   return outentries
 }
 ResultSchema.methods.sortedEntries = function () {
-  this._sortedEntries ??= sortby([...this.entries], 'priority', true)
-  return this._sortedEntries
+  (this as any)._sortedEntries ??= sortby([...this.entries], 'priority', true)
+  return (this as any)._sortedEntries
 }
 ResultSchema.methods.resetSorting = function () {
   this._sortedEntries = undefined
-}
-/** Replaces the ResultDocument's `entries` with the passed in `entries` if they have any values with non-empty `keywords` arrays.
- * Updates the ResultDocument's `_sortedEntries` if the `entries` are updated. */
-ResultSchema.methods.setEntries = function (entries: IResultEntry[] | undefined) {
-  if (!entries) return
-  if (entries.length > 0) {
-    if (entries.some(e => e.keywords.length > 0)) {
-      this.entries = [...entries]
-      this._sortedEntries = sortby([...this.entries], 'priority', true)
-    }
-  }
 }
 ResultSchema.methods.full = function () {
   const info = this.basicPlusId()
@@ -249,9 +234,6 @@ ResultSchema.methods.full = function () {
     ...info,
     brokensince: this.currency.brokensince,
     entries,
-    /** Used for storage of highest priority of matching entries during matching tests.
-     * TODO: I'm not sure if we want to preserve the Document level `priority` of existing Result records. */
-    priority: this.priority ?? entries[0]?.priority ?? 0,
     tags: this.tags
   }
 }
@@ -307,20 +289,19 @@ export interface TemplateResult extends Partial<RawJsonResult> {
   id?: string
 }
 ResultSchema.methods.fromPartialJson = function (input: TemplateResult) {
-  this.url = input.url?.trim()
-  this.title = input.title?.trim()
+  this.url = input.url?.trim() as string
+  this.title = input.title?.trim() as string
   this.tags = []
   this.entries = []
-  for (const entry of input.entries ?? []) {
-    const mode = entry.mode?.toLowerCase()
+  for (const entry of sortby(input.entries ?? [], 'priority', true)) {
+    const mode = entry.mode?.toLowerCase() as ResultModes
     this.entries.push({
       keywords: querysplit(entry.keyphrase ?? ''),
       mode,
-      priority: entry.priority
-    })
+      priority: entry.priority,
+      hitCountCached: 0
+    } as unknown as IResultEntry)
   }
-  // Sort on new inputs to speed up fetching of Result arrays.
-  this._sortedEntries = sortby([...this.entries], 'priority', true)
   for (const tag of input.tags ?? []) {
     this.tags.push(tag.toLowerCase().trim())
   }
@@ -337,10 +318,10 @@ ResultSchema.methods.hasTag = function (tag: string) {
 }
 ResultSchema.methods.valid = function () {
   // this.validate() will only throw errors for us to catch. Use validateSync() instead.
-  const validation: ValidationError = this.validateSync()
+  const validation: mongoose.Error.ValidationError | null = this.validateSync()
   const resp: Feedback[] = validation
-    ? Object.keys(validation.errors).map(key =>
-      ({ type: MessageType.ERROR, path: key, message: validation.errors[key].properties.message })
+    ? Object.keys(validation.errors).filter(key => validation.errors[key].name !== 'CastError').map(key =>
+      ({ type: 'error', path: key, message: (validation.errors[key] as mongoose.Error.ValidatorError).properties.message })
     )
     : []
   return resp
@@ -387,7 +368,7 @@ ResultSchema.methods.currencyTest = async function () {
     }
     if (!alreadypassed) await axios.get(this.url, { timeout: 5000 })
     this.currency.broken = false
-    this.currency.brokensince = null
+    this.currency.brokensince = undefined
   } catch (e) {
     // Handle Redirect Detection
     if (!this.currency.broken) this.currency.brokensince = new Date()
@@ -420,6 +401,7 @@ ResultSchema.methods.healRecord = function (feedback?: Feedback[]) {
   }
 }
 ResultSchema.statics.currencyTestAll = async function () {
+  console.info('Running currency test.')
   const results = await this.find({
     $or: [{
       'currency.tested': { $lte: DateTime.local().minus({ days: 1 }).toJSDate() }
@@ -428,6 +410,7 @@ ResultSchema.statics.currencyTestAll = async function () {
     }]
   }) as ResultDocument[]
   await eachConcurrent(results, async result => { await result.currencyTest() })
+  console.info('Finished currency test.')
 }
 ResultSchema.statics.currencyTestLoop = async function () {
   try {
@@ -438,4 +421,5 @@ ResultSchema.statics.currencyTestLoop = async function () {
   setTimeout(() => { this.currencyTestLoop().catch(console.error) }, 600000)
 }
 
-export const Result = models.Result as ResultModel ?? model<IResult, ResultModel>('Result', ResultSchema)
+if (mongoose.models.Result) mongoose.deleteModel('Result')
+export const Result = model<IResult, ResultModel>('Result', ResultSchema)

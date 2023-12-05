@@ -1,6 +1,5 @@
 /* eslint-disable quote-props */
 import { isBlank, isNotBlank } from 'txstate-utils'
-import { error } from '@sveltejs/kit'
 import { MessageType } from '@txstate-mws/svelte-forms'
 
 /* // Debugging fuctions
@@ -125,61 +124,6 @@ export function querysplit (query: string) {
   const clean = query.toLowerCase().replace(/[^\w-]+/g, ' ').trim()
   if (clean.length === 0) return []
   return clean.split(' ')
-}
-
-/** Extracts and returns the `param: string` value from `url`.
- * @param {URL} url - The URL to extract id from.
- * @param {string} param - The name of the parameter to extract a value from.
- * @param {boolean} required - Optional specification of whether a 400 error should be thrown if `param`'s value is blank or missing.
- * @throws error(400, {message: `${param} is required.` }) - if `param` is blank or missing. */
-export function paramFromUrl (url: URL, param: string, required: boolean = false) {
-  const value = (url.searchParams.get(param) ?? undefined)?.trim()
-  if (required && isBlank(value)) throw error(400, { message: `${param} is requried.` })
-  return value
-}
-
-/** Extracts and returns the `id` prameter from `url`.
- * @param {URL} url - The URL to extract id from.
- * @throws error(400, {message: 'id is required.' }) - if `id` is blank or missing.
- * @throws error(400, {message: 'Bad id format...' }) - if `id` is not a hexadecimal. */
-export function idFromUrl (url: URL) {
-  const id = paramFromUrl(url, 'id', true)
-  if (!/^[a-f0-9]+$/i.test(id!)) throw error(400, { message: 'Bad id format. Should be a hex string.' })
-  return id
-}
-
-/** Returns the associcated `Feedback MessageType` from common HTML status codes and ranges. */
-export function statusToMessageType (status: number) {
-  if (status === 200) return MessageType.SUCCESS
-  if ([401, 403, 404].includes(status)) return MessageType.SYSTEM
-  if (status > 200 && status < 300) return MessageType.WARNING
-  return MessageType.ERROR
-}
-/** A set of common checks that handle the difference between validation only checks and
- * full blown throw an error checks. If they're not `validationOnly` then errors will be
- * thrown before a value can be returned. If they ARE `validationOnly` then an array of
- * Feedback messages will be returned, or an empty array if the check passed.
- * Usefull for making sure our checks are consistent - where these are used - and for
- * reducing code clutter where we optionally want to throw errors or return feedback.
- * @note Mongoose should be centralizing our document properties validation and formatting.
- * Hence these checks are more for whether the API was provided everything it needs to
- * interact with Mongoose. */
-export const ValidationChecks = {
-  ifFails: (condition: boolean, status: number, message: string, path: string, validationOnly: boolean = false) => {
-    if (!condition) {
-      if (!validationOnly) throw error(status, { message })
-      const type = statusToMessageType(status)
-      return [{ type, path, message }]
-    } return []
-  },
-  /** Careful with isEditor. If `validationOnly` this will return a message but not throw 403.
-   * It's up to the caller to inspect returned messages and throw 403 if Not Authorized. */
-  isEditor: (verified: boolean, validationOnly: boolean = false) => {
-    return ValidationChecks.ifFails(verified, 403, 'Not Authorized', '', validationOnly)
-  },
-  isBlank: (param: any, name: string, validationOnly: boolean = false) => {
-    return ValidationChecks.ifFails(!isBlank(param[name]), 400, `Posted request must contain a non-empty ${name}.`, name, validationOnly)
-  }
 }
 
 /** `typeof` operator doesn't distinguish between 'object' and 'array' and we want the distinction here. */

@@ -1,45 +1,11 @@
 import { Cache } from 'txstate-utils'
-import { Result } from '$lib/models/result.js'
-import { Query } from '$lib/models/query.js'
 import { authenticator } from '$lib/util/auth.js'
-import { loadPeople } from '$lib/util/loadPeople.js'
-import reloadPeopleCron from '$lib/util/loadPeople_Cron.js'
-import { migrate } from '$lib/util/migrations.js'
 import { mongoConnect } from '$lib/util/mongo.js'
 import { motion } from '$lib/util/motion.js'
 import { building } from '$app/environment'
 import { base } from '$app/paths'
 
-async function startup () {
-  if (process.env.NODE_ENV !== 'development') {
-    console.log('Not in development, running people related data migrations...')
-    await Promise.all([
-      mongoConnect(),
-      migrate()
-    ])
-  } else {
-    console.log('In development, not bothering with people related data migrations.')
-    await Promise.all([
-      mongoConnect()
-    ])
-  }
-  try {
-    // Toggle this in development if needed to get fresh directory results. Otherwise - don't slam motion with needless requests.
-    if (process.env.NODE_ENV !== 'development') {
-      console.log('Not in development, loading people...')
-      await loadPeople()
-    } else console.log('In development, not slamming motion with constant reloads of people directory.')
-  } catch (e) {
-    console.error(e)
-  }
-  if (process.env.NODE_ENV !== 'development') {
-    console.log('Not in development, activating people directory refresh schedule...')
-    reloadPeopleCron.start()
-  } else console.log('In development, not running people refresh cron that will slam motion at the same time as SFR Qual does.')
-  void Result.currencyTestLoop()
-  void Query.cleanupLoop()
-}
-if (!building) await startup()
+if (!building) await mongoConnect()
 
 const editorGroupCache = new Cache(async () => {
   const { accounts } = await motion.query<{ accounts: { netid: string, canLogin: boolean }[] }>(`

@@ -1,0 +1,13 @@
+{
+	"compilerOptions": {
+		"target": "es2022",
+		"module": "es2022",
+		"moduleResolution": "node",
+		"skipLibCheck": true,
+		"esModuleInterop": true,
+		"sourceMap": true,
+		"strict": true,
+		"outDir": "./dist"
+	},
+	"include": ["src/cron.ts"]
+}

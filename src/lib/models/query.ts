@@ -18,14 +18,13 @@
  * Query `hits` that are older than 6 months are removed from all Query documents every 27 minutes.
  * If any Query documents end up with empty `hits` arrays as a result - they are deleted.
  */
-
 import pkg from 'mongoose'
-const { models, model } = pkg
+const { model, models, deleteModel } = pkg
 import { Schema, type Model, type Document, type ObjectId } from 'mongoose'
 import { DateTime } from 'luxon'
 import { isBlank, keyby, unique } from 'txstate-utils'
 import { type ResultDocument, type ResultBasicPlusId, entryMatch } from './result.js'
-import { querysplit } from '$lib/util/helpers.js'
+import { querysplit } from '../util/helpers.js'
 
 interface IQuery {
   query: string
@@ -91,7 +90,7 @@ QuerySchema.methods.basic = function () {
     query: this.query,
     hits: this.hitcount ?? this.hits.length ?? 0,
     lasthit: this.lasthit ?? this.hits[this.hits.length - 1] ?? undefined,
-    results: this.results.map((result: ResultDocument) => result.basicPlusId())
+    results: (this.results as unknown as ResultDocument[]).map((result: ResultDocument) => result.basicPlusId())
   }
 }
 
@@ -117,6 +116,7 @@ QuerySchema.statics.getAllQueries = async function () {
 }
 
 QuerySchema.statics.cleanup = async function () {
+  console.info('Running Query.cleanup.')
   const expires = DateTime.local().minus({ months: 6 }).toJSDate()
   await Query.updateMany(
     { 'hits.0': { $lte: expires } },
@@ -125,6 +125,7 @@ QuerySchema.statics.cleanup = async function () {
   )
   await Query.deleteMany({ hits: { $eq: [] } })
   await Query.updateHitCounts()
+  console.info('Finished Query.cleanup.')
 }
 
 QuerySchema.statics.updateHitCounts = async function () {
@@ -155,7 +156,7 @@ QuerySchema.statics.updateHitCounts = async function () {
     const lastword = words[words.length - 1]
     const resultIds = unique(words.flatMap(w => resultIdsByKeyword[w] ?? []).concat(resultIdsByPrefix[lastword] ?? []))
     for (const r of resultIds.map(rId => resultsById[rId]) as unknown as ResultDocument[]) {
-      for (const e of r.entries) {
+      for (const e of r.sortedEntries()) {
         if (entryMatch(e, words, wordset, wordsjoined)) {
           hitCounts[e.id] ??= 0
           hitCounts[e.id] += q.hitcount
@@ -187,4 +188,5 @@ QuerySchema.statics.cleanupLoop = async function () {
   setTimeout(() => { Query.cleanupLoop().catch(console.error) }, 27 * 60 * 1000)
 }
 
-export const Query = models.Query as QueryModel ?? model<IQuery, QueryModel>('Query', QuerySchema)
+if (models.Query) deleteModel('Query')
+export const Query = model<IQuery, QueryModel>('Query', QuerySchema)
