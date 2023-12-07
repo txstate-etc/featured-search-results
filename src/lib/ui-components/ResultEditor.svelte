@@ -96,6 +96,7 @@
   }
 
   async function validate (state: ResultState): Promise<Feedback[]> {
+    // Make sure the URL is lowercased on case-insensitive portions so we can be sure to catch duplicates.
     const parsedURL = isValidHttpUrl(state.url) ? new URL(state.url) : undefined
     if (parsedURL) {
       const newUrl = /\/$/.test(state.url) ? parsedURL.toString() : parsedURL.toString().replace(/\/$/, '')
@@ -124,10 +125,6 @@
   function tagsDeserialize (value: string) {
     return value?.split(/[, ]/) ?? []
   }
-  function lowercaseSerialize (value: string) {
-    return value?.toLowerCase() ?? ''
-  }
-
 
   onMount(() => {
     /* Remove the empty label from FieldMultiple. */
@@ -207,7 +204,7 @@
     top: -.25rem;
     left: -3rem;
     transform: translateX(-1rem) translateY(-90%) scale(var(--scale));
-    transition: 50ms transform ease-in-out;
+    transition: 10ms transform ease-in;
     transform-origin: bottom center;
     padding: 0.2rem 0.5rem;
     /* border: .25rem solid transparent; */

@@ -301,7 +301,7 @@ function findDuplicateResultMatchings (entries: IResultEntry[]) {
   const phrases = new Set<string>()
   const duplicates: { index: number, mode: ResultModes }[] = []
   entries.forEach((entry, index) => {
-    const terms = entry.keywords.join(' ')
+    const terms = entry.keywords.join(' ').toLocaleLowerCase()
     if (entry.mode === 'exact') {
       const _ = exacts.has(terms) ? duplicates.push({ index, mode: entry.mode }) : exacts.add(terms)
     } else if (entry.mode === 'keyword') {
