@@ -9,7 +9,8 @@
   // import helpCircle from '@iconify-icons/mdi/help-circle'
   import deleteCircle from '@iconify-icons/mdi/delete'
 
-  const equivIdsRegex = /equivalent\.(?<id>[^.]*)\.(?<title>.*)/
+  const equivUrlsRegex = /equivalent\.url\.(?<id>[^.]*)\.(?<title>.*)/
+  const equivTitlesRegex = /equivalent\.title\.(?<id>[^.]*)\.(?<title>.*)/
 
   /**
   ```ts
@@ -133,8 +134,10 @@
 <Form bind:store name='result' {submit} {validate} {preload} let:saved let:messages>
   <div class='result-form'>
     <FieldText path='title' label='Display Title:' defaultValue={''} required/>
+    <FeedbackLinks data={messages} path={equivTitlesRegex} targetURL={`${appURL}/results/`} pathKeys={['id', 'title']}
+      buildPath={(found, keys) => found.id} preamble='Edit ' getText={(found, keys) => found.title} postscript="'s record."/>
     <FieldText path='url' label='Target URL:' defaultValue={'https://'} required/>
-    <FeedbackLinks data={messages} path={equivIdsRegex} targetURL={`${appURL}/results/`} pathKeys={['id', 'title']}
+    <FeedbackLinks data={messages} path={equivUrlsRegex} targetURL={`${appURL}/results/`} pathKeys={['id', 'title']}
       buildPath={(found, keys) => found.id} preamble='Edit ' getText={(found, keys) => found.title} postscript="'s record."/>
     <!-- svelte-forms(entries[]) -->
     <div class='result-entries'>

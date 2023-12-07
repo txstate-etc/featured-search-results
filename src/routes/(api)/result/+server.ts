@@ -13,11 +13,18 @@ export async function POST ({ url, locals, request }) {
   const messages: Feedback[] = []
   const postedResult = new Result()
   postedResult.fromPartialJson(body)
-  const existingResults: ResultDocument[] | undefined = await Result.findByUrl(postedResult.url)
-  if (existingResults && existingResults.length > 0) {
+  const existingResultUrls: ResultDocument[] | undefined = await Result.findByUrl(postedResult.url)
+  if (existingResultUrls && existingResultUrls.length > 0) {
     messages.push({ type: MessageType.ERROR, path: 'url', message: 'This URL is equivalent to existing Result records.' })
-    messages.push(...existingResults.map(r => {
-      return { type: MessageType.WARNING, path: `equivalent.${r.id}.${r.title}`, message: `URL is equivalent to ${r.title}'s URL.` }
+    messages.push(...existingResultUrls.map(r => {
+      return { type: MessageType.WARNING, path: `equivalent.url.${r.id}.${r.title}`, message: `URL is equivalent to ${r.title}'s URL.` }
+    }))
+  }
+  const existingResultTitles: ResultDocument[] | undefined = await Result.find({ title: postedResult.title })
+  if (existingResultTitles && existingResultTitles.length > 0) {
+    messages.push({ type: MessageType.ERROR, path: 'title', message: 'This Title is equivalent to existing Result records.' })
+    messages.push(...existingResultTitles.map(r => {
+      return { type: MessageType.WARNING, path: `equivalent.title.${r.id}.${r.title}`, message: `Title is equivalent to ${r.title}'s Title.` }
     }))
   }
   messages.push(...postedResult.valid())

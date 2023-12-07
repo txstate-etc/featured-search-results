@@ -335,10 +335,6 @@ ResultSchema.statics.getByQuery = async function (words: string[]) {
   })
   return ret
 }
-ResultSchema.statics.findByUrl = async function (url: string) {
-  const equivalencies = getUrlEquivalencies(url)
-  return this.find({ url: { $in: equivalencies } })
-}
 ResultSchema.statics.findByQuery = async function (query: string) {
   if (isBlank(query)) return []
   const words = querysplit(query)
@@ -348,6 +344,10 @@ ResultSchema.statics.findByQuery = async function (query: string) {
   for (const r of results) r.priority = r.match(words, wordset, wordsjoined)
   const filteredresults = results.filter(r => isNotNull(r.priority))
   return sortby(filteredresults, 'priority', true, 'title')
+}
+ResultSchema.statics.findByUrl = async function (url: string) {
+  const equivalencies = getUrlEquivalencies(url)
+  return this.find({ url: { $in: equivalencies } })
 }
 ResultSchema.methods.currencyTest = async function () {
   try {

@@ -1,13 +1,13 @@
 <script lang=ts>
   import SearchBar from '$lib/ui-components/SearchBar.svelte'
-  import type { ResultFullWithCount } from '$lib/models/result'
+  import type { ResultDocument } from '$lib/models/result'
   import { appBase } from '$lib/util/globals'
   import ResponsiveTable from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import type { Transforms, PropMeta, HeadingTexts, Sortings } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import { DateTime } from 'luxon'
 
   /** @type {import('./$types').PageData} */
-  export let data: { query: string, results: ResultFullWithCount[] | undefined }
+  export let data: { query: string, results: ResultDocument[] | undefined }
 
   const propsMetas: PropMeta[] = [
     { key: 'title', type: 'string', shouldNest: false },
@@ -27,7 +27,7 @@
   }
   const transforms: Transforms = {
     title: (value, record) => {
-      return `<a href='${appBase}/results/${record.id} target='_blank'>${value}</a><br>
+      return `<a href='${appBase}/results/${record.id}' target='_blank'>${value}</a><br>
       <a style='font-size: small;' href='${record.url}' target='_blank'>${record.url}</a>`
     },
     brokensince: (value, record) => {
