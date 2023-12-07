@@ -4,6 +4,7 @@
   import { MessageType, type Feedback, type FormStore, type SubmitResponse } from '@txstate-mws/svelte-forms'
   import FeedbackLinks from './FeedbackLinks.svelte'
   import { VALIDATE_ONLY, apiURL, appURL } from '$lib/util/globals'
+  import { isValidHttpUrl } from '$lib/util/helpers'
   import { FieldHidden, FieldNumber, FieldSelect, FieldStandard, FieldText, Form, Icon, Input } from '@dosgato/dialog'
   import FieldMultiple from './FieldMultiple.svelte'
   // import helpCircle from '@iconify-icons/mdi/help-circle'
@@ -95,8 +96,11 @@
   }
 
   async function validate (state: ResultState): Promise<Feedback[]> {
-    await store.setField('url', state.url?.toLowerCase())
-    state.url = state.url?.toLowerCase()
+    const parsedURL = isValidHttpUrl(state.url) ? new URL(state.url) : undefined
+    if (parsedURL) {
+      const newUrl = /\/$/.test(state.url) ? parsedURL.toString() : parsedURL.toString().replace(/\/$/, '')
+      await store.setField('url', newUrl)
+    }
     const resp = await (await fetch(`${apiTarget.url}?${VALIDATE_ONLY}`, {
       method: apiTarget.method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state)
     })).json() as ({ result: Partial<ResultFull>, messages: Feedback[] } | { message: string })
