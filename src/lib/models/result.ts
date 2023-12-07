@@ -23,6 +23,8 @@ import { DateTime } from 'luxon'
 import mongoose from 'mongoose'
 const { Schema, models, model, Error } = mongoose
 import type { Model, Document, ObjectId } from 'mongoose'
+import mongoosePaginate from 'mongoose-paginate'
+// There's also: import mongoosePaginate from 'mongoose-paginate-v2'
 import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
 import { getUrlEquivalencies, isValidHttpUrl, querysplit } from '../util/helpers.js'
 import type { Feedback } from '@txstate-mws/svelte-forms'
@@ -38,7 +40,6 @@ export interface ResultEntry {
   priority: number
   count: number
 }
-
 export interface ResultBasic {
   url: string
   title: string
@@ -54,6 +55,18 @@ export interface ResultFull extends ResultBasicPlusId {
 
 export type ResultDocument = Document<ObjectId> & IResult & IResultMethods
 
+interface ResultModel extends Model<IResult, any, IResultMethods> {
+  /** @async Returns array of all `Result` documents with `keywords` that start with any of the `words`. */
+  getByQuery: (words: string[]) => Promise<ResultDocument[]>
+  /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `match()` on the tokenized `query`. */
+  findByQuery: (query?: string) => Promise<ResultDocument[]>
+  /** @async Returns array of all `Result` documents with `url` that match any of the `url` equivalencies. */
+  findByUrl: (url: string) => Promise<ResultDocument[]>
+  /** @async Concurrently runs currencyTest() on all `Result` documents with an `currency.tested` date older than 1 day or `undefined`. */
+  currencyTestAll: () => Promise<void>
+  /** @async Runs `currencyTestAll` followed by a 10 minute timeout interval before running it again. */
+  currencyTestLoop: () => Promise<void>
+}
 interface IResultMethods {
   /** Returns an object of just the `title` and `url` of the `Result`. Useful for efficient search hits. */
   basic: () => ResultBasic
@@ -89,20 +102,16 @@ interface IResultMethods {
    *       the 'txst.edu' url returns a 2xx response in less than 5 seconds. */
   currencyTest: () => Promise<void>
 }
-
-interface ResultModel extends Model<IResult, any, IResultMethods> {
-  /** @async Returns array of all `Result` documents with `keywords` that start with any of the `words`. */
-  getByQuery: (words: string[]) => Promise<ResultDocument[]>
-  /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `match()` on the tokenized `query`. */
-  findByQuery: (query?: string) => Promise<ResultDocument[]>
-  /** @async Returns array of all `Result` documents with `url` that match any of the `url` equivalencies. */
-  findByUrl: (url: string) => Promise<ResultDocument[]>
-  /** @async Concurrently runs currencyTest() on all `Result` documents with an `currency.tested` date older than 1 day or `undefined`. */
-  currencyTestAll: () => Promise<void>
-  /** @async Runs `currencyTestAll` followed by a 10 minute timeout interval before running it again. */
-  currencyTestLoop: () => Promise<void>
+/** Inteface for MongoDB storage of alias `entries` within the MongoDB `result` collection.
+ * Note that the `keyphrase: string` of `ResultEntry` is broken into `keywords: string[]`
+ * to allow for more efficient indexing by Mongoose. */
+export interface IResultEntry {
+  id: string
+  keywords: string[]
+  mode: ResultModes
+  priority: number
+  hitCountCached: number
 }
-
 /** Inteface for MongoDB storage of the `result` collection. */
 export interface IResult {
   url: string
@@ -118,19 +127,6 @@ export interface IResult {
   entries: IResultEntry[]
   tags: string[]
 }
-/** Inteface for MongoDB storage of alias `entries` within the MongoDB `result` collection.
- * Note that the `keyphrase: string` of `ResultEntry` is broken into `keywords: string[]`
- * to allow for more efficient indexing by Mongoose. */
-export interface IResultEntry {
-  id: string
-  keywords: string[]
-  mode: ResultModes
-  priority: number
-  hitCountCached: number
-}
-
-// TODO: I wonder if making entries it's own sub-Schema/Model in here would
-// provide benefits worth the extra step in tracing with problems.
 
 const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
   url: {
@@ -175,21 +171,7 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
   }],
   tags: { type: [String], lowercase: true }
 })
-export interface ValidationError extends Error {
-  errors: Record<string, {
-    properties: {
-      validator: (value: any) => boolean
-      message: string
-      type: string
-      path: string
-      value: any
-    }
-    kind: string
-    path: string
-    value: any
-    reason?: any
-  }>
-}
+ResultSchema.plugin(mongoosePaginate)
 
 ResultSchema.index({ 'entries.keywords': 1 })
 ResultSchema.index({ 'currency.tested': 1 })
@@ -236,7 +218,6 @@ ResultSchema.methods.full = function () {
     tags: this.tags
   }
 }
-
 export function entryMatch (entry: IResultEntry, words: string[], wordset: Set<string>, wordsjoined: string) {
   // given a query string, determine whether this entry is a match
   // after accounting for mode
@@ -266,7 +247,6 @@ export function entryMatch (entry: IResultEntry, words: string[], wordset: Set<s
 
   return false
 }
-
 ResultSchema.methods.match = function (words: string[], wordset: Set<string>, wordsjoined: string) {
   for (const entry of this.sortedEntries()) {
     if (entryMatch(entry, words, wordset, wordsjoined)) return entry.priority ?? 0
@@ -315,6 +295,23 @@ ResultSchema.methods.hasEntry = function (entry: IResultEntry) {
 ResultSchema.methods.hasTag = function (tag: string) {
   return this.tags.includes(tag)
 }
+function findDuplicateResultMatchings (entries: IResultEntry[]) {
+  const exacts = new Set<string>()
+  const keywords = new Set<string>()
+  const phrases = new Set<string>()
+  const duplicates: { index: number, mode: ResultModes }[] = []
+  entries.forEach((entry, index) => {
+    const terms = entry.keywords.join(' ')
+    if (entry.mode === 'exact') {
+      const _ = exacts.has(terms) ? duplicates.push({ index, mode: entry.mode }) : exacts.add(terms)
+    } else if (entry.mode === 'keyword') {
+      const _ = keywords.has(terms) ? duplicates.push({ index, mode: entry.mode }) : keywords.add(terms)
+    } else if (entry.mode === 'phrase') {
+      const _ = phrases.has(terms) ? duplicates.push({ index, mode: entry.mode }) : phrases.add(terms)
+    }
+  })
+  return duplicates
+}
 ResultSchema.methods.valid = function () {
   // this.validate() will only throw errors for us to catch. Use validateSync() instead.
   const validation: mongoose.Error.ValidationError | null = this.validateSync()
@@ -323,6 +320,10 @@ ResultSchema.methods.valid = function () {
       ({ type: 'error', path: key, message: (validation.errors[key] as mongoose.Error.ValidatorError).properties.message })
     )
     : []
+  // Additional entries validation external to Model until we can create entriesSchema to apply nest-wide validator to.
+  resp.push(...findDuplicateResultMatchings(this.entries).map<Feedback>(dup =>
+    ({ type: 'error', path: `entries.${dup.index}.keywords`, message: `Duplicate ${dup.mode} terms.` })
+  ))
   return resp
 }
 ResultSchema.statics.getByQuery = async function (words: string[]) {

@@ -1,10 +1,21 @@
 /* eslint-disable quote-props */
-import { isBlank, isNotBlank } from 'txstate-utils'
-import { MessageType } from '@txstate-mws/svelte-forms'
+import { isNotBlank } from 'txstate-utils'
+
+/** Uses URL constructor to test if `urlString` is a value conformant to valid URL standards. */
+export function isValidUrl (urlString: string | undefined | null) {
+  if (!urlString) return false
+  try { return Boolean(new URL(urlString)) } catch (e) { return false }
+  // Once we're able to upgrade to Node.js 19+ we can use the following instead:
+  // return URL.canParse(urlString)
+}
+/** Casts `urlString` as a new URL to check for URL validity and tests the `protocol` of that URL
+ * object to see if it's a HTTP or HTTPS protocol - returning true, or false if not. */
+export function isValidHttpUrl (urlString: string) {
+  try { return /https?:/.test(new URL(urlString).protocol) } catch (e) { return false }
+}
 
 /* // Debugging fuctions
-import type { RequestEvent } from '../../routes/admin/$types'
-const interestHeaders = new Set(['connection', 'content-\\w+', 'host', 'origin', 'referer', 'x-\\w+', 'sec-fetch-\\w+'])
+const interestHeaders = new Set(['.*', 'access-\\w+', 'connection', 'content-\\w+', 'host', 'origin', 'referer', 'x-\\w+', 'sec-fetch-\\w+'])
 const interestHeadersRegex = new RegExp(`^(${[...interestHeaders].join('|')})$`, 'i')
 export function parseHeaders (headers: Headers) {
   const obj: Record<string, string> = {}
@@ -58,21 +69,7 @@ export function logEvent (event: any) {
   console.table([{ title: 'Headers', ...parseHeaders(event.request.headers) }])
   logCookies(event.cookies.getAll())
   console.table([obj])
-}
-*/
-
-/** Uses URL constructor to test if `urlString` is a value conformant to valid URL standards. */
-export function isValidUrl (urlString: string) {
-  try { return Boolean(new URL(urlString)) } catch (e) { return false }
-  // Once we're able to upgrade to Node.js 19+ we can use the following instead:
-  // return URL.canParse(urlString)
-}
-
-/** Casts `urlString` as a new URL to check for URL validity and tests the `protocol` of that URL
- * object to see if it's a HTTP or HTTPS protocol - returning true, or false if not. */
-export function isValidHttpUrl (urlString: string) {
-  try { return /https?:/.test(new URL(urlString).protocol) } catch (e) { return false }
-}
+} */
 
 /** Used in `getUrlEquivalences` to build domain permutations based on the original domain. */
 const domainEqivalencies: Record<string, string[]> = {
@@ -139,17 +136,17 @@ export function querysplit (query: string) {
 }
 
 /** `typeof` operator doesn't distinguish between 'object' and 'array' and we want the distinction here. */
-export type EnhancedTypes = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function' | 'array'
-export type NestingTypes = 'object' | 'array'
+export type EnhancedType = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function' | 'array'
+export type NestingType = 'object' | 'array'
 export type AggOp = 'count' | 'sum' | 'avg' | 'min' | 'max'
-export type NestedProp<T> = T | NestedMetas<T>
+export type NestedProp<T> = T | NestedMeta<T>
 // eslint-disable-next-line @typescript-eslint/consistent-indexed-object-style
-export interface NestedMetas<T> { [key: string]: NestedProp<T> }
-export type SearchMetas<T> = Record<string, NestedMetas<T> | EnhancedTypes>
-// export type EnhancedTypesArray = Record<'array', EnhancedTypes | EnhancedTypesSubProp>
+export type NestedMeta<T> = { [key in NestingType]?: NestedProp<T> }
+export type SearchMetas<T> = Record<string, NestedMeta<T> | NestedProp<T>>
+export type SearchPropDefaults = EnhancedType | AggOp | 'date'
 /** Utility function for getting the `typeof` an object with `array` differentiated from `object`. */
 export function getType (obj: any) {
-  let type: EnhancedTypes = typeof obj
+  let type: EnhancedType = typeof obj
   if (type === 'object' && Array.isArray(obj)) type = 'array'
   return type
 }
@@ -157,7 +154,9 @@ interface SearchMappings {
   /** A mapping of search aliases to the table field they correspond to. */
   hash: Record<string, string>
   /** The fields of the record set and their associated primative-ish type. */
-  metas?: SearchMetas<EnhancedTypes | AggOp>
+  metas?: SearchMetas<SearchPropDefaults>
+  /** A mapping of search operators to common filter comparisons. */
+  opHash?: Record<string, string>
   /** The default fields to compare search values against when none are specified. */
   defaults: string[]
   /** Convenience reference of distinct table fields available to compare against. */
@@ -250,8 +249,8 @@ export function getWhereClause (tableDef: SearchMappings, search: string) {
     const whatforbind = whatfor.replace(/^(["'])(.*?)\1$/, '$2') // Strip any grouping quotes.
     let wildcardbind = ''
     if (!wildcardop || /^(?:contains|:)/.test(wildcardop)) wildcardbind = `%${whatforbind}%`
-    else if (/^(?:ends\s?with|>)/.test(wildcardop)) wildcardbind = `%${whatforbind}`
-    else if (/^(?:(?:begins|starts)\s?with|<)/.test(wildcardop)) wildcardbind = `${whatforbind}%`
+    else if (/^(?:ends\s?with|>=|>)/.test(wildcardop)) wildcardbind = `%${whatforbind}`
+    else if (/^(?:(?:begins|starts)\s?with|<=|<)/.test(wildcardop)) wildcardbind = `${whatforbind}%`
     else /*                        /^(?:is|=)/                */ wildcardbind = whatforbind
     // We've created our bind parameter for this token, now let's build the clause.
     let clause = '?'
@@ -329,36 +328,112 @@ export function getResultsDef (): SearchMappings {
     'domain': 'url',
     'subdomain': 'url',
     'hostname': 'url',
-    'broken': 'brokensince',
-    'brokensince': 'brokensince',
+    'broken': 'currency.broken',
+    'brokensince': 'currency.brokensince',
     'match words': 'entries.keywords',
     'keyphrase': 'entries.keywords',
     'aliases': 'entries.keywords',
     'keywords': 'entries.keywords',
+    'search': 'entries.keywords',
+    'query': 'entries.keywords',
     'mode': 'entries.mode',
     'type': 'entries.mode',
     'priority': 'entries.priority',
     'weight': 'entries.priority',
-    'search': 'query',
-    'query': 'query',
-    'hits': 'queries.count',
-    'count': 'queries.count'
+    'hits': 'entries.hitCountCached',
+    'count': 'entries.hitCountCached'
   }
-  const metas: SearchMetas<EnhancedTypes | AggOp> = {
+  const metas: SearchMetas<SearchPropDefaults> = {
     'title': 'string',
-    'tags': 'string',
+    'tags': { array: 'string' },
     'url': 'string',
-    'priority': 'number',
-    'brokensince': 'string',
-    'entries.keywords': { 'array': { 'keywords': 'string' } },
-    'entries.mode': { 'array': { 'mode': 'string' } },
-    'entries.priority': { 'array': { 'priority': 'number' } },
-    'queries.count': { 'array': 'count' },
-    'query': 'string'
+    'currency.broken': { object: 'boolean' },
+    'currency.brokensince': { object: 'date' },
+    'entries': { array: { object: 'object' } },
+    'entries.keywords': { array: { object: { array: 'string' } } },
+    'entries.mode': { array: { object: 'string' } },
+    'entries.priority': { array: { object: 'number' } },
+    'entries.hitCountCached': { array: { object: 'number' } }
   }
-  const defaults: string[] = ['title', 'url', 'tags', 'entries.keywords', 'entries.mode']
+  const opHash: Record<string, string> = {
+    ':': 'eq',
+    '=': 'eq',
+    'is': 'eq',
+    'contains': 'eq',
+    '<': 'lt',
+    '<=': 'lte',
+    'starts with': 'lte',
+    'startswith': 'lte',
+    '>': 'gt',
+    '>=': 'gte',
+    'ends with': 'gte',
+    'endswith': 'gte'
+  }
+  const defaults: string[] = ['title', 'tags', 'url', 'entries.keywords']
   return { hash, metas, defaults, fields: getFields(hash) } as const
 }
+
+function getFilterExpression (searchVal: string, type: NestedProp<SearchPropDefaults>, op?: string | undefined) {
+  if (!op || op === 'eq') { // Also `contains` on strings.
+    if (type === 'string') return { $regex: `/${searchVal}/`, $options: 'i' }
+    if (['number', 'bigint'].includes(type as string)) return { $eq: parseInt(searchVal) }
+    if (type === 'boolean') return Boolean(searchVal) // TODO: Think through and test how this would work in a real world search and defaults scenario.
+    if (type === 'date') return { $eq: new Date(searchVal) }
+  } else if (op === 'ne') {
+    if (type === 'string') return { $not: { $regex: `/${searchVal}/`, $options: 'i' } }
+    if (['number', 'bigint'].includes(type as string)) return { $ne: parseInt(searchVal) }
+    if (type === 'boolean') return Boolean(searchVal) // TODO: Think through and test how this would work in a real world search and defaults scenario.
+    if (type === 'date') return { $ne: new Date(searchVal) }
+  } else if (op === 'lt') { // Also `starts with` on strings.
+    if (type === 'string') return { $regex: `/^${searchVal}/`, $options: 'i' }
+    if (['number', 'bigint'].includes(type as string)) return { $lt: parseInt(searchVal) }
+    if (type === 'boolean') return Boolean(searchVal)
+    if (type === 'date') return { $lt: new Date(searchVal) }
+  } else if (op === 'lte') { // Also `starts with` on strings.
+    if (type === 'string') return { $regex: `^${searchVal}`, $options: 'i' }
+    if (['number', 'bigint'].includes(type as string)) return { $lte: parseInt(searchVal) }
+    if (type === 'boolean') return Boolean(searchVal)
+    if (type === 'date') return { $lte: new Date(searchVal) }
+  } else if (op === 'gt') { // Also `ends with` on strings.
+    if (type === 'string') return { $regex: `/${searchVal}$/`, $options: 'i' }
+    if (['number', 'bigint'].includes(type as string)) return { $gt: parseInt(searchVal) }
+    if (type === 'boolean') return Boolean(searchVal)
+    if (type === 'date') return { $gt: new Date(searchVal) }
+  } else if (op === 'gte') { // Also `ends with` on strings.
+    if (type === 'string') return { $regex: `/${searchVal}$/`, $options: 'i' }
+    if (['number', 'bigint'].includes(type as string)) return { $gte: parseInt(searchVal) }
+    if (type === 'boolean') return Boolean(searchVal)
+    if (type === 'date') return { $gte: new Date(searchVal) }
+  }
+  // Not doing $in or $nin at this level as there's no advanced search syntax equivalents for them.
+}
+
+/* function buildFilterDocument (tableDef: SearchMappings, alias: string, searchVal: string, op: string, sub?: { subType?: NestedProp<SearchPropDefaults>, subField?: string }) {
+  const fieldName = tableDef.hash[alias]
+  const fieldType = sub?.subType ?? tableDef.metas?.[fieldName]
+  if (!fieldType) {
+    console.error(`buildFilterDocument - fieldType not found for fieldName "${fieldName}" of alias "${alias}".`)
+    return
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    console.log(`buildFilterDocument - ${fieldName} - fieldType: ${typeof fieldType}, ${typeof fieldType === 'object' ? JSON.stringify(fieldType) : fieldType}`)
+  }
+  const filter: any = {}
+  if (typeof fieldType === 'object' && fieldType.array) {
+    if (typeof fieldType.array === 'object') { // Nested recurse
+      // recurse
+    } else {
+      filter[fieldName] = { $elemMatch: buildFilterDocument(tableDef, alias, searchVal, { subType: fieldType.array }) }
+    }
+  } else if (typeof fieldType === 'object' && fieldType.object) {
+    if (typeof fieldType.object === 'object') { // Nested recurse.
+    } else {
+      filter[fieldName] = { $eq: searchVal }
+    }
+  } else {
+    filter[fieldName] = getFilterExpression(searchVal, fieldType, tableDef.opHash?.[op])
+  }
+} */
 
 /** Returns an MQL `match` clause using `tableDef` and parsable `search` string as parameters.
  * @param {SearchMappings} tableDef - A utility object used to associate search aliases and defaults to table fields.
@@ -380,17 +455,7 @@ export function getMatchClause (tableDef: SearchMappings, search: string) {
   <   likeops   >  <     aliases      >  <                 wildcardops                       >   <<     \5     >      whatfor      >
   */
   const binds = []
-  // TODO: Need a way of differentiationg between numbers, strings, dates, arrays, and objects.
-  /* const arrays = tableDef.fields.reduce((acc, cur) => {
-    if (cur.includes('.')) {
-      const [field, subfield] = cur.split('.')
-      if (!acc[field]) acc[field] = []
-      acc[field].push(subfield)
-    }
-  }, []) */
-  const fieldAliases = getAliases(tableDef.hash).join('\b|')
-  // We need to break the RegEx down to interpolate the fieldAliases. While we're at it might as well tokenize
-  // the parts into their respective purposes for easier editing if we decide to change functionality.
+  const fieldAliases = getAliases(tableDef.hash).join('|')
   const aliases = new RegExp(`\\b(?<alias>${fieldAliases})\\b\\s*`) // Aliases that translate to fields we search.
   const parser = new RegExp(`(?:${likeops.source})?(?:${aliases.source + wildcardops.source})?${whatfors.source}[,;]?\\s*`, 'gi')
 
@@ -403,23 +468,8 @@ export function getMatchClause (tableDef: SearchMappings, search: string) {
     if (!alias) {
       // Build default match clause for whatforbind
       const filterObj: any = {}
-      for (const field of tableDef.defaults) {
-        const fieldName = tableDef.hash[field]
-        const fieldType = tableDef.metas?.[fieldName]
-        if (!fieldType) {
-          console.error(`helpers.getMatchClause - fieldType not found for fieldName "${fieldName}" of alias "${alias}".`)
-          continue
-        }
-        if (fieldType === 'string') filterObj[fieldName] = { $regex: `/${whatforbind}/`, $options: 'i' }
-        if (['number', 'bigint'].includes(fieldType as string)) filterObj[fieldName] = { $eq: parseInt(whatforbind) }
-        if (fieldType === 'boolean') filterObj[fieldName] = { $eq: whatforbind !== 'false' }
-        if (fieldType === 'array') {
-          filterObj[fieldName] = { $in: [whatforbind] }
-        }
-        if (fieldType === 'object') {
-          filterObj[fieldName] = { $eq: whatforbind }
-        }
-      }
+      // for (const field of tableDef.defaults) {
+      // }
       matchClause.push(filterObj)
       continue
     }

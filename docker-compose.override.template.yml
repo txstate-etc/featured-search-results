@@ -2,17 +2,24 @@ version: '3'
 services:
   search-featured-results:
     environment:
-      MOTION_TOKEN: <pull-from-ansible>
-      MYSQL_PASS: secret
-      WAREHOUSE_PASS: <pull-from-ansible>
-      PUBLIC_AUTH_BASE_URL: http://localhost:3001
-      # Below is optional and defaults to 'search-featured-results' if not defined in environment.
-      # PUBLIC_AUTH_CLIENT_ID: search-featured-results
+      # App's editor group, 'App-MWS-featured-search' is not setup in QUAL AD at this time.
+      EDITOR_GROUP_NAME: '$$staff-current'
       # JWT_SECRET: <pull-from-ansible or f-s-r-secrets file as FEATURED_SECRET>
       # When using real auth update the unified-auth url to the corresponding landscape's hostname and set the s-f-r secret to the above JWT_SECRET value.
       JWT_TRUSTED_ISSUERS: '[{ "iss": "unified-auth", "url": "http://fakeauth/jwks" }, { "iss": "search-featured-results", "secret": "localtoken" }]'
-      # App's editor group, 'App-MWS-featured-search' is not setup in QUAL AD at this time.
-      EDITOR_GROUP_NAME: '$$staff-current'
+      MOTION_TOKEN: <pull-from-ansible>
+      MYSQL_PASS: secret
+      PUBLIC_AUTH_BASE_URL: http://localhost:3001
+      # Below is optional and defaults to 'search-featured-results' if not defined in environment.
+      # PUBLIC_AUTH_CLIENT_ID: search-featured-results
+      WAREHOUSE_PASS: <pull-from-ansible>
+  search-featured-results-cron:
+    environment:
+      # Toggle the MOTION_TOKEN with comments to enable being able to hit Motion with the heavy people query any time you need to
+      # get fresh people results added to your local volume's test data.
+      # Otherwise ---- Leave it commented out to be considerate to Motion.
+      # MOTION_TOKEN: <pull-from-ansible>
+      MYSQL_PASS: secret
 networks:
   default:
     external:

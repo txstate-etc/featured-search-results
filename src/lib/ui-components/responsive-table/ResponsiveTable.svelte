@@ -1,5 +1,5 @@
 <script lang='ts' context='module'>
-  import { getType, type EnhancedTypes } from '$lib/util/helpers.js'
+  import { getType, type EnhancedType } from '$lib/util/helpers.js'
   import { htmlEncode } from 'txstate-utils'
   const sIconChars = {
     asc: '&#9661;', // &#9661; ▲
@@ -12,7 +12,7 @@
   const arithmeticTypes = new Set(['number', 'bigint', 'boolean'])
 
   export interface TableData extends Record<string, any> {}
-  export interface PropMeta { key: string, type: EnhancedTypes, shouldNest: boolean }
+  export interface PropMeta { key: string, type: EnhancedType, shouldNest: boolean }
 
   export interface GroupedMeta { groupIdx: number, rowspans: Record<string, number>, totalRowspan: number }
   export interface GroupedData { group: TableData[], grpMeta: GroupedMeta }
@@ -53,7 +53,7 @@
   /** Returns an array of { key, type, shouldNest } records that describe the properties of the `obj`. */
   function getMetaData (obj: any) {
     return Object.keys(obj).reduce<PropMeta[]>((wanted, key) => {
-      const type: EnhancedTypes = getType(obj[key])
+      const type: EnhancedType = getType(obj[key])
       if (!incompatibleTypes.has(type)) {
         const shouldNest = nestingDefaultTypes.has(type)
         wanted.push({ key, type, shouldNest })

@@ -8,17 +8,18 @@ services:
       NODE_ENV: development
       DB_HOST: mongodb
       EDITOR_GROUP_NAME: 'App-MWS-featured-search'
-      JWT_SECRET: mysecret
-      JWT_TRUSTED_ISSUERS: '[{ "iss": "unified-auth", "url": "http://fakeauth/jwks" }, { "iss": "search-featured-results", "secret": "localtoken" }]'
+      JWT_SECRET: set this in docker-compose.override.yml
+      JWT_TRUSTED_ISSUERS: set this in docker-compose.override.yml
       MOTION_URL: https://motion.tr.qual.txstate.edu/v2/api
       MOTION_TOKEN: set this in docker-compose.override.yml
       MYSQL_HOST: mysql
       MYSQL_DATABASE: peoplesearch
       MYSQL_PORT: 3306
-      MYSQL_PASS: secret
+      MYSQL_PASS: set this in docker-compose.override.yml
       ORIGIN: http://localhost
       PUBLIC_BASE_URL: http://localhost
       PUBLIC_AUTH_BASE_URL: http://localhost:3001
+      PUBLIC_AUTH_REDIRECT_URL: http://localhost:3001/login?clientId=search-featured-results
     volumes:
       - ./src:/usr/app/src
     ports:
@@ -38,7 +39,7 @@ services:
       MYSQL_HOST: mysql
       MYSQL_DATABASE: peoplesearch
       MYSQL_PORT: 3306
-      MYSQL_PASS: secret
+      MYSQL_PASS: set this in docker-compose.override.yml
     depends_on:
       - mongodb
       - mysql

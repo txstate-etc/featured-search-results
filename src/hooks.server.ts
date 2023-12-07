@@ -4,6 +4,7 @@ import { mongoConnect } from '$lib/util/mongo.js'
 import { motion } from '$lib/util/motion.js'
 import { building } from '$app/environment'
 import { base } from '$app/paths'
+import { isValidUrl } from './lib/util/helpers'
 
 if (!building) await mongoConnect()
 
@@ -21,6 +22,7 @@ const editorGroupCache = new Cache(async () => {
 
 const validOrigins = new Set(['txstate.edu', 'txst.edu', 'tsus.edu', 'tjctc.org'])
 const validAuthReferers = new Set([...validOrigins, 'duosecurity.com'])
+const allowedCorsEndpoints = /^\/(search|peoplesearch|counter|departments|linkcheck)\/?$/
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle ({ event, resolve }) {
@@ -62,24 +64,29 @@ export async function handle ({ event, resolve }) {
     }
   }
 
-  if (event.request.method === 'OPTIONS' && (
-    event.url.pathname.endsWith('/search') ||
-    event.url.pathname.endsWith('/peoplesearch') ||
-    event.url.pathname.endsWith('/counter')
-  )) {
-    const parsedOrigin = new URL(event.request.headers.get('origin') ?? '')
-    const originParts = parsedOrigin.hostname.split('.')
-    if (!validOrigins.has(originParts.slice(-2).join('.'))) return new Response()
+  // CORS preflight and simple request origin parsing and response headers.
+  const origin = event.request.headers.get('origin')
+  const parsedOrigin = isValidUrl(origin) ? new URL(origin as string | URL) : undefined
+  const originDomain = parsedOrigin?.hostname.split('.').slice(-2).join('.')
+  if (event.request.method === 'OPTIONS' && (allowedCorsEndpoints.test(event.url.pathname))) {
+    if (!validOrigins.has(originDomain ?? '')) return new Response()
 
     return new Response(null, {
       headers: {
-        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET',
-        'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Credentials': 'true', // <- Not compatible with 'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Origin': origin ?? '*',
+        'Access-Control-Max-Age': '60'
       }
     })
   }
 
   const response = await resolve(event)
+  if (validOrigins.has(originDomain ?? '')) {
+    // It's not enough to send the headers to the preflight request, we also have to send them to the simple request.
+    response.headers.set('Access-Control-Allow-Origin', origin ?? '*')
+    response.headers.set('Access-Control-Allow-Credentials', 'true')
+  }
   return response
 }
