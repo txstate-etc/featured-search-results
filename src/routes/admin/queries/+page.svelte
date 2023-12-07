@@ -12,7 +12,7 @@
     featured.search.qual.txstate.edu/search?q=bubba+hotep       */
 
   /** @type {import('./$types').PageData} */
-  export let data: { query: string, results: QueryBasic[] | undefined }
+  export let data: { query: string, results: QueryBasic[] | undefined, reloadHandle: string }
 
   const propsMetas: PropMeta[] = [
     { key: 'query', type: 'string', shouldNest: false },
@@ -42,7 +42,7 @@
 </script>
 
 <h1>Visitor Searches</h1>
-<SearchBar target={`${appBase}/queries`} search={data.query}/>
+<SearchBar target={`${appBase}/queries`} search={data.query} reloadHandle={data.reloadHandle}/>
 {#if data.results && data.results.length > 0}
   <div class='results-root-container'>
     <ResponsiveTable data={data.results} {propsMetas} {headingTexts} {transforms}/>

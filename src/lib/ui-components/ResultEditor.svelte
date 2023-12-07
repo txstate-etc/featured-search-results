@@ -95,6 +95,8 @@
   }
 
   async function validate (state: ResultState): Promise<Feedback[]> {
+    await store.setField('url', state.url?.toLowerCase())
+    state.url = state.url?.toLowerCase()
     const resp = await (await fetch(`${apiTarget.url}?${VALIDATE_ONLY}`, {
       method: apiTarget.method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state)
     })).json() as ({ result: Partial<ResultFull>, messages: Feedback[] } | { message: string })
@@ -115,8 +117,11 @@
   function tagsSerialize (value: string[]) {
     return value?.join(' ') ?? ''
   }
-  function tagsDeserialise (value: string) {
+  function tagsDeserialize (value: string) {
     return value?.split(/[, ]/) ?? []
+  }
+  function lowercaseSerialize (value: string) {
+    return value?.toLowerCase() ?? ''
   }
 
 
@@ -136,7 +141,7 @@
     <FieldText path='title' label='Display Title:' defaultValue={''} required/>
     <FeedbackLinks data={messages} path={equivTitlesRegex} targetURL={`${appURL}/results/`} pathKeys={['id', 'title']}
       buildPath={(found, keys) => found.id} preamble='Edit ' getText={(found, keys) => found.title} postscript="'s record."/>
-    <FieldText path='url' label='Target URL:' defaultValue={'https://'} required/>
+    <FieldText path='url' label='Target URL:' defaultValue={'https://'} required />
     <FeedbackLinks data={messages} path={equivUrlsRegex} targetURL={`${appURL}/results/`} pathKeys={['id', 'title']}
       buildPath={(found, keys) => found.id} preamble='Edit ' getText={(found, keys) => found.title} postscript="'s record."/>
     <!-- svelte-forms(entries[]) -->
@@ -164,13 +169,13 @@
         <Icon slot='removeBtnIcon' icon={deleteCircle} hiddenLabel='remove from list'/>
       </FieldMultiple>
     </div>
-    <FieldStandard path='tags' label='Administrative Tags:' defaultValue={''} serialize={tagsSerialize} deserialize={tagsDeserialise} let:value let:valid let:invalid let:id let:onBlur let:onChange let:messagesid let:helptextid>
+    <FieldStandard path='tags' label='Administrative Tags:' defaultValue={''} serialize={tagsSerialize} deserialize={tagsDeserialize} let:value let:valid let:invalid let:id let:onBlur let:onChange let:messagesid let:helptextid>
       <Input bind:inputelement={tagsinputelement} name='tags' {value} {id} class="dialog-input" {onChange} {onBlur} {valid} {invalid} {messagesid} {helptextid} ></Input>
     </FieldStandard>
   </div>
   {#if data?.id}<FieldHidden path='id' bind:value={data.id}/>{/if}
   <svelte:fragment slot='submit' let:saved let:submitting let:validating let:valid let:invalid let:messages>
-    <button class='submit-button' style={`--submit-context: '${submitContext}';`}
+    <button on:click class='submit-button' style={`--submit-context: '${submitContext}';`}
       class:validating class:submitting class:saved type='submit' disabled={!valid}>
       {#if submitting}Submitting...
       {:else if validating}Validating...

@@ -7,7 +7,7 @@
   import { DateTime } from 'luxon'
 
   /** @type {import('./$types').PageData} */
-  export let data: { query: string, results: ResultDocument[] | undefined }
+  export let data: { query: string, results: ResultDocument[] | undefined, reloadHandle: string }
 
   const propsMetas: PropMeta[] = [
     { key: 'title', type: 'string', shouldNest: false },
@@ -55,7 +55,7 @@
 </script>
 
 <h1>Featured Search Results</h1>
-<SearchBar target={`${appBase}/results`} search={data.query}/>
+<SearchBar target={`${appBase}/results`} search={data.query} reloadHandle={data.reloadHandle}/>
 {#if data.results && data.results.length > 0}
   <div class='results-root-container'>
     <ResponsiveTable data={data.results} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} />
