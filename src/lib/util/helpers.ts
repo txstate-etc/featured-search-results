@@ -1,5 +1,6 @@
 /* eslint-disable quote-props */
 import { isNotBlank } from 'txstate-utils'
+import * as devalue from 'devalue'
 
 /** Uses URL constructor to test if `urlString` is a value conformant to valid URL standards. */
 export function isValidUrl (urlString: string | undefined | null) {
@@ -14,7 +15,7 @@ export function isValidHttpUrl (urlString: string) {
   try { return /https?:/.test(new URL(urlString).protocol) } catch (e) { return false }
 }
 
-/* // Debugging fuctions
+// Debugging fuctions
 const interestHeaders = new Set(['.*', 'access-\\w+', 'connection', 'content-\\w+', 'host', 'origin', 'referer', 'x-\\w+', 'sec-fetch-\\w+'])
 const interestHeadersRegex = new RegExp(`^(${[...interestHeaders].join('|')})$`, 'i')
 export function parseHeaders (headers: Headers) {
@@ -69,7 +70,7 @@ export function logEvent (event: any) {
   console.table([{ title: 'Headers', ...parseHeaders(event.request.headers) }])
   logCookies(event.cookies.getAll())
   console.table([obj])
-} */
+}
 
 /** Used in `getUrlEquivalences` to build domain permutations based on the original domain. */
 const domainEqivalencies: Record<string, string[]> = {

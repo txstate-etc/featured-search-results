@@ -23,9 +23,9 @@ import { DateTime } from 'luxon'
 import mongoose from 'mongoose'
 const { Schema, models, model, Error } = mongoose
 import type { Model, Document, ObjectId } from 'mongoose'
-import mongoosePaginate from 'mongoose-paginate'
-// There's also: import mongoosePaginate from 'mongoose-paginate-v2'
+// import paginate from 'mongoose-paginate-v2'
 import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
+import * as devalue from 'devalue'
 import { getUrlEquivalencies, isValidHttpUrl, querysplit } from '../util/helpers.js'
 import type { Feedback } from '@txstate-mws/svelte-forms'
 
@@ -123,6 +123,9 @@ export interface IResult {
     tested: Date
     brokensince?: Date
     // isRedirect: boolean
+    conflictingUrls?: { id: string, url: string }[]
+    conflictingTitles?: { id: string, title: string }[]
+    conflictingMatchings?: { index: number, mode: ResultModes }[]
   }
   entries: IResultEntry[]
   tags: string[]
@@ -144,7 +147,10 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
   currency: {
     broken: Boolean,
     tested: Date,
-    brokensince: Date
+    brokensince: Date,
+    conflictingUrls: [{ id: Schema.Types.ObjectId, url: String }],
+    conflictingTitles: [{ id: Schema.Types.ObjectId, title: String }],
+    conflictingMatchings: [{ index: Number, mode: String }]
   },
   entries: [{
     keywords: {
@@ -171,7 +177,7 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
   }],
   tags: { type: [String], lowercase: true }
 })
-ResultSchema.plugin(mongoosePaginate)
+// ResultSchema.plugin(paginate)
 
 ResultSchema.index({ 'entries.keywords': 1 })
 ResultSchema.index({ 'currency.tested': 1 })
@@ -253,7 +259,6 @@ ResultSchema.methods.match = function (words: string[], wordset: Set<string>, wo
   }
   return undefined
 }
-
 export interface RawJsonResult {
   url: string
   title: string
@@ -295,7 +300,7 @@ ResultSchema.methods.hasEntry = function (entry: IResultEntry) {
 ResultSchema.methods.hasTag = function (tag: string) {
   return this.tags.includes(tag)
 }
-function findDuplicateResultMatchings (entries: IResultEntry[]) {
+function findDuplicateMatchings (entries: IResultEntry[]) {
   const exacts = new Set<string>()
   const keywords = new Set<string>()
   const phrases = new Set<string>()
@@ -321,7 +326,7 @@ ResultSchema.methods.valid = function () {
     )
     : []
   // Additional entries validation external to Model until we can create entriesSchema to apply nest-wide validator to.
-  resp.push(...findDuplicateResultMatchings(this.entries).map<Feedback>(dup =>
+  resp.push(...findDuplicateMatchings(this.entries).map<Feedback>(dup =>
     ({ type: 'error', path: `entries.${dup.index}.keywords`, message: `Duplicate ${dup.mode} terms.` })
   ))
   return resp
@@ -350,7 +355,21 @@ ResultSchema.statics.findByUrl = async function (url: string) {
   return this.find({ url: { $in: equivalencies } })
 }
 ResultSchema.methods.currencyTest = async function () {
+  // Test currency of duplicate url validation.
+  const dupUrls = await Result.findByUrl(this.url)
+  if (dupUrls && dupUrls.length > 0) {
+    this.currency.conflictingUrls = dupUrls.map((r: any) => { return { id: r.id, url: r.url } }).filter((r: any) => r.id !== this.id)
+  } else if (this.currency.conflictingUrls) delete this.currency.conflictingUrls
+  // Test currency of duplicate title validation.
+  const dupTitles = await Result.find({ title: this.title })
+  if (dupTitles && dupTitles.length > 0) {
+    this.currency.conflictingTitles = dupTitles.map((r: any) => { return { id: r.id, title: r.title } }).filter((r: any) => r.id !== this.id)
+  } else if (this.currency.conflictingTitles) delete this.currency.conflictingTitles
+  // Test currency of duplicate term:type matchings validation.
+  this.currency.conflictingMatchings = findDuplicateMatchings(this.entries)
+  if (this.currency.conflictingMatchings.length === 0) delete this.currency.conflictingMatchings
   try {
+    // Test currency of url domain migration.
     let alreadypassed = false
     const parsedUrl = new URL(this.url)
     if (parsedUrl.hostname.endsWith('txstate.edu')) {

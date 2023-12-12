@@ -82,7 +82,7 @@
   }
 
   let store: FormStore<ResultState>
-  let tagsinputelement: HTMLInputElement = undefined as any
+  let tagsInputElement: HTMLInputElement = undefined as any
 
   async function submit (state: ResultState): Promise<SubmitResponse<ResultState>> {
     /* TODO:
@@ -136,7 +136,6 @@
   @component
   TODO: Add reference description for component that's displayed in VSCode editors.
 -->
-
 <Form bind:store name='result' {submit} {validate} {preload} let:saved let:messages>
   <div class='result-form'>
     <FieldText path='title' label='Display Title:' defaultValue={''} required/>
@@ -164,14 +163,14 @@
             <FieldSelect path='mode' label='Type:' notNull defaultValue={'keyword'} {choices} required />
           </span>
           <span data-tooltip={priorityTooltip} class={index === 0 ? 'tooltip-shown tooltipped' : 'tooltipped'}>
-            <FieldNumber path='priority' label='Weight:' defaultValue={50} step={10} required/>
+            <FieldNumber path='priority' label='Weight:' defaultValue={50} required/>
           </span>
         </div>
         <Icon slot='removeBtnIcon' icon={deleteCircle} hiddenLabel='remove from list'/>
       </FieldMultiple>
     </div>
     <FieldStandard path='tags' label='Administrative Tags:' defaultValue={''} serialize={tagsSerialize} deserialize={tagsDeserialize} let:value let:valid let:invalid let:id let:onBlur let:onChange let:messagesid let:helptextid>
-      <Input bind:inputelement={tagsinputelement} name='tags' {value} {id} class="dialog-input" {onChange} {onBlur} {valid} {invalid} {messagesid} {helptextid} ></Input>
+      <Input bind:inputelement={tagsInputElement} name='tags' {value} {id} class="dialog-input" {onChange} {onBlur} {valid} {invalid} {messagesid} {helptextid} ></Input>
     </FieldStandard>
   </div>
   {#if data?.id}<FieldHidden path='id' bind:value={data.id}/>{/if}

@@ -33,7 +33,8 @@
             </div>`
         }).join('')
       }
-      return ''
+      // eslint-disable-next-line no-useless-escape
+      return `No results match this query. <button class='create-result-button' onclick=window.open('${appBase}/results/create?forQuery=${record.query}','_blank')>Create Result</button>`
     },
     lasthit: (value, record) => {
       return DateTime.fromISO(value).toRelative() ?? ''
@@ -58,6 +59,16 @@
 -->
 
 <style>
+  :global(.create-result-button) {
+    padding: 0.6rem;
+    border: var(--submit-button-border);
+    border-radius: var(--submit-button-radius);
+    background-color: var(--dg-button-bg);
+    color: var(--dg-button-text);
+    cursor: pointer;
+    align-items: center;
+    line-height: 0.7;
+  }
   .results-root-container {
     margin-top: var(--element-container-spacing);
     margin-bottom: var(--element-container-spacing);

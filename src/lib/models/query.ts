@@ -18,21 +18,14 @@
  * Query `hits` that are older than 6 months are removed from all Query documents every 27 minutes.
  * If any Query documents end up with empty `hits` arrays as a result - they are deleted.
  */
-import pkg from 'mongoose'
-const { model, models, deleteModel } = pkg
-import { Schema, type Model, type Document, type ObjectId } from 'mongoose'
 import { DateTime } from 'luxon'
+import mongoose from 'mongoose'
+const { Schema, models, model, deleteModel } = mongoose
+import type { Model, Document, ObjectId } from 'mongoose'
+// import paginate from 'mongoose-paginate-v2'
 import { isBlank, keyby, unique } from 'txstate-utils'
 import { type ResultDocument, type ResultBasicPlusId, entryMatch } from './result.js'
 import { querysplit } from '../util/helpers.js'
-
-interface IQuery {
-  query: string
-  hits: Date[]
-  results: Schema.Types.ObjectId[]
-  hitcount: number
-  lasthit: Date | undefined
-}
 
 export interface QueryBasic {
   /** The string that makes this query. */
@@ -44,7 +37,6 @@ export interface QueryBasic {
   /** Reference array to all basic Results, with their `id`, this query matches to. */
   results: ResultBasicPlusId[]
 }
-
 interface IQueryMethods {
 /** Returns a basic `Query` record object including:
  * * `query` - the search query string
@@ -53,8 +45,16 @@ interface IQueryMethods {
  * * `results` - an array of corresponding basicPlusId `Result` objects. */
   basic: () => QueryBasic
 }
+interface IQuery {
+  query: string
+  hitcount: number
+  hits: Date[]
+  lasthit: Date
+  results: ObjectId[]
+}
 
 export type QueryDocument = Document<ObjectId> & IQuery & IQueryMethods
+// export interface QueryDocument extends Document, IQuery, IQueryMethods {}
 export type QueryDocumentWithResults = QueryDocument & { results: ResultDocument[] }
 
 interface QueryModel extends Model<IQuery, any, IQueryMethods> {
@@ -74,12 +74,14 @@ interface QueryModel extends Model<IQuery, any, IQueryMethods> {
 }
 
 const QuerySchema = new Schema<IQuery, QueryModel, IQueryMethods>({
-  query: { type: String, unique: true },
-  hits: [Date],
-  results: [{ type: Schema.Types.ObjectId, ref: 'Result' }],
-  hitcount: Number,
-  lasthit: Date
+  query: { type: String, unique: true, required: true },
+  hits: [{ type: Date, default: [] }],
+  hitcount: { type: Number },
+  lasthit: { type: Date },
+  results: [{ type: Schema.Types.ObjectId, ref: 'Result' }]
 })
+// QuerySchema.plugin(paginate)
+
 QuerySchema.index({ query: 1 })
 // we always push later dates on the end of hits, so hits[0] is the minimum and the
 // only index we need - luckily mongo supports this with dot notation
@@ -93,12 +95,10 @@ QuerySchema.methods.basic = function () {
     results: (this.results as unknown as ResultDocument[]).map((result: ResultDocument) => result.basicPlusId())
   }
 }
-
 QuerySchema.statics.record = async function (query: string, results: ResultDocument[]) {
   if (isBlank(query)) return
   await Query.findOneAndUpdate({ query: query.toLowerCase().replace(/[^\w-]+/g, ' ').trim() }, { $set: { results }, $push: { hits: new Date() } }, { upsert: true }).exec()
 }
-
 QuerySchema.statics.getAllQueries = async function () {
   const queries = (await Query.aggregate([
     {
@@ -114,7 +114,6 @@ QuerySchema.statics.getAllQueries = async function () {
   ])).map(q => new Query(q))
   return await Query.populate(queries, 'results')
 }
-
 QuerySchema.statics.cleanup = async function () {
   console.info('Running Query.cleanup.')
   const expires = DateTime.local().minus({ months: 6 }).toJSDate()
@@ -127,7 +126,6 @@ QuerySchema.statics.cleanup = async function () {
   await Query.updateHitCounts()
   console.info('Finished Query.cleanup.')
 }
-
 QuerySchema.statics.updateHitCounts = async function () {
   const queries = await this.getAllQueries()
   const Result = model('Result')
@@ -181,7 +179,6 @@ QuerySchema.statics.updateHitCounts = async function () {
   }
   await Result.bulkWrite(ops)
 }
-
 QuerySchema.statics.cleanupLoop = async function () {
   try {
     await Query.cleanup()
