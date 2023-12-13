@@ -12,7 +12,7 @@
   const arithmeticTypes = new Set(['number', 'bigint', 'boolean'])
 
   export interface TableData extends Record<string, any> {}
-  export interface PropMeta { key: string, type: EnhancedType, shouldNest: boolean }
+  export interface PropMeta { key: string, type: EnhancedType, sortable?: boolean, shouldNest?: boolean }
 
   export interface GroupedMeta { groupIdx: number, rowspans: Record<string, number>, totalRowspan: number }
   export interface GroupedData { group: TableData[], grpMeta: GroupedMeta }
@@ -56,7 +56,7 @@
       const type: EnhancedType = getType(obj[key])
       if (!incompatibleTypes.has(type)) {
         const shouldNest = nestingDefaultTypes.has(type)
-        wanted.push({ key, type, shouldNest })
+        wanted.push({ key, type, shouldNest, sortable: true })
       }
       return wanted
     }, [])
@@ -309,33 +309,43 @@
       {#if plainMetas.length}
         <tr class:bottom-heading-row={nestedMetas.length === 0}>
           {#each plainMetas as plainHead}
-            <th id={plainHead.key}
-              aria-sort={plainHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}>
-              <button class='column-header' on:click={async () => { await sortByHeading(plainHead) }}>
-                {getHeadingText(plainHead.key)}
-                <slot name='sortIcons' {ascending} {selectedHeading} key={plainHead.key}>
-                  <div hidden={plainHead.key !== selectedHeading} class='order-icon'>{@html ascending ? sIconChars.asc : sIconChars.desc}</div>
-                  <div hidden={plainHead.key === selectedHeading} class='order-icon'>{@html sIconChars.none}</div>
-                </slot>
-              </button>
-            </th>
+            {#if plainHead.sortable}
+              <th id={plainHead.key}
+                aria-sort={plainHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}>
+                <button class='sortable-column-header' on:click={async () => { await sortByHeading(plainHead) }}>
+                  {getHeadingText(plainHead.key)}
+                  <slot name='sortIcons' {ascending} {selectedHeading} key={plainHead.key}>
+                    <div hidden={plainHead.key !== selectedHeading} class='order-icon'>{@html ascending ? sIconChars.asc : sIconChars.desc}</div>
+                    <div hidden={plainHead.key === selectedHeading} class='order-icon'>{@html sIconChars.none}</div>
+                  </slot>
+                </button>
+              </th>
+            {:else}
+              <th id={plainHead.key} class='column-header' aria-sort='none'>{getHeadingText(plainHead.key)}</th>
+            {/if}
           {/each}
         </tr>
       {/if}
       {#each nestedMetas as nestedHead}
         <tr class:bottom-heading-row={isBottomProp(nestedHead.key)}>
-          <th id={nestedHead.key}
-            class:nested-container={true}
-            colspan={plainMetas.length > 0 ? plainMetas.length : 1}
-            aria-sort={nestedHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}>
-            <button class='column-header' on:click={async () => { await sortByHeading(nestedHead) }}>
+          {#if nestedHead.sortable}
+            <th id={nestedHead.key}
+              class:nested-container={true}
+              colspan={plainMetas.length > 0 ? plainMetas.length : 1}
+              aria-sort={nestedHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}>
+              <button class='sortable-column-header' on:click={async () => { await sortByHeading(nestedHead) }}>
+                {getHeadingText(nestedHead.key)}
+                <slot name='sortIcons' {ascending} {selectedHeading} key={nestedHead.key}>
+                  <span hidden={nestedHead.key !== selectedHeading} class:order-icon={true}>{@html ascending ? sIconChars.asc : sIconChars.desc}</span>
+                  <span hidden={nestedHead.key === selectedHeading} class='order-icon'>{@html sIconChars.none}</span>
+                </slot>
+              </button>
+            </th>
+          {:else}
+            <th id={nestedHead.key} class:nested-container={true} class='column-header' aria-sort='none' colspan={plainMetas.length > 0 ? plainMetas.length : 1}>
               {getHeadingText(nestedHead.key)}
-              <slot name='sortIcons' {ascending} {selectedHeading} key={nestedHead.key}>
-                <span hidden={nestedHead.key !== selectedHeading} class:order-icon={true}>{@html ascending ? sIconChars.asc : sIconChars.desc}</span>
-                <span hidden={nestedHead.key === selectedHeading} class='order-icon'>{@html sIconChars.none}</span>
-              </slot>
-            </button>
-          </th>
+            </th>
+          {/if}
         </tr>
       {/each}
     </thead>
@@ -459,7 +469,7 @@
 {/if}
 
 <style>
-  .column-header {
+  .sortable-column-header {
     display: flex;
     flex-direction: row;
     /* justify-content: space-between; */
@@ -470,7 +480,14 @@
     background: none;
     padding: 0rem;
     color: var(--table-header-text);
-    font-weight: 700;
+    font-size: inherit;
+  }
+  .column-header {
+    padding-top: 0.5rem;
+    align-items: center;
+    text-transform: capitalize;
+    color: var(--table-header-text);
+    font-size: inherit;
   }
   .bottom-heading-row {
     border-bottom: var(--dialog-container-border ,1px solid hsl(0 0% 0% / 0.6));
@@ -541,11 +558,8 @@
   td:not(.spansrows) {
     border-bottom: 1px solid hsl(0 0% 0% / 0.1);
   }
-  tbody > tr:first-child > td:not(.spansrows) {
-    border-top: 1px solid hsl(0 0% 0% / 0.2);
-  }
   tbody > tr:last-child > td:not(.spansrows) {
-    border-bottom: 1px solid hsl(0 0% 0% / 0.2);
+    border-bottom: inherit;
   }
   @media (max-width: 650px) {
     th {

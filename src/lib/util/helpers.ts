@@ -16,11 +16,11 @@ export function isValidHttpUrl (urlString: string) {
 }
 
 // Debugging fuctions
-const interestHeaders = new Set(['.*', 'access-\\w+', 'connection', 'content-\\w+', 'host', 'origin', 'referer', 'x-\\w+', 'sec-fetch-\\w+'])
-const interestHeadersRegex = new RegExp(`^(${[...interestHeaders].join('|')})$`, 'i')
+const excludeHeaders = new Set(['cookie'])
+const excludeHeadersRegex = new RegExp(`^(${[...excludeHeaders].join('|')})$`, 'i')
 export function parseHeaders (headers: Headers) {
   const obj: Record<string, string> = {}
-  headers.forEach((value, key) => { if (interestHeadersRegex.test(key)) obj[key] = value })
+  headers.forEach((value, key) => { if (!excludeHeadersRegex.test(key)) obj[key] = value })
   return obj
 }
 export function logCookies (cookies: { name: string, value: string }[] | undefined | []) {

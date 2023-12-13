@@ -15,6 +15,7 @@
 	},
 	"dependencies": {
 		"@dosgato/dialog": "^1.0.8",
+		"@fontsource/roboto": "^5.0.8",
 		"@txstate-mws/svelte-store": "^1.0.8",
 		"axios": "^1.5.1",
 		"cron": "^3.1.6",

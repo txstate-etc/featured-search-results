@@ -60,6 +60,20 @@ export async function PUT ({ params, url, request, locals }) {
   if (!result) return json({ result: undefined, messages })
 
   result.fromPartialJson(body)
+  const existingResultUrls: ResultDocument[] | undefined = (await Result.findByUrl(result.url)).filter(r => r.id !== result.id)
+  if (existingResultUrls && existingResultUrls.length > 0) {
+    messages.push(...existingResultUrls.map(r => {
+      // messages.push({ type: MessageType.ERROR, path: 'url', message: 'This URL is equivalent to existing Result records.' })
+      return { type: MessageType.WARNING, path: `equivalent.url.${r.id}.${r.title}`, message: `URL is equivalent to ${r.title}'s URL.` }
+    }))
+  }
+  const existingResultTitles: ResultDocument[] | undefined = (await Result.find({ title: result.title }) as ResultDocument[]).filter(r => r.id !== result.id)
+  if (existingResultTitles && existingResultTitles.length > 0) {
+    messages.push(...existingResultTitles.map(r => {
+      // messages.push({ type: MessageType.ERROR, path: 'title', message: 'This Title is equivalent to existing Result records.' })
+      return { type: MessageType.WARNING, path: `equivalent.title.${r.id}.${r.title}`, message: `Title is equivalent to ${r.title}'s Title.` }
+    }))
+  }
   messages.push(...result.valid())
   if (!isValidation) {
     if (messages.length === 0) {

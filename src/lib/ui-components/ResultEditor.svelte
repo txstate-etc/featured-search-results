@@ -194,7 +194,7 @@
   .tooltip-shown::before { /* Text */
     content: attr(data-tooltip);
     text-align: center;
-    font-size: medium;
+    font-size: 0.9rem;
     white-space: pre-wrap;
     width: max-content;
     max-width: 200%;

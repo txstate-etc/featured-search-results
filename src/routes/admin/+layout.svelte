@@ -1,6 +1,7 @@
 <script lang="ts">
   import { afterNavigate, goto } from '$app/navigation'
   import { apiBase, appBase, type ClientAuth } from '$lib/util/globals'
+  import '@fontsource/roboto'
 
   export let data: ClientAuth
 
@@ -55,12 +56,13 @@
 
 <style>
   :global(html, body) {
-    font-family: 'Roboto variant0';
+    font-family: 'Roboto';
     display: flex;
     flex-direction: column;
     margin: 0;
     height: 100%;
     min-height: 100%;
+    font-size: 0.95rem;
     /*font-size: 62.5%;*/
 
     --colors-white: #fff;
@@ -123,7 +125,7 @@
   main {
     flex-grow: 1;
     margin: auto;
-    width: 60%;
+    width: 90%;
   }
   main :global(h1) {
     text-align: center;

@@ -15,10 +15,10 @@
   export let data: { query: string, results: QueryBasic[] | undefined, reloadHandle: string }
 
   const propsMetas: PropMeta[] = [
-    { key: 'query', type: 'string', shouldNest: false },
-    { key: 'hits', type: 'number', shouldNest: false },
-    { key: 'lasthit', type: 'string', shouldNest: false },
-    { key: 'results', type: 'string', shouldNest: false }
+    { key: 'query', type: 'string', sortable: true },
+    { key: 'hits', type: 'number', sortable: true },
+    { key: 'lasthit', type: 'string', sortable: true },
+    { key: 'results', type: 'string' }
   ]
   const headingTexts: HeadingTexts = {
     lasthit: 'Last Hit'

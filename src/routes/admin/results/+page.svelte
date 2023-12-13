@@ -10,13 +10,13 @@
   export let data: { query: string, results: ResultDocument[] | undefined, reloadHandle: string }
 
   const propsMetas: PropMeta[] = [
-    { key: 'title', type: 'string', shouldNest: false },
-    { key: 'priority', type: 'number', shouldNest: false },
-    { key: 'keyphrase', type: 'string', shouldNest: false },
-    { key: 'mode', type: 'string', shouldNest: false },
-    { key: 'count', type: 'number', shouldNest: false },
-    { key: 'tags', type: 'string', shouldNest: false },
-    { key: 'brokensince', type: 'string', shouldNest: false }
+    { key: 'title', type: 'string', sortable: true },
+    { key: 'priority', type: 'number' },
+    { key: 'keyphrase', type: 'string' },
+    { key: 'mode', type: 'string' },
+    { key: 'count', type: 'number' },
+    { key: 'tags', type: 'string', sortable: true },
+    { key: 'brokensince', type: 'string', sortable: true }
   ]
   const headingTexts: HeadingTexts = {
     title: 'Page Name',
@@ -71,6 +71,11 @@
 -->
 
 <style>
+  :global(tbody > tr > td) {
+    /* Limit the width of the Page Name column. */
+    max-width: 14rem;
+    overflow-wrap: break-word;
+  }
   .results-root-container {
     margin-top: var(--element-container-spacing);
     margin-bottom: var(--element-container-spacing);
