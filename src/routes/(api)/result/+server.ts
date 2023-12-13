@@ -22,9 +22,9 @@ export async function POST ({ url, locals, request }) {
   }
   const existingResultTitles: ResultDocument[] | undefined = await Result.find({ title: postedResult.title })
   if (existingResultTitles && existingResultTitles.length > 0) {
-    messages.push({ type: MessageType.ERROR, path: 'title', message: 'This Title is equivalent to existing Result records.' })
+    messages.push({ type: MessageType.ERROR, path: 'title', message: 'This Title is the same as existing Result records.' })
     messages.push(...existingResultTitles.map(r => {
-      return { type: MessageType.WARNING, path: `equivalent.title.${r.id}.${r.title}`, message: `Title is equivalent to ${r.title}'s Title.` }
+      return { type: MessageType.WARNING, path: `equivalent.title.${r.id}.${r.title}`, message: `Title is the same as ${r.title}'s Title.` }
     }))
   }
   messages.push(...postedResult.valid())

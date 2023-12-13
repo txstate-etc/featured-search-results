@@ -44,7 +44,7 @@
 {#if targetParams.length > 0}
   <div class='feedback-links'>
     {#each targetParams as target}
-      {preamble}<a href='{`${targetURL}${buildPath(target, pathKeys)}`}' target='_blank'>{getText(target, pathKeys)}</a>{postscript}
+      {preamble}<a href='{`${targetURL}${buildPath(target, pathKeys)}`}' target='_blank'>{getText(target, pathKeys)}</a>{postscript}<br>
     {/each}
   </div>
 {/if}

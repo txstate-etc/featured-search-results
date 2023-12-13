@@ -329,6 +329,8 @@ ResultSchema.methods.valid = function () {
   resp.push(...findDuplicateMatchings(this.entries).map<Feedback>(dup =>
     ({ type: 'error', path: `entries.${dup.index}.keywords`, message: `Duplicate ${dup.mode} terms.` })
   ))
+  // Additional warning validation on http instead of https URL.
+  if (/^http:/i.test(this.url)) resp.push({ type: 'warning', path: 'url', message: "URL is using 'http:' not 'https:'" })
   return resp
 }
 ResultSchema.statics.getByQuery = async function (words: string[]) {
