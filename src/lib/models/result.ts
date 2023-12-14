@@ -278,8 +278,8 @@ export interface TemplateResult extends Partial<RawJsonResult> {
   id?: string
 }
 ResultSchema.methods.fromPartialJson = function (input: TemplateResult) {
-  this.url = input.url?.trim() as string
-  this.title = input.title?.trim() as string
+  this.url = input.url?.trim() ?? ''
+  this.title = input.title?.trim() ?? ''
   this.tags = []
   this.entries = []
   for (const entry of sortby(input.entries ?? [], 'priority', true)) {

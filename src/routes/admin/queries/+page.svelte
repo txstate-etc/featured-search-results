@@ -35,7 +35,6 @@
             </div>`
         }).join('')
       }
-      // eslint-disable-next-line no-useless-escape
       return `No results match this query. <button class='create-result-button' onclick=window.open('${appBase}/results/create?forQuery=${htmlEncode(querysplit(record.query).join('%20'))}','_blank')>Create Result</button>`
     },
     lasthit: (value, record) => {

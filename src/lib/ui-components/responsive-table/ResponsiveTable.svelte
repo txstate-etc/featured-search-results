@@ -51,7 +51,7 @@
   }
 
   /** Returns an array of { key, type, shouldNest } records that describe the properties of the `obj`. */
-  function getMetaData (obj: any) {
+  function getMetaData (obj: Record<string, any>) {
     return Object.keys(obj).reduce<PropMeta[]>((wanted, key) => {
       const type: EnhancedType = getType(obj[key])
       if (!incompatibleTypes.has(type)) {
@@ -75,7 +75,7 @@
    * record's context to the original record is provided by returning an array of `GroupedData` records each consisting of
    * a property `group` that is an array of the interpolated records generated from the source record of the group and an
    * additional property of `grpMeta` that includes rowspanning information. */
-  function interpolateSpanning (data: any, subrowMetas: PropMeta[]) {
+  function interpolateSpanning (data: any[], subrowMetas: PropMeta[]) {
     const groupItr = Object.values(data)
     const interpolated = subrowMetas.reduce((interpolate, meta) => {
       if (meta.type === 'array') {
@@ -181,7 +181,7 @@
   * Non-object array elements are encoded to escape any reserved HTML characters.
   * For everything else that doesn't have a custom transformation supplied it encodes the output to escape reserved HTML
   * characters. */
-  const format: (meta: PropMeta, record: any, idx?: number) => string = (meta: PropMeta, record: any, idx?: number) => {
+  function format (meta: PropMeta, record: any, idx?: number): string {
     const obj = idx ? record[meta.key][idx] : record[meta.key]
     if (!obj) return ''
     if (transforms?.[meta.key]) return transforms[meta.key](obj, record)
@@ -195,7 +195,7 @@
               }).join('')
             }
           </div>`
-      } else if (meta.type === 'array' && !idx) { // array - iterate elements to recurse
+      } else if (meta.type === 'array') { // array - iterate elements to recurse
         return `
           <div style='padding-left: 0.4rem' class='sub-array'>
             ${obj.map((e: any) => {
@@ -204,13 +204,11 @@
               }).join('')
             }
           </div>`
-      } else if (meta.type === 'array') { // array element
-        // return `Element: ${htmlEncode(obj)}`
-        return ''
       }
     }
-    // All other single-value types.
-    return htmlEncode(obj)
+    // All other simpleton types.
+    if (/^(?:string|number|boolean)$/.test(typeof obj) || obj instanceof Date) return htmlEncode(obj as string | number | boolean | Date)
+    return ''
   }
 
   const nestingKeys = new Set(nesting ? getNestingKeys(data) : [])
