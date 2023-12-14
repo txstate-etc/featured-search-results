@@ -1,6 +1,5 @@
 /* eslint-disable quote-props */
 import { isNotBlank } from 'txstate-utils'
-import * as devalue from 'devalue'
 
 /** Uses URL constructor to test if `urlString` is a value conformant to valid URL standards. */
 export function isValidUrl (urlString: string | undefined | null) {

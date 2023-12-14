@@ -25,12 +25,17 @@ const { Schema, models, model, Error } = mongoose
 import type { Model, Document, ObjectId } from 'mongoose'
 // import paginate from 'mongoose-paginate-v2'
 import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
-import * as devalue from 'devalue'
 import { getUrlEquivalencies, isValidHttpUrl, querysplit } from '../util/helpers.js'
+import { MessageType } from '@txstate-mws/svelte-forms'
 import type { Feedback } from '@txstate-mws/svelte-forms'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
-const matchingModes = ['keyword', 'phrase', 'exact']
+const matchModes = ['keyword', 'phrase', 'exact']
+const matchModesToString = new Map<ResultModes, string>([
+  ['keyword', 'Keyword'],
+  ['phrase', 'Phrase'],
+  ['exact', 'Exact']
+])
 
 export interface ResultEntry {
   /** Space delimited list of words to associate with the URL based on the `mode`. */
@@ -167,7 +172,7 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
     mode: {
       type: String,
       enum: {
-        values: matchingModes,
+        values: matchModes,
         message: '{VALUE} is not an option.'
       },
       required: [true, 'Required.']
@@ -322,15 +327,15 @@ ResultSchema.methods.valid = function () {
   const validation: mongoose.Error.ValidationError | null = this.validateSync()
   const resp: Feedback[] = validation
     ? Object.keys(validation.errors).filter(key => validation.errors[key].name !== 'CastError').map(key =>
-      ({ type: 'error', path: key, message: (validation.errors[key] as mongoose.Error.ValidatorError).properties.message })
+      ({ type: MessageType.ERROR, path: key, message: (validation.errors[key] as mongoose.Error.ValidatorError).properties.message })
     )
     : []
   // Additional entries validation external to Model until we can create entriesSchema to apply nest-wide validator to.
-  resp.push(...findDuplicateMatchings(this.entries).map<Feedback>(dup =>
-    ({ type: 'error', path: `entries.${dup.index}.keywords`, message: `Duplicate ${dup.mode} terms.` })
-  ))
+  resp.push(...findDuplicateMatchings(this.entries).map<Feedback>(dup => {
+    return { type: MessageType.ERROR, path: `entries.${dup.index}.keywords`, message: `Duplicate Terms for ${matchModesToString.get(dup.mode)} Type.` }
+  }))
   // Additional warning validation on http instead of https URL.
-  if (/^http:/i.test(this.url)) resp.push({ type: 'warning', path: 'url', message: "URL is using 'http:' not 'https:'" })
+  if (/^http:/i.test(this.url)) resp.push({ type: MessageType.WARNING, path: 'url', message: "URL is using 'http:' not 'https:'" })
   return resp
 }
 ResultSchema.statics.getByQuery = async function (words: string[]) {

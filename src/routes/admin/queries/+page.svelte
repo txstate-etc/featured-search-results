@@ -6,6 +6,8 @@
   import type { QueryBasic } from '$lib/models/query'
   import type { ResultBasicPlusId } from '$lib/models/result'
   import { DateTime } from 'luxon'
+  import { htmlEncode } from 'txstate-utils'
+  import { querysplit } from '$lib/util/helpers'
 
   /* TODO: Run queries against the api to generate queries to search for.
     localhost/search?q=texas+state
@@ -34,7 +36,7 @@
         }).join('')
       }
       // eslint-disable-next-line no-useless-escape
-      return `No results match this query. <button class='create-result-button' onclick=window.open('${appBase}/results/create?forQuery=${record.query}','_blank')>Create Result</button>`
+      return `No results match this query. <button class='create-result-button' onclick=window.open('${appBase}/results/create?forQuery=${htmlEncode(querysplit(record.query).join('%20'))}','_blank')>Create Result</button>`
     },
     lasthit: (value, record) => {
       return DateTime.fromISO(value).toRelative() ?? ''
