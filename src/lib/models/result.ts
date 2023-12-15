@@ -26,7 +26,6 @@ import type { Model, Document, ObjectId } from 'mongoose'
 // import paginate from 'mongoose-paginate-v2'
 import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
 import { getUrlEquivalencies, isValidHttpUrl, querysplit } from '../util/helpers.js'
-import { MessageType } from '@txstate-mws/svelte-forms'
 import type { Feedback } from '@txstate-mws/svelte-forms'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
@@ -327,15 +326,15 @@ ResultSchema.methods.valid = function () {
   const validation: mongoose.Error.ValidationError | null = this.validateSync()
   const resp: Feedback[] = validation
     ? Object.keys(validation.errors).filter(key => validation.errors[key].name !== 'CastError').map(key =>
-      ({ type: MessageType.ERROR, path: key, message: (validation.errors[key] as mongoose.Error.ValidatorError).properties.message })
+      ({ type: 'error', path: key, message: (validation.errors[key] as mongoose.Error.ValidatorError).properties.message })
     )
     : []
   // Additional entries validation external to Model until we can create entriesSchema to apply nest-wide validator to.
   resp.push(...findDuplicateMatchings(this.entries).map<Feedback>(dup => {
-    return { type: MessageType.ERROR, path: `entries.${dup.index}.keywords`, message: `Duplicate Terms for ${matchModesToString.get(dup.mode)} Type.` }
+    return { type: 'error', path: `entries.${dup.index}.keywords`, message: `Duplicate Terms for ${matchModesToString.get(dup.mode)} Type.` }
   }))
   // Additional warning validation on http instead of https URL.
-  if (/^http:/i.test(this.url)) resp.push({ type: MessageType.WARNING, path: 'url', message: "URL is using 'http:' not 'https:'" })
+  if (/^http:/i.test(this.url)) resp.push({ type: 'warning', path: 'url', message: "URL is using 'http:' not 'https:'" })
   return resp
 }
 ResultSchema.statics.getByQuery = async function (words: string[]) {
