@@ -361,17 +361,18 @@ ResultSchema.statics.findByUrl = async function (url: string) {
   return this.find({ url: { $in: equivalencies } })
 }
 ResultSchema.methods.currencyTest = async function () {
+  this.tags = this.tags.filter(t => t !== 'duplicate')
   // Test currency of duplicate url validation.
   const dupUrls = await Result.findByUrl(this.url)
   if (dupUrls && dupUrls.length > 0) {
     this.currency.conflictingUrls = dupUrls.map((r: any) => { return { id: r.id, url: r.url } }).filter((r: any) => r.id !== this.id)
-    if (!this.hasTag('duplicate')) this.tags.push('duplicate')
+    if (this.currency.conflictingUrls.length > 0 && !this.hasTag('duplicate')) this.tags.push('duplicate')
   } else if (this.currency.conflictingUrls) delete this.currency.conflictingUrls
   // Test currency of duplicate title validation.
   const dupTitles = await Result.find({ title: this.title })
   if (dupTitles && dupTitles.length > 0) {
     this.currency.conflictingTitles = dupTitles.map((r: any) => { return { id: r.id, title: r.title } }).filter((r: any) => r.id !== this.id)
-    if (!this.hasTag('duplicate')) this.tags.push('duplicate')
+    if (this.currency.conflictingTitles && this.currency.conflictingTitles.length > 0 && !this.hasTag('duplicate')) this.tags.push('duplicate')
   } else if (this.currency.conflictingTitles) delete this.currency.conflictingTitles
   // Test currency of duplicate term:type matchings validation.
   this.currency.conflictingMatchings = findDuplicateMatchings(this.entries)
@@ -382,7 +383,7 @@ ResultSchema.methods.currencyTest = async function () {
     // Test currency of url domain migration.
     let alreadypassed = false
     const parsedUrl = new URL(this.url)
-    if (parsedUrl.hostname.endsWith('txstate.edu')) {
+    if (parsedUrl.hostname.endsWith('txstate.edu') && !this.currency.conflictingUrls) {
       try {
         parsedUrl.hostname = parsedUrl.hostname.replace(/txstate\.edu$/, 'txst.edu')
         const newUrl = parsedUrl.toString()
@@ -433,7 +434,7 @@ ResultSchema.statics.currencyTestAll = async function () {
   console.info('Running currency test.')
   const results = await this.find({
     $or: [{
-      'currency.tested': { $lte: DateTime.local().minus({ days: 1 }).toJSDate() }
+      'currency.tested': { $lte: DateTime.local().minus({ hours: 1 }).toJSDate() }
     }, {
       'currency.tested': { $exists: false }
     }]

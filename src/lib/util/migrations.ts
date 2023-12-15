@@ -1,9 +1,20 @@
 /* eslint-disable indent */
 import db from 'mysql2-async/db'
 
-// Putting these in constants for easier versioning reference and comparison to source if we want to update in the future.
-// We were adding `DEFAULT COLLATE=utf8mb4_general_ci` to this so LIKE comparisons would be case-insensitive but it's the
-// system default and will not show up when running `SHOW CREATE TABLE people` for DDL comparison. So removed from here.
+/*
+    One time mongodb statements to migrate priority data from old weights to new weighting scheme.
+
+db.results.updateMany({ 'entries.priority': 3 },{ $set: { 'entries.$[e].priority': 92 }}, { arrayFilters: [ { 'e.priority': 3 }]})
+db.results.updateMany({ 'entries.priority': 2 },{ $set: { 'entries.$[e].priority': 72 }}, { arrayFilters: [ { 'e.priority': 2 }]})
+db.results.updateMany({ 'entries.priority': 0 },{ $set: { 'entries.$[e].priority': 50 }}, { arrayFilters: [ { 'e.priority': 0 }]})
+db.results.updateMany({ 'entries.priority': -1 },{ $set: { 'entries.$[e].priority': 32 }}, { arrayFilters: [ { 'e.priority': -1 }]})
+db.results.updateMany({ 'entries.priority': -2 },{ $set: { 'entries.$[e].priority': 22 }}, { arrayFilters: [ { 'e.priority': -2 }]})
+db.results.updateMany({ 'entries.priority': -3 },{ $set: { 'entries.$[e].priority': 2 }}, { arrayFilters: [ { 'e.priority': -3 }]})
+*/
+
+/** Putting these in constants for easier versioning reference and comparison to source if we want to update in the future.
+We were adding `DEFAULT COLLATE=utf8mb4_general_ci` to this so LIKE comparisons would be case-insensitive but it's the
+system default and will not show up when running `SHOW CREATE TABLE people` for DDL comparison. So removed from here. */
 const peopleTableDDL = `
   CREATE TABLE people (
     firstname  varchar(64)           DEFAULT NULL COMMENT 'Preferred First plus Middle',
@@ -33,13 +44,12 @@ const peopleTableDDL = `
   DEFAULT CHARSET=utf8mb4
   COMMENT='Cache table of faculty and staff directory information. Transactionally emptied and reloaded by search-featured-results/lib/loadPeople.'
 `
-/*
+/**
   We're updating the searchids correlation table to pair with userids instead of plids.
 
   Decided not compare DDL for the searchids table since an update to MySQL, or config changes
   to it, could trigger the DDL to not match and create potential for things to go wrong leaving
-  the searchids table renamed to recovery_searchids.
-*/
+  the searchids table renamed to recovery_searchids. */
 const searchIdsTableDDL = `
   CREATE TABLE searchids (
     userid   varchar(8)          NOT NULL COMMENT 'The corresponding userid/netId of the user this searchid is locked to.',
