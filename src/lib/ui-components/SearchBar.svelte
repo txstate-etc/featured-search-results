@@ -13,12 +13,11 @@
   /** STUB: Looking into getting unchanged searches to go ahead and reload the page data despite the url not being changed.
    *  Need to look into overloading the submit button. */
   async function rerunLoad () {
-    console.log('invalidating: ', reloadHandle)
     await invalidate(reloadHandle)
   }
 </script>
 
-<form name='SearchBar' action={target} method='GET'>
+<form name='SearchBar' action={target} method='GET' data-sveltekit-keepfocus>
   <div class='searchbar'>
     <input type='search' name='q' placeholder='Search...' bind:value={search} />
     <button on:click={rerunLoad} type='submit' class='submit-button'>Search</button>

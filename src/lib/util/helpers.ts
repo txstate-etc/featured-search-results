@@ -79,11 +79,11 @@ const domainEqivalencies: Record<string, string[]> = {
 /** Gets permutations of `url` that are its equivalents given our domain and sub-domain equivalencies as well as common
  * routing equivalencies. Usefull for checking uniqueness integrity of indexed URLs beyond their simple string values. */
 export function getUrlEquivalencies (url: string): string[] {
-  if (!isValidUrl(url)) return []
+  if (!isValidUrl(url)) return ['Invalid URL']
   const parsedUrl = new URL(url)
   const splitHost = parsedUrl.hostname.split('.')
   const protocol = parsedUrl.protocol
-  const box = splitHost.length > 2 ? splitHost[0] : ''
+  const box = splitHost.length > 2 ? splitHost.slice(0, -2).join('.') : ''
   const domain = splitHost.slice(-2).join('.')
   const port = parsedUrl.port ? `:${parsedUrl.port}` : ''
   const pathCleaned = parsedUrl.pathname.replace(/\/$/, '')
@@ -117,9 +117,19 @@ function getEquivalencies (protocol: string, box: string, domain: string, port: 
  * and an array of pre-evaluated domain+path+params+hash equivalencies as `pathEquivalencies`. Returns an array of equivalent
  * URLs with all our desired equivalent permutations of the `protocol`, `box`, and `pathEquivalencies`. */
 function getSubDomainEquivalencies (protocol: string, box: string, pathEquivalencies: string[]): string[] {
-  const expanded = box !== '' && box !== 'www'
+  // While not universal, a lot of sites have corresponding www. and non-www. versions of their hostname configured
+  // to be equivalent in their domain DNS. So we'll add that to our permutations for equivalency checking in
+  // all scenarios since we're not forcing the use of this convention but checking for any URL equivalencies
+  // where this might be the active convention.
+  const splitBox = box.split('.')
+  if (splitBox.length > 0 && splitBox[0] === 'www') splitBox.shift()
+  const hostBox = splitBox.length > 0
+    ? splitBox.join('.') + '.'
+    : ''
+  const expanded = pathEquivalencies.map(url => { return [`//www.${hostBox}${url}`, `//${hostBox}${url}`] })
+  /* const expanded = box !== '' && box !== 'www'
     ? pathEquivalencies.map(url => { return [`//${box}.${url}`] })
-    : pathEquivalencies.map(url => { return [`//www.${url}`, `//${url}`] })
+    : pathEquivalencies.map(url => { return [`//www.${url}`, `//${url}`] }) */
   const protocoled = /https?:/.test(protocol)
     ? expanded.flat(2).map(url => { return [`http:${url}`, `https:${url}`] })
     : expanded.flat(2).map(url => { return [`${protocol}${url}`] })
@@ -330,6 +340,9 @@ export function getResultsDef (): SearchMappings {
     'hostname': 'url',
     'broken': 'currency.broken',
     'brokensince': 'currency.brokensince',
+    'duplicateurl': 'currency.conflictingUrl',
+    'duplicatetitle': 'currency.conflictingTitle',
+    'duplicatematch': 'currency.conflictingMatch',
     'match words': 'entries.keywords',
     'keyphrase': 'entries.keywords',
     'aliases': 'entries.keywords',
@@ -349,6 +362,9 @@ export function getResultsDef (): SearchMappings {
     'url': 'string',
     'currency.broken': { object: 'boolean' },
     'currency.brokensince': { object: 'date' },
+    'currency.conflictingUrl': { object: { array: 'string' } },
+    'currency.conflictingTitle': { object: { array: 'string' } },
+    'currency.conflictingMatch': { object: { array: 'object' } },
     'entries': { array: { object: 'object' } },
     'entries.keywords': { array: { object: { array: 'string' } } },
     'entries.mode': { array: { object: 'string' } },
@@ -359,7 +375,7 @@ export function getResultsDef (): SearchMappings {
     ':': 'eq',
     '=': 'eq',
     'is': 'eq',
-    'contains': 'eq',
+    'contains': 'in',
     '<': 'lt',
     '<=': 'lte',
     'starts with': 'lte',
@@ -374,18 +390,23 @@ export function getResultsDef (): SearchMappings {
 }
 
 function getFilterExpression (searchVal: string, type: NestedProp<SearchPropDefaults>, op?: string | undefined) {
-  if (!op || op === 'eq') { // Also `contains` on strings.
-    if (type === 'string') return { $regex: `/${searchVal}/`, $options: 'i' }
-    if (['number', 'bigint'].includes(type as string)) return { $eq: parseInt(searchVal) }
-    if (type === 'boolean') return Boolean(searchVal) // TODO: Think through and test how this would work in a real world search and defaults scenario.
-    if (type === 'date') return { $eq: new Date(searchVal) }
+  if (!op || op === 'in') { // Also `contains` on strings.
+    if (type === 'string') return { $regex: searchVal, $options: 'i' }
+    if (['number', 'bigint'].includes(type as string)) return { $in: searchVal.split(' ').map(str => parseInt(str)).filter(num => !isNaN(num)) }
+    if (type === 'boolean') return { $eq: /^true$/i.test(searchVal) } // TODO: Think through and test how this would work in a real world search and defaults scenario.
+    if (type === 'date') return { $gte: searchVal.split(' ').map(str => new Date(str)).filter(date => date.toString() !== 'Invalid Date') }
   } else if (op === 'ne') {
-    if (type === 'string') return { $not: { $regex: `/${searchVal}/`, $options: 'i' } }
+    if (type === 'string') return { $not: { $regex: `^${searchVal}$`, $options: 'i' } }
     if (['number', 'bigint'].includes(type as string)) return { $ne: parseInt(searchVal) }
     if (type === 'boolean') return Boolean(searchVal) // TODO: Think through and test how this would work in a real world search and defaults scenario.
     if (type === 'date') return { $ne: new Date(searchVal) }
+  } else if (op === 'eq') {
+    if (type === 'string') return { $regex: `^${searchVal}$`, $options: 'i' }
+    if (['number', 'bigint'].includes(type as string)) return { $eq: parseInt(searchVal) }
+    if (type === 'boolean') return Boolean(searchVal) // TODO: Think through and test how this would work in a real world search and defaults scenario.
+    if (type === 'date') return { $eq: new Date(searchVal) }
   } else if (op === 'lt') { // Also `starts with` on strings.
-    if (type === 'string') return { $regex: `/^${searchVal}/`, $options: 'i' }
+    if (type === 'string') return { $regex: `^${searchVal}`, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $lt: parseInt(searchVal) }
     if (type === 'boolean') return Boolean(searchVal)
     if (type === 'date') return { $lt: new Date(searchVal) }
@@ -395,12 +416,12 @@ function getFilterExpression (searchVal: string, type: NestedProp<SearchPropDefa
     if (type === 'boolean') return Boolean(searchVal)
     if (type === 'date') return { $lte: new Date(searchVal) }
   } else if (op === 'gt') { // Also `ends with` on strings.
-    if (type === 'string') return { $regex: `/${searchVal}$/`, $options: 'i' }
+    if (type === 'string') return { $regex: `${searchVal}$`, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $gt: parseInt(searchVal) }
     if (type === 'boolean') return Boolean(searchVal)
     if (type === 'date') return { $gt: new Date(searchVal) }
   } else if (op === 'gte') { // Also `ends with` on strings.
-    if (type === 'string') return { $regex: `/${searchVal}$/`, $options: 'i' }
+    if (type === 'string') return { $regex: `${searchVal}$`, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $gte: parseInt(searchVal) }
     if (type === 'boolean') return Boolean(searchVal)
     if (type === 'date') return { $gte: new Date(searchVal) }
@@ -408,32 +429,43 @@ function getFilterExpression (searchVal: string, type: NestedProp<SearchPropDefa
   // Not doing $in or $nin at this level as there's no advanced search syntax equivalents for them.
 }
 
-/* function buildFilterDocument (tableDef: SearchMappings, alias: string, searchVal: string, op: string, sub?: { subType?: NestedProp<SearchPropDefaults>, subField?: string }) {
-  const fieldName = tableDef.hash[alias]
+function buildFilterDocument (tableDef: SearchMappings, alias: string, searchVal: string, op: string, sub?: { field: string, subType?: NestedProp<SearchPropDefaults>, subField?: string }) {
+  const fieldName = sub?.field ?? tableDef.hash[alias]
   const fieldType = sub?.subType ?? tableDef.metas?.[fieldName]
+  const stepOp = /^(?:eq|in|lt|lte|gt|gte)$/.test(op) ? op : tableDef.opHash?.[op] ?? 'eq'
   if (!fieldType) {
     console.error(`buildFilterDocument - fieldType not found for fieldName "${fieldName}" of alias "${alias}".`)
     return
   } else {
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     console.log(`buildFilterDocument - ${fieldName} - fieldType: ${typeof fieldType}, ${typeof fieldType === 'object' ? JSON.stringify(fieldType) : fieldType}`)
   }
   const filter: any = {}
-  if (typeof fieldType === 'object' && fieldType.array) {
-    if (typeof fieldType.array === 'object') { // Nested recurse
-      // recurse
-    } else {
-      filter[fieldName] = { $elemMatch: buildFilterDocument(tableDef, alias, searchVal, { subType: fieldType.array }) }
+  if (typeof fieldType === 'object') { // We have nesting to recurse.
+    const fieldStack = fieldName.split('.')
+    const parentField = fieldStack.shift()!
+    if (fieldType.array) {
+      if (typeof fieldType.array === 'object') { // Nested recurse
+        const subField = fieldStack.length ? fieldStack.join('.') : fieldName
+        // const
+        filter[parentField] = { $elemMatch: buildFilterDocument(tableDef, alias, searchVal, stepOp, { field: fieldName, subType: fieldType.array }) }
+      } else {
+        filter[fieldName] = { $elemMatch: getFilterExpression(searchVal, fieldType.array, stepOp) }
+      }
+    } else if (fieldType.object) {
+      if (typeof fieldType.object === 'object') { // Nested recurse.
+        // Figure out reverse polish notation handling for 'in' op nested in date fields.
+        filter[parentField] = { $eq: buildFilterDocument(tableDef, alias, searchVal, stepOp, { field: fieldName, subType: fieldType.object }) }
+      } else {
+        if (stepOp === 'in' && fieldType.object === 'date') {
+          return ''
+        }
+        filter[fieldName] = getFilterExpression(searchVal, fieldType, stepOp)
+      }
     }
-  } else if (typeof fieldType === 'object' && fieldType.object) {
-    if (typeof fieldType.object === 'object') { // Nested recurse.
-    } else {
-      filter[fieldName] = { $eq: searchVal }
-    }
-  } else {
-    filter[fieldName] = getFilterExpression(searchVal, fieldType, tableDef.opHash?.[op])
+  } else { // We're at the end of the nesting.
+    filter[fieldName] = getFilterExpression(searchVal, fieldType, stepOp)
   }
-} */
+}
 
 /** Returns an MQL `match` clause using `tableDef` and parsable `search` string as parameters.
  * @param {SearchMappings} tableDef - A utility object used to associate search aliases and defaults to table fields.

@@ -366,15 +366,19 @@ ResultSchema.methods.currencyTest = async function () {
   const dupUrls = await Result.findByUrl(this.url)
   if (dupUrls && dupUrls.length > 0) {
     this.currency.conflictingUrls = dupUrls.map((r: any) => { return { id: r.id, url: r.url } }).filter((r: any) => r.id !== this.id)
+    if (!this.hasTag('duplicate')) this.tags.push('duplicate')
   } else if (this.currency.conflictingUrls) delete this.currency.conflictingUrls
   // Test currency of duplicate title validation.
   const dupTitles = await Result.find({ title: this.title })
   if (dupTitles && dupTitles.length > 0) {
     this.currency.conflictingTitles = dupTitles.map((r: any) => { return { id: r.id, title: r.title } }).filter((r: any) => r.id !== this.id)
+    if (!this.hasTag('duplicate')) this.tags.push('duplicate')
   } else if (this.currency.conflictingTitles) delete this.currency.conflictingTitles
   // Test currency of duplicate term:type matchings validation.
   this.currency.conflictingMatchings = findDuplicateMatchings(this.entries)
-  if (this.currency.conflictingMatchings.length === 0) delete this.currency.conflictingMatchings
+  if (this.currency.conflictingMatchings.length === 0) {
+    delete this.currency.conflictingMatchings
+  } else if (!this.hasTag('duplicate')) this.tags.push('dplicate')
   try {
     // Test currency of url domain migration.
     let alreadypassed = false
