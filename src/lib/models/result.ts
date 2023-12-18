@@ -282,7 +282,7 @@ ResultSchema.methods.fromPartialJson = function (input: TemplateResult) {
   this.tags = []
   this.entries = []
   for (const entry of sortby(input.entries ?? [], 'priority', true)) {
-    const mode = entry.mode?.toLowerCase() as ResultModes
+    const mode = entry.mode?.trim().toLowerCase() ?? 'keyword' as ResultModes
     this.entries.push({
       keywords: querysplit(entry.keyphrase ?? ''),
       mode,
@@ -291,7 +291,7 @@ ResultSchema.methods.fromPartialJson = function (input: TemplateResult) {
     } as unknown as IResultEntry)
   }
   for (const tag of input.tags ?? []) {
-    this.tags.push(tag.toLowerCase().trim())
+    this.tags.push(tag.trim().toLowerCase())
   }
 }
 ResultSchema.methods.hasEntry = function (entry: IResultEntry) {
@@ -363,13 +363,16 @@ ResultSchema.statics.findByUrl = async function (url: string) {
 ResultSchema.methods.currencyTest = async function () {
   this.tags = this.tags.filter(t => t !== 'duplicate')
   // Test currency of duplicate url validation.
+  if (/.*\/\s+$/.test(this.url)) this.url = this.url.replace(/\/\s+$/, '/.')
+  this.url = this.url.trim()
   const dupUrls = await Result.findByUrl(this.url)
   if (dupUrls && dupUrls.length > 0) {
     this.currency.conflictingUrls = dupUrls.map((r: any) => { return { id: r.id, url: r.url } }).filter((r: any) => r.id !== this.id)
     if (this.currency.conflictingUrls.length > 0 && !this.hasTag('duplicate')) this.tags.push('duplicate')
   } else if (this.currency.conflictingUrls) delete this.currency.conflictingUrls
   // Test currency of duplicate title validation.
-  const dupTitles = await Result.find({ title: this.title })
+  this.title = this.title.trim()
+  const dupTitles = await Result.find({ title: { $regex: `^\\s*${this.title}\\s*$`, $options: 'i' } })
   if (dupTitles && dupTitles.length > 0) {
     this.currency.conflictingTitles = dupTitles.map((r: any) => { return { id: r.id, title: r.title } }).filter((r: any) => r.id !== this.id)
     if (this.currency.conflictingTitles && this.currency.conflictingTitles.length > 0 && !this.hasTag('duplicate')) this.tags.push('duplicate')
@@ -434,7 +437,7 @@ ResultSchema.statics.currencyTestAll = async function () {
   console.info('Running currency test.')
   const results = await this.find({
     $or: [{
-      'currency.tested': { $lte: DateTime.local().minus({ hours: 1 }).toJSDate() }
+      'currency.tested': { $lte: DateTime.local().minus({ days: 1 }).toJSDate() }
     }, {
       'currency.tested': { $exists: false }
     }]

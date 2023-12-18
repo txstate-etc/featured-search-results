@@ -1,17 +1,6 @@
 /* eslint-disable indent */
 import db from 'mysql2-async/db'
 
-/*
-    One time mongodb statements to migrate priority data from old weights to new weighting scheme.
-
-db.results.updateMany({ 'entries.priority': 3 },{ $set: { 'entries.$[e].priority': 92 }}, { arrayFilters: [ { 'e.priority': 3 }]})
-db.results.updateMany({ 'entries.priority': 2 },{ $set: { 'entries.$[e].priority': 72 }}, { arrayFilters: [ { 'e.priority': 2 }]})
-db.results.updateMany({ 'entries.priority': 0 },{ $set: { 'entries.$[e].priority': 50 }}, { arrayFilters: [ { 'e.priority': 0 }]})
-db.results.updateMany({ 'entries.priority': -1 },{ $set: { 'entries.$[e].priority': 32 }}, { arrayFilters: [ { 'e.priority': -1 }]})
-db.results.updateMany({ 'entries.priority': -2 },{ $set: { 'entries.$[e].priority': 22 }}, { arrayFilters: [ { 'e.priority': -2 }]})
-db.results.updateMany({ 'entries.priority': -3 },{ $set: { 'entries.$[e].priority': 2 }}, { arrayFilters: [ { 'e.priority': -3 }]})
-*/
-
 /** Putting these in constants for easier versioning reference and comparison to source if we want to update in the future.
 We were adding `DEFAULT COLLATE=utf8mb4_general_ci` to this so LIKE comparisons would be case-insensitive but it's the
 system default and will not show up when running `SHOW CREATE TABLE people` for DDL comparison. So removed from here. */

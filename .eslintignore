@@ -3,6 +3,7 @@ node_modules
 /build
 /.svelte-kit
 /package
+one-time-migrate.js
 .env
 .env.*
 !.env.example

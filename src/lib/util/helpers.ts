@@ -111,6 +111,7 @@ function getEquivalencies (protocol: string, box: string, domain: string, port: 
   const base = `${domain}${port}${cleanedPath}`
   const fullParams = `${params}${hash}`
   const pathEquivalencies = [`${base}${fullParams}`, `${base}/${fullParams}`]
+  if (fullParams === '') pathEquivalencies.push(`${base}/.`)
   return getSubDomainEquivalencies(protocol, box, pathEquivalencies)
 }
 /** Takes the URL `protocol` of the original URL, the sub-domain/host portion of the original URL as the `box` parameter,
