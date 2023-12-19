@@ -361,7 +361,7 @@ ResultSchema.statics.findByUrl = async function (url: string) {
   return this.find({ url: { $in: equivalencies } })
 }
 ResultSchema.methods.currencyTest = async function () {
-  this.tags = this.tags.filter(t => t !== 'duplicate')
+  this.tags = this.tags.filter(t => t !== 'duplicate' && t !== 'broken-url')
   // Test currency of duplicate url validation.
   if (/.*\/\s+$/.test(this.url)) this.url = this.url.replace(/\/\s+$/, '/.')
   this.url = this.url.trim()
@@ -381,7 +381,7 @@ ResultSchema.methods.currencyTest = async function () {
   this.currency.conflictingMatchings = findDuplicateMatchings(this.entries)
   if (this.currency.conflictingMatchings.length === 0) {
     delete this.currency.conflictingMatchings
-  } else if (!this.hasTag('duplicate')) this.tags.push('dplicate')
+  } else if (!this.hasTag('duplicate')) this.tags.push('duplicate')
   try {
     // Test currency of url domain migration.
     let alreadypassed = false
@@ -406,6 +406,7 @@ ResultSchema.methods.currencyTest = async function () {
     // Handle Redirect Detection
     if (!this.currency.broken) this.currency.brokensince = new Date()
     this.currency.broken = true
+    if (!this.hasTag('broken-url')) this.tags.push('broken-url')
   }
   this.currency.tested = new Date()
   try {
@@ -423,8 +424,8 @@ ResultSchema.methods.healRecord = function (feedback?: Feedback[]) {
       // Even though this potentially affects the sorting order of the entries we're not resetting _sortedEntries here.
       const index = parseInt(v.path.split('.')[1])
       if (v.path.endsWith('priority')) {
-        console.info(`Healing Result ${this.id} entries.${index}.priority from ${this.entries[index].priority ?? 'undefined'} to 0.`)
-        this.entries[index].priority = 0
+        console.info(`Healing Result ${this.id} entries.${index}.priority from ${this.entries[index].priority ?? 'undefined'} to 50.`)
+        this.entries[index].priority = 50
       }
       if (v.path.endsWith('mode')) {
         console.info(`Healing Result ${this.id} entries.${index}.mode from ${this.entries[index].mode ?? 'undefined'} to 'keyword'.`)

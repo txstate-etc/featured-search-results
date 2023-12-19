@@ -9,6 +9,7 @@
   import FieldMultiple from './FieldMultiple.svelte'
   // import helpCircle from '@iconify-icons/mdi/help-circle'
   import deleteCircle from '@iconify-icons/mdi/delete'
+  import { goto } from '$app/navigation'
 
   const equivUrlsRegex = /equivalent\.url\.(?<id>[^.]*)\.(?<title>.*)/
   const equivTitlesRegex = /equivalent\.title\.(?<id>[^.]*)\.(?<title>.*)/
@@ -66,7 +67,7 @@
     4) Add confirmation dialog when [Save] is pressed. Possibly the same when [Delete] is pressed
        if they want a [Delete] button for the entire Rusult record.
   */
-  import { onMount } from 'svelte'
+  import { onMount, afterUpdate, tick } from 'svelte'
 
   /** A `TemplateResult` compatible object to preload the editor form with. */
   export let data: TemplateResult | undefined
@@ -84,23 +85,35 @@
   let store: FormStore<ResultState>
   let tagsInputElement: HTMLInputElement = undefined as any
 
+  /** Used to capture if we need to reset resultId for the context of the Delete button being shown.
+   * Normally we'd be fine with the reactive statements below as a simple assignment between data.id
+   * and store.id but on create forms we start without a data.id and only get one after a successful
+   * save returns one. However, the store keeps that ID and we need a means of catching if we need
+   * to clear it outside the submit callback which doesn't have a means of unsetting the value without
+   * the FormStore setting it right back. */
+  let doIdReset = false
   async function submit (state: ResultState): Promise<SubmitResponse<ResultState>> {
-    /* TODO:
-      - Add confirmation dialog with possible diff resolve of record state. */
+    doIdReset = !!(!data?.id && state.id)
     const resp = await (await fetch(`${apiTarget.url}`, { method: apiTarget.method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) })).json()
-    const messages = resp.messages ?? []
-    if (messages.length > 0) {
+    const messages: Feedback[] = resp.messages ?? []
+    if (messages.some(m => m.type === MessageType.ERROR)) {
       return { success: false, data: state, messages }
-    } else messages.push({ type: MessageType.SUCCESS, message: 'Successfully saved.' })
+    }
     return { success: true, data: resp.result, messages }
   }
 
   async function validate (state: ResultState): Promise<Feedback[]> {
     // Make sure the URL is lowercased on case-insensitive portions so we can be sure to catch duplicates.
+    state.url = state.url.trim()
     const parsedURL = isValidHttpUrl(state.url) ? new URL(state.url) : undefined
     if (parsedURL) {
-      const newUrl = /\/$/.test(state.url) ? parsedURL.toString() : parsedURL.toString().replace(/\/$/, '')
-      await store.setField('url', newUrl)
+      parsedURL.protocol = parsedURL.protocol.toLowerCase()
+      parsedURL.hostname = parsedURL.hostname.toLowerCase()
+      const newURL = state.url.endsWith('/') ? parsedURL.toString() : parsedURL.toString().replace(/\/$/, '')
+      if (newURL !== state.url) {
+        state.url = newURL
+        await store.setField('url', newURL)
+      }
     }
     const resp = await (await fetch(`${apiTarget.url}?${VALIDATE_ONLY}`, {
       method: apiTarget.method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state)
@@ -126,11 +139,32 @@
     return value?.split(/[, ]/) ?? []
   }
 
+  async function handleDelete () {
+    const confirmed = window.confirm('Are you sure you want to delete this record and go back to the home screen?')
+    if (confirmed) {
+      const resp = await (await fetch(`${apiURL}/result/${resultId}`, { method: 'DELETE' })).json()
+      if (resp.ok) {
+        window.alert('Successfully deleted record.')
+        await goto('/admin')
+      } else window.alert('Failed to delete record.')
+      //  method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: data?.id })
+      // })).json() as ({ result: Partial<ResultFull>, messages: Feedback[] } | { message: string })
+    }
+  }
+
+  afterUpdate(() => {
+    if (doIdReset) {
+      $store.data.id = undefined
+      // store.unregisterField('id')
+      // store.update(v => ({ ...v, id: undefined }))
+    }
+  })
   onMount(() => {
     /* Remove the empty label from FieldMultiple. */
     // Array.from(entries.getElementsByTagName('label')).filter(l => isBlank(l.textContent)).forEach(e => { e.remove() })
   })
   $: submitContext = data?.id ? 'Update' : 'Create'
+  $: resultId = doIdReset ? data?.id : data?.id ?? $store?.data?.id
 </script>
 <!--
   @component
@@ -173,21 +207,31 @@
       <Input bind:inputelement={tagsInputElement} name='tags' {value} {id} class="dialog-input" {onChange} {onBlur} {valid} {invalid} {messagesid} {helptextid} ></Input>
     </FieldStandard>
   </div>
-  {#if data?.id}<FieldHidden path='id' bind:value={data.id}/>{/if}
+  {#if resultId}<FieldHidden path='id' bind:value={resultId}/>{/if}
   <svelte:fragment slot='submit' let:saved let:submitting let:validating let:valid let:invalid let:messages>
-    <button on:click class='submit-button' style={`--submit-context: '${submitContext}';`}
-      class:validating class:submitting class:saved type='submit' disabled={!valid}>
-      {#if submitting}Submitting...
-      {:else if validating}Validating...
-      {:else if saved}<span></span>
-      {:else}{submitContext}
+    <div class='record-action-buttons'>
+      <button on:click class='submit-button' style={`--submit-context: '${submitContext === 'Create' ? 'Use as Template' : 'Update'}';`}
+        class:validating class:submitting class:saved type='submit' disabled={!valid}>
+        {#if submitting}Submitting...
+        {:else if validating}Validating...
+        {:else if saved}<span></span>
+        {:else}{submitContext}
+        {/if}
+      </button>
+      {#if resultId}
+        <button on:click={handleDelete} class='submit-button' style="--submit-context: 'Delete';" type='button'>Delete</button>
       {/if}
-    </button>
+    </div>
   </svelte:fragment>
 </Form>
 
 <!-- <style lang="scss"> TODO: I need to get back to translating the below to scss. Lower priority right now. -->
 <style>
+  .record-action-buttons {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+  }
   .tooltipped {
     position: relative;
   }

@@ -77,8 +77,13 @@ export async function PUT ({ params, url, request, locals }) {
   messages.push(...result.valid())
   if (!isValidation) {
     if (messages.length === 0) {
-      await result.save()
-      return json({ result: result.full(), messages })
+      try {
+        await result.save()
+        messages.push({ type: MessageType.SUCCESS, path: 'save', message: `${result.title} saved successfully.` })
+        return json({ result: result.full(), messages })
+      } catch (e: any) {
+        messages.push({ type: MessageType.ERROR, path: 'save', message: `An error occurred while saving the Result.\r${JSON.stringify(e)}` })
+      }
     }
   }
   return json({ result: result.full(), messages })

@@ -1,3 +1,5 @@
+// TODO: Add checks for URLs with protocol and hostname portions that have uppercase characters and convert them to lowercase.
+
 /* Run from mongosh shell connected to associated landscape's database to:
   1. Map old priority values to new priority/weight values.
   2. Update results that made it into the old dataset without having their title or url trimmed.

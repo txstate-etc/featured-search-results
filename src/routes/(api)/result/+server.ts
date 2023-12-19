@@ -31,8 +31,13 @@ export async function POST ({ url, locals, request }) {
   if (!isValidation) {
     // if (messages.some(message => [MessageType.ERROR, MessageType.SYSTEM].includes(message.type as MessageType))) {
     if (messages.length === 0) {
-      await postedResult.save()
-      return json({ result: postedResult.full(), messages })
+      try {
+        await postedResult.save()
+        messages.push({ type: MessageType.SUCCESS, path: 'save', message: `${postedResult.title} saved successfully.` })
+        return json({ result: postedResult.full(), messages })
+      } catch (e: any) {
+        messages.push({ type: MessageType.ERROR, path: 'save', message: `An error occurred while saving the Result.\r${JSON.stringify(e)}` })
+      }
     }
   }
   const respResult: Partial<ResultFull> = postedResult.full()

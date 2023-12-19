@@ -81,8 +81,8 @@ const domainEqivalencies: Record<string, string[]> = {
 export function getUrlEquivalencies (url: string): string[] {
   if (!isValidUrl(url)) return ['Invalid URL']
   const parsedUrl = new URL(url)
-  const splitHost = parsedUrl.hostname.split('.')
-  const protocol = parsedUrl.protocol
+  const splitHost = parsedUrl.hostname.toLocaleLowerCase().split('.')
+  const protocol = parsedUrl.protocol.toLocaleLowerCase()
   const box = splitHost.length > 2 ? splitHost.slice(0, -2).join('.') : ''
   const domain = splitHost.slice(-2).join('.')
   const port = parsedUrl.port ? `:${parsedUrl.port}` : ''
@@ -123,7 +123,7 @@ function getSubDomainEquivalencies (protocol: string, box: string, pathEquivalen
   // all scenarios since we're not forcing the use of this convention but checking for any URL equivalencies
   // where this might be the active convention.
   const splitBox = box.split('.')
-  if (splitBox.length > 0 && splitBox[0] === 'www') splitBox.shift()
+  if (splitBox.length > 0 && (splitBox[0] === 'www' || splitBox[0] === '')) splitBox.shift()
   const hostBox = splitBox.length > 0
     ? splitBox.join('.') + '.'
     : ''
@@ -389,32 +389,32 @@ export function getResultsDef (): SearchMappings {
   const defaults: string[] = ['title', 'tags', 'url', 'entries.keywords']
   return { hash, metas, defaults, fields: getFields(hash) } as const
 }
-
-function getFilterExpression (searchVal: string, type: NestedProp<SearchPropDefaults>, op?: string | undefined) {
+const ISODay = 86400000
+function getFilterExpression (searchVal: string, type: NestedProp<SearchPropDefaults>, field: string, op?: string | undefined) {
   if (!op || op === 'in') { // Also `contains` on strings.
     if (type === 'string') return { $regex: searchVal, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $in: searchVal.split(' ').map(str => parseInt(str)).filter(num => !isNaN(num)) }
     if (type === 'boolean') return { $eq: /^true$/i.test(searchVal) } // TODO: Think through and test how this would work in a real world search and defaults scenario.
-    if (type === 'date') return { $gte: searchVal.split(' ').map(str => new Date(str)).filter(date => date.toString() !== 'Invalid Date') }
+    if (type === 'date') return { $or: searchVal.split(' ').map(str => { return { [field ?? '']: { $gte: new Date(str), $lt: new Date(str).getTime() + ISODay } } }) }
   } else if (op === 'ne') {
     if (type === 'string') return { $not: { $regex: `^${searchVal}$`, $options: 'i' } }
     if (['number', 'bigint'].includes(type as string)) return { $ne: parseInt(searchVal) }
-    if (type === 'boolean') return Boolean(searchVal) // TODO: Think through and test how this would work in a real world search and defaults scenario.
+    if (type === 'boolean') return { $neq: /^true$/i.test(searchVal) } // TODO: Think through and test how this would work in a real world search and defaults scenario.
     if (type === 'date') return { $ne: new Date(searchVal) }
   } else if (op === 'eq') {
     if (type === 'string') return { $regex: `^${searchVal}$`, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $eq: parseInt(searchVal) }
-    if (type === 'boolean') return Boolean(searchVal) // TODO: Think through and test how this would work in a real world search and defaults scenario.
+    if (type === 'boolean') return { $eq: /^true$/i.test(searchVal) } // TODO: Think through and test how this would work in a real world search and defaults scenario.
     if (type === 'date') return { $eq: new Date(searchVal) }
   } else if (op === 'lt') { // Also `starts with` on strings.
     if (type === 'string') return { $regex: `^${searchVal}`, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $lt: parseInt(searchVal) }
-    if (type === 'boolean') return Boolean(searchVal)
+    if (type === 'boolean') return { $neq: /^true$/i.test(searchVal) }
     if (type === 'date') return { $lt: new Date(searchVal) }
   } else if (op === 'lte') { // Also `starts with` on strings.
     if (type === 'string') return { $regex: `^${searchVal}`, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $lte: parseInt(searchVal) }
-    if (type === 'boolean') return Boolean(searchVal)
+    if (type === 'boolean') return { $eq: /^true$/i.test(searchVal) }
     if (type === 'date') return { $lte: new Date(searchVal) }
   } else if (op === 'gt') { // Also `ends with` on strings.
     if (type === 'string') return { $regex: `${searchVal}$`, $options: 'i' }
