@@ -3,7 +3,7 @@
 </script>
 <script lang='ts'>
   /** The the Feedback messages to inspect for building links. */
-  export let data: Feedback[]
+  export let data: Feedback[] = []
   /** The regular expression to match against the `path` property of each `Feedback` object.
    * If named groupings are included in the RE, they will be accessible as subproperties of
    * the `found` Record passed to callbacks used to build the links along with being included

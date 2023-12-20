@@ -32,8 +32,8 @@ export async function POST ({ url, locals, request }) {
     // if (messages.some(message => [MessageType.ERROR, MessageType.SYSTEM].includes(message.type as MessageType))) {
     if (messages.length === 0) {
       try {
-        await postedResult.save()
-        messages.push({ type: MessageType.SUCCESS, path: 'save', message: `${postedResult.title} saved successfully.` })
+        const saved = await postedResult.save()
+        messages.push({ type: MessageType.SUCCESS, path: `save.${saved.id}.${saved.title}`, message: `'${postedResult.title}' saved successfully.` })
         return json({ result: postedResult.full(), messages })
       } catch (e: any) {
         messages.push({ type: MessageType.ERROR, path: 'save', message: `An error occurred while saving the Result.\r${JSON.stringify(e)}` })

@@ -9,10 +9,12 @@
   import FieldMultiple from './FieldMultiple.svelte'
   // import helpCircle from '@iconify-icons/mdi/help-circle'
   import deleteCircle from '@iconify-icons/mdi/delete'
-  import { goto } from '$app/navigation'
+  import { beforeNavigate, goto } from '$app/navigation'
 
-  const equivUrlsRegex = /equivalent\.url\.(?<id>[^.]*)\.(?<title>.*)/
-  const equivTitlesRegex = /equivalent\.title\.(?<id>[^.]*)\.(?<title>.*)/
+  // Used for extracting values used by FeedbackLinks to build links to other records.
+  const equivUrlsRegex = /^equivalent\.url\.(?<id>[^.]*)\.(?<title>.*)/
+  const equivTitlesRegex = /^equivalent\.title\.(?<id>[^.]*)\.(?<title>.*)/
+  const savedRegex = /^save\.(?<id>[^.]*)\.(?<title>.*)/
 
   /**
   ```ts
@@ -26,7 +28,6 @@
       priority: number
     }[]
     tags?: string[]
-    priority?: number
   }
   ``` */
   interface ResultState extends RawJsonResult {
@@ -49,10 +50,7 @@
 </script>
 <script lang='ts'>
   /* TODO:
-    1) Fix submit errors. Done. - Need to work out asyoutype validations.
-    2) Validate checks with fetches against API.
-       - Started adding Feedbacks to API's handling. Still need to pass associated VALIDATE_ONLY param to calls when validating.
-    3) Look into CSS nesting with (this is very low priority for now)
+    1) Look into CSS nesting with (this is very low priority for now)
     OR Ignore below and just use SCSS.
       a) different CSS attribute selectors.
         Examples:
@@ -64,10 +62,8 @@
         - :global(.class1:not(:has(.subclass))) - For making clearer structure refrences.
         - :global(:is(.class1, .class2)) - For grouping common rules with most-specific specificity.
         - :global(:where(.class1, .class2)) - For grouping common rules with zero specificity.
-    4) Add confirmation dialog when [Save] is pressed. Possibly the same when [Delete] is pressed
-       if they want a [Delete] button for the entire Rusult record.
   */
-  import { onMount, afterUpdate, tick } from 'svelte'
+  import { afterUpdate } from 'svelte'
 
   /** A `TemplateResult` compatible object to preload the editor form with. */
   export let data: TemplateResult | undefined
@@ -99,6 +95,8 @@
     if (messages.some(m => m.type === MessageType.ERROR)) {
       return { success: false, data: state, messages }
     }
+    // For some reason the store doesn't always clear the dirtyFields on successful submit so we're forcing it here.
+    store.dirtyFields.clear()
     return { success: true, data: resp.result, messages }
   }
 
@@ -139,29 +137,31 @@
     return value?.split(/[, ]/) ?? []
   }
 
+  let deleting = false
   async function handleDelete () {
     const confirmed = window.confirm('Are you sure you want to delete this record and go back to the home screen?')
     if (confirmed) {
       const resp = await (await fetch(`${apiURL}/result/${resultId}`, { method: 'DELETE' })).json()
       if (resp.ok) {
         window.alert('Successfully deleted record.')
+        deleting = true
         await goto('/admin')
+        deleting = false
       } else window.alert('Failed to delete record.')
-      //  method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: data?.id })
-      // })).json() as ({ result: Partial<ResultFull>, messages: Feedback[] } | { message: string })
     }
   }
-
+  beforeNavigate(({ to, from, cancel }) => {
+    const dirtyFields = Array.from(store.dirtyFields.entries())
+    if (dirtyFields.length > 0 && !deleting) {
+      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to leave?')
+      // const confirmed = window.confirm('You are about to exit without saving your work. Would you like to continue?')
+      if (!confirmed) cancel()
+    }
+  })
   afterUpdate(() => {
     if (doIdReset) {
       $store.data.id = undefined
-      // store.unregisterField('id')
-      // store.update(v => ({ ...v, id: undefined }))
     }
-  })
-  onMount(() => {
-    /* Remove the empty label from FieldMultiple. */
-    // Array.from(entries.getElementsByTagName('label')).filter(l => isBlank(l.textContent)).forEach(e => { e.remove() })
   })
   $: submitContext = data?.id ? 'Update' : 'Create'
   $: resultId = doIdReset ? data?.id : data?.id ?? $store?.data?.id
@@ -208,7 +208,7 @@
     </FieldStandard>
   </div>
   {#if resultId}<FieldHidden path='id' bind:value={resultId}/>{/if}
-  <svelte:fragment slot='submit' let:saved let:submitting let:validating let:valid let:invalid let:messages>
+  <svelte:fragment slot='submit' let:saved let:submitting let:validating let:valid let:allMessages>
     <div class='record-action-buttons'>
       <button on:click class='submit-button' style={`--submit-context: '${submitContext === 'Create' ? 'Use as Template' : 'Update'}';`}
         class:validating class:submitting class:saved type='submit' disabled={!valid}>
@@ -218,6 +218,13 @@
         {:else}{submitContext}
         {/if}
       </button>
+      <!-- Not really sure how to make providing such a link look good. Would be nice to put it in the form messages but the padding
+           around them makes the spacing too much.
+      {#if saved && submitContext === 'Create'}
+        <FeedbackLinks data={allMessages} path={savedRegex} targetURL={`${appURL}/results/`} pathKeys={['id', 'title']}
+          buildPath={(found, keys) => found.id} preamble='Edit ' getText={(found, keys) => found.title} postscript="'s record."/>
+      {/if}
+      -->
       {#if resultId}
         <button on:click={handleDelete} class='submit-button' style="--submit-context: 'Delete';" type='button'>Delete</button>
       {/if}
