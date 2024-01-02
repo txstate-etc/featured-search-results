@@ -537,6 +537,7 @@
   th:not(:last-child) {
     border-right: var(--dialog-container-border);
     resize: horizontal;
+    padding-right: 0.2rem;
   }
   th.nested-container {
     border-top: var(--dialog-container-border);
