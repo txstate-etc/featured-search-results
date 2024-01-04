@@ -45,7 +45,7 @@
 
 <h1>Visitor Searches</h1>
 <SearchBar target={`${appBase}/queries`} search={data.query} reloadHandle={data.reloadHandle}/>
-{#if data.results && data.results.length > 0}
+{#if data.results?.length}
   <div class='results-root-container'>
     <ResponsiveTable data={data.results} {propsMetas} {headingTexts} {transforms}/>
   </div>

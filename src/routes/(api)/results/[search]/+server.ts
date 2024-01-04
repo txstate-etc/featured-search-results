@@ -1,4 +1,5 @@
 import { Result, type ResultDocument } from '$lib/models/result.js'
+import { getMatchClause, getResultsDef } from '$lib/util/helpers.js'
 import { error, json } from '@sveltejs/kit'
 import { isNotBlank } from 'txstate-utils'
 
@@ -37,11 +38,17 @@ function resultFilter (search: string, result: ResultDocument): boolean {
   return false
 }
 
+const resultsDef = getResultsDef()
+
 /** @type {import('./$types').RequestHandler} */
 export async function GET ({ url, params, locals }) {
   if (!locals.isEditor) throw error(403)
   // Would need to replace params.sort below with our actual search which we'd get from url.searchParams.get('q')
-  const results = await Result.find() as ResultDocument[]
-  const matches = results.filter(r => resultFilter(params.search, r)).map(result => { return result.full() })
-  return json(matches)
+  // const results = await Result.find() as ResultDocument[]
+  // const matches = results.filter(r => resultFilter(params.search, r)).map(result => result.full())
+
+  const matchClause = getMatchClause(resultsDef, params.search)
+  console.log(JSON.stringify(matchClause))
+  const matches = await Result.find(matchClause) as ResultDocument[]
+  return json(matches.map(result => result.full()))
 }

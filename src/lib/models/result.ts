@@ -25,7 +25,7 @@ const { Schema, models, model, Error } = mongoose
 import type { Model, Document, ObjectId } from 'mongoose'
 // import paginate from 'mongoose-paginate-v2'
 import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
-import { getUrlEquivalencies, isValidHttpUrl, querysplit } from '../util/helpers.js'
+import { getUrlEquivalencies, isValidHttpUrl, normalizeUrl, querysplit } from '../util/helpers.js'
 import type { Feedback } from '@txstate-mws/svelte-forms'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
@@ -277,7 +277,7 @@ export interface TemplateResult extends Partial<RawJsonResult> {
   id?: string
 }
 ResultSchema.methods.fromPartialJson = function (input: TemplateResult) {
-  this.url = input.url?.trim() ?? ''
+  this.url = normalizeUrl(input.url ?? '')
   this.title = input.title?.trim() ?? ''
   this.tags = []
   this.entries = []
@@ -360,30 +360,57 @@ ResultSchema.statics.findByUrl = async function (url: string) {
   const equivalencies = getUrlEquivalencies(url)
   return this.find({ url: { $in: equivalencies } })
 }
+const reservedTags = ['duplicate', 'broken-url', 'needs-url-normalization', '']
 ResultSchema.methods.currencyTest = async function () {
-  this.tags = this.tags.filter(t => t !== 'duplicate' && t !== 'broken-url')
+  // Reset duplicate and broken-url tags as well as remove any duplicate tags.
+  this.tags = this.tags.filter((t, i) => !reservedTags.includes(t) && this.tags.indexOf(t) === i)
+  // Test currency of url normalization.
+  const normalized = normalizeUrl(this.url)
+  if (this.url !== normalized) {
+    const origUrl = this.url
+    try {
+      this.url = normalized
+      await this.save()
+    } catch (e) { // Might be in conflict with existing duplicate but we want to normalize and save so try adding a '.' to the end.
+      this.tags.push('duplicate')
+      if (this.url.endsWith('/')) {
+        try {
+          this.url = this.url + '.'
+          await this.save()
+        } catch (e) {
+          this.url = origUrl
+          this.tags.push('needs-url-normalization')
+          console.info(`Result ${this.id} needs url normalization from '${this.url}' to '${normalized}' but has a conflict with existing Results.`)
+          console.error(e)
+        }
+      } else {
+        this.url = origUrl
+        this.tags.push('needs-url-normalization')
+        console.info(`Result ${this.id} needs url normalization from '${this.url}' to '${normalized}' but has a conflict with existing Results.`)
+        console.error(e)
+      }
+    }
+  }
   // Test currency of duplicate url validation.
-  if (/.*\/\s+$/.test(this.url)) this.url = this.url.replace(/\/\s+$/, '/.')
-  this.url = this.url.trim()
   const dupUrls = await Result.findByUrl(this.url)
-  if (dupUrls && dupUrls.length > 0) {
-    this.currency.conflictingUrls = dupUrls.map((r: any) => { return { id: r.id, url: r.url } }).filter((r: any) => r.id !== this.id)
-    if (this.currency.conflictingUrls.length > 0 && !this.hasTag('duplicate')) this.tags.push('duplicate')
+  if (dupUrls?.length) {
+    this.currency.conflictingUrls = dupUrls.map((r: ResultDocument) => { return { id: r.id, url: r.url } }).filter((r: any) => r.id !== this.id)
+    if (this.currency.conflictingUrls.length && !this.hasTag('duplicate')) this.tags.push('duplicate')
   } else if (this.currency.conflictingUrls) delete this.currency.conflictingUrls
   // Test currency of duplicate title validation.
   this.title = this.title.trim()
   const dupTitles = await Result.find({ title: { $regex: `^\\s*${this.title}\\s*$`, $options: 'i' } })
-  if (dupTitles && dupTitles.length > 0) {
+  if (dupTitles?.length) {
     this.currency.conflictingTitles = dupTitles.map((r: any) => { return { id: r.id, title: r.title } }).filter((r: any) => r.id !== this.id)
-    if (this.currency.conflictingTitles && this.currency.conflictingTitles.length > 0 && !this.hasTag('duplicate')) this.tags.push('duplicate')
+    if (this.currency.conflictingTitles?.length && !this.hasTag('duplicate')) this.tags.push('duplicate')
   } else if (this.currency.conflictingTitles) delete this.currency.conflictingTitles
   // Test currency of duplicate term:type matchings validation.
   this.currency.conflictingMatchings = findDuplicateMatchings(this.entries)
   if (this.currency.conflictingMatchings.length === 0) {
     delete this.currency.conflictingMatchings
   } else if (!this.hasTag('duplicate')) this.tags.push('duplicate')
+  // Test currency of url domain migration.
   try {
-    // Test currency of url domain migration.
     let alreadypassed = false
     const parsedUrl = new URL(this.url)
     if (parsedUrl.hostname.endsWith('txstate.edu') && !this.currency.conflictingUrls) {
@@ -406,7 +433,7 @@ ResultSchema.methods.currencyTest = async function () {
     // Handle Redirect Detection
     if (!this.currency.broken) this.currency.brokensince = new Date()
     this.currency.broken = true
-    if (!this.hasTag('broken-url')) this.tags.push('broken-url')
+    this.tags.push('broken-url')
   }
   this.currency.tested = new Date()
   try {
@@ -438,7 +465,7 @@ ResultSchema.statics.currencyTestAll = async function () {
   console.info('Running currency test.')
   const results = await this.find({
     $or: [{
-      'currency.tested': { $lte: DateTime.local().minus({ days: 1 }).toJSDate() }
+      'currency.tested': { $lte: DateTime.local().minus({ minutes: 1 }).toJSDate() }
     }, {
       'currency.tested': { $exists: false }
     }]

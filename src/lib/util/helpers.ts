@@ -1,17 +1,28 @@
+/* eslint-disable @typescript-eslint/dot-notation */
 /* eslint-disable quote-props */
 import { isNotBlank } from 'txstate-utils'
 
 /** Uses URL constructor to test if `urlString` is a value conformant to valid URL standards. */
 export function isValidUrl (urlString: string | undefined | null) {
   if (!urlString) return false
-  try { return Boolean(new URL(urlString)) } catch (e) { return false }
+  // try { return Boolean(new URL(urlString)) } catch (e) { return false }
   // Once we're able to upgrade to Node.js 19+ we can use the following instead:
-  // return URL.canParse(urlString)
+  return URL.canParse(urlString)
 }
 /** Casts `urlString` as a new URL to check for URL validity and tests the `protocol` of that URL
  * object to see if it's a HTTP or HTTPS protocol - returning true, or false if not. */
 export function isValidHttpUrl (urlString: string) {
   try { return /https?:/.test(new URL(urlString).protocol) } catch (e) { return false }
+}
+/** Formats URLs to:
+  - lowercase the protocol and host portions of parsable urls
+  - trims spaces */
+export function normalizeUrl (url: string) {
+  if (isValidUrl(url)) {
+    const parsed = new URL(url)
+    return `${parsed.protocol.toLowerCase()}//${parsed.host.toLowerCase()}${parsed.pathname}${parsed.search}${parsed.hash}`
+  }
+  return url.trim()
 }
 
 // Debugging fuctions
@@ -81,8 +92,8 @@ const domainEqivalencies: Record<string, string[]> = {
 export function getUrlEquivalencies (url: string): string[] {
   if (!isValidUrl(url)) return ['Invalid URL']
   const parsedUrl = new URL(url)
-  const splitHost = parsedUrl.hostname.toLocaleLowerCase().split('.')
-  const protocol = parsedUrl.protocol.toLocaleLowerCase()
+  const splitHost = parsedUrl.hostname.toLowerCase().split('.')
+  const protocol = parsedUrl.protocol.toLowerCase()
   const box = splitHost.length > 2 ? splitHost.slice(0, -2).join('.') : ''
   const domain = splitHost.slice(-2).join('.')
   const port = parsedUrl.port ? `:${parsedUrl.port}` : ''
@@ -123,8 +134,8 @@ function getSubDomainEquivalencies (protocol: string, box: string, pathEquivalen
   // all scenarios since we're not forcing the use of this convention but checking for any URL equivalencies
   // where this might be the active convention.
   const splitBox = box.split('.')
-  if (splitBox.length > 0 && (splitBox[0] === 'www' || splitBox[0] === '')) splitBox.shift()
-  const hostBox = splitBox.length > 0
+  if (splitBox.length && (splitBox[0] === 'www' || splitBox[0] === '')) splitBox.shift()
+  const hostBox = splitBox.length
     ? splitBox.join('.') + '.'
     : ''
   const expanded = pathEquivalencies.map(url => { return [`//www.${hostBox}${url}`, `//${hostBox}${url}`] })
@@ -341,9 +352,12 @@ export function getResultsDef (): SearchMappings {
     'hostname': 'url',
     'broken': 'currency.broken',
     'brokensince': 'currency.brokensince',
-    'duplicateurl': 'currency.conflictingUrl',
-    'duplicatetitle': 'currency.conflictingTitle',
-    'duplicatematch': 'currency.conflictingMatch',
+    'duplicateurl': 'currency.conflictingUrls.url',
+    'duplicateurls': 'currency.conflictingUrls',
+    'duplicatetitle': 'currency.conflictingTitles.title',
+    'duplicatetitles': 'currency.conflictingTitles',
+    'duplicatematch': 'currency.conflictingMatchings.mode',
+    'duplicatematches': 'currency.conflictingMatchings',
     'match words': 'entries.keywords',
     'keyphrase': 'entries.keywords',
     'aliases': 'entries.keywords',
@@ -361,16 +375,18 @@ export function getResultsDef (): SearchMappings {
     'title': 'string',
     'tags': { array: 'string' },
     'url': 'string',
-    'currency.broken': { object: 'boolean' },
-    'currency.brokensince': { object: 'date' },
-    'currency.conflictingUrl': { object: { array: 'string' } },
-    'currency.conflictingTitle': { object: { array: 'string' } },
-    'currency.conflictingMatch': { object: { array: 'object' } },
-    'entries': { array: { object: 'object' } },
-    'entries.keywords': { array: { object: { array: 'string' } } },
-    'entries.mode': { array: { object: 'string' } },
-    'entries.priority': { array: { object: 'number' } },
-    'entries.hitCountCached': { array: { object: 'number' } }
+    'currency.broken': 'boolean',
+    'currency.brokensince': 'date',
+    'currency.conflictingUrls': 'boolean',
+    'currency.conflictingUrls.url': 'string',
+    'currency.conflictingTitles': 'boolean',
+    'currency.conflictingTitles.title': 'string',
+    'currency.conflictingMatchings': 'boolean',
+    'currency.conflictingMatchings.mode': 'string',
+    'entries.keywords': { array: 'string' },
+    'entries.mode': 'string',
+    'entries.priority': 'number',
+    'entries.hitCountCached': 'number'
   }
   const opHash: Record<string, string> = {
     ':': 'eq',
@@ -387,25 +403,33 @@ export function getResultsDef (): SearchMappings {
     'endswith': 'gte'
   }
   const defaults: string[] = ['title', 'tags', 'url', 'entries.keywords']
-  return { hash, metas, defaults, fields: getFields(hash) } as const
+  return { hash, metas, opHash, defaults, fields: getFields(hash) } as const
+}
+function getFilterExpression (searchVal: string, type: NestedProp<SearchPropDefaults>, negation?: boolean, op?: string | undefined): object {
+  if (negation) return { $not: getFieldExpression(searchVal, type, op) }
+  return getFieldExpression(searchVal, type, op)
 }
 const ISODay = 86400000
-function getFilterExpression (searchVal: string, type: NestedProp<SearchPropDefaults>, field: string, op?: string | undefined) {
-  if (!op || op === 'in') { // Also `contains` on strings.
+function getFieldExpression (searchVal: string, type: NestedProp<SearchPropDefaults>, op?: string | undefined): object {
+  if (typeof type === 'object') {
+    if (type.object) return getFieldExpression(searchVal, type.object, op)
+    else if (type.array) return { $elemMatch: getFieldExpression(searchVal, type.array, op) }
+  }
+  if (op === undefined || op === 'in') { // Also `contains` on strings.
     if (type === 'string') return { $regex: searchVal, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $in: searchVal.split(' ').map(str => parseInt(str)).filter(num => !isNaN(num)) }
-    if (type === 'boolean') return { $eq: /^true$/i.test(searchVal) } // TODO: Think through and test how this would work in a real world search and defaults scenario.
-    if (type === 'date') return { $or: searchVal.split(' ').map(str => { return { [field ?? '']: { $gte: new Date(str), $lt: new Date(str).getTime() + ISODay } } }) }
+    if (type === 'boolean') return { $eq: /^true$/i.test(searchVal) }
+    if (type === 'date') return { $gte: new Date(searchVal), $lt: new Date(searchVal).getTime() + ISODay }
   } else if (op === 'ne') {
     if (type === 'string') return { $not: { $regex: `^${searchVal}$`, $options: 'i' } }
     if (['number', 'bigint'].includes(type as string)) return { $ne: parseInt(searchVal) }
-    if (type === 'boolean') return { $neq: /^true$/i.test(searchVal) } // TODO: Think through and test how this would work in a real world search and defaults scenario.
-    if (type === 'date') return { $ne: new Date(searchVal) }
+    if (type === 'boolean') return { $neq: /^true$/i.test(searchVal) }
+    if (type === 'date') return { $lt: new Date(searchVal), $gt: new Date(searchVal).getTime() + ISODay }
   } else if (op === 'eq') {
     if (type === 'string') return { $regex: `^${searchVal}$`, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $eq: parseInt(searchVal) }
-    if (type === 'boolean') return { $eq: /^true$/i.test(searchVal) } // TODO: Think through and test how this would work in a real world search and defaults scenario.
-    if (type === 'date') return { $eq: new Date(searchVal) }
+    if (type === 'boolean') return { $eq: /^true$/i.test(searchVal) }
+    if (type === 'date') return { $gte: new Date(searchVal), $lt: new Date(searchVal).getTime() + ISODay }
   } else if (op === 'lt') { // Also `starts with` on strings.
     if (type === 'string') return { $regex: `^${searchVal}`, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $lt: parseInt(searchVal) }
@@ -415,57 +439,19 @@ function getFilterExpression (searchVal: string, type: NestedProp<SearchPropDefa
     if (type === 'string') return { $regex: `^${searchVal}`, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $lte: parseInt(searchVal) }
     if (type === 'boolean') return { $eq: /^true$/i.test(searchVal) }
-    if (type === 'date') return { $lte: new Date(searchVal) }
+    if (type === 'date') return { $lte: new Date(searchVal).getTime() + ISODay }
   } else if (op === 'gt') { // Also `ends with` on strings.
     if (type === 'string') return { $regex: `${searchVal}$`, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $gt: parseInt(searchVal) }
-    if (type === 'boolean') return Boolean(searchVal)
-    if (type === 'date') return { $gt: new Date(searchVal) }
+    if (type === 'boolean') return { $eq: /^true$/i.test(searchVal) }
+    if (type === 'date') return { $gt: new Date(searchVal).getTime() + ISODay }
   } else if (op === 'gte') { // Also `ends with` on strings.
     if (type === 'string') return { $regex: `${searchVal}$`, $options: 'i' }
     if (['number', 'bigint'].includes(type as string)) return { $gte: parseInt(searchVal) }
-    if (type === 'boolean') return Boolean(searchVal)
+    if (type === 'boolean') return { $eq: /^true$/i.test(searchVal) }
     if (type === 'date') return { $gte: new Date(searchVal) }
   }
-  // Not doing $in or $nin at this level as there's no advanced search syntax equivalents for them.
-}
-
-function buildFilterDocument (tableDef: SearchMappings, alias: string, searchVal: string, op: string, sub?: { field: string, subType?: NestedProp<SearchPropDefaults>, subField?: string }) {
-  const fieldName = sub?.field ?? tableDef.hash[alias]
-  const fieldType = sub?.subType ?? tableDef.metas?.[fieldName]
-  const stepOp = /^(?:eq|in|lt|lte|gt|gte)$/.test(op) ? op : tableDef.opHash?.[op] ?? 'eq'
-  if (!fieldType) {
-    console.error(`buildFilterDocument - fieldType not found for fieldName "${fieldName}" of alias "${alias}".`)
-    return
-  } else {
-    console.log(`buildFilterDocument - ${fieldName} - fieldType: ${typeof fieldType}, ${typeof fieldType === 'object' ? JSON.stringify(fieldType) : fieldType}`)
-  }
-  const filter: any = {}
-  if (typeof fieldType === 'object') { // We have nesting to recurse.
-    const fieldStack = fieldName.split('.')
-    const parentField = fieldStack.shift()!
-    if (fieldType.array) {
-      if (typeof fieldType.array === 'object') { // Nested recurse
-        const subField = fieldStack.length ? fieldStack.join('.') : fieldName
-        // const
-        filter[parentField] = { $elemMatch: buildFilterDocument(tableDef, alias, searchVal, stepOp, { field: fieldName, subType: fieldType.array }) }
-      } else {
-        filter[fieldName] = { $elemMatch: getFilterExpression(searchVal, fieldType.array, stepOp) }
-      }
-    } else if (fieldType.object) {
-      if (typeof fieldType.object === 'object') { // Nested recurse.
-        // Figure out reverse polish notation handling for 'in' op nested in date fields.
-        filter[parentField] = { $eq: buildFilterDocument(tableDef, alias, searchVal, stepOp, { field: fieldName, subType: fieldType.object }) }
-      } else {
-        if (stepOp === 'in' && fieldType.object === 'date') {
-          return ''
-        }
-        filter[fieldName] = getFilterExpression(searchVal, fieldType, stepOp)
-      }
-    }
-  } else { // We're at the end of the nesting.
-    filter[fieldName] = getFilterExpression(searchVal, fieldType, stepOp)
-  }
+  throw new Error(`getFilterExpression - type:op "${JSON.stringify(type)}:${op}" not found. - Should never reach this error.`)
 }
 
 /** Returns an MQL `match` clause using `tableDef` and parsable `search` string as parameters.
@@ -487,51 +473,50 @@ export function getMatchClause (tableDef: SearchMappings, search: string) {
   (and |not |+|-)?((tableDef.hash.keys) *(contains|(ends|begins|starts) with|is|:|<=|>=|=|<|>) *)?(["']*|[,; ]+)<what to search for>\5+[,;]? *
   <   likeops   >  <     aliases      >  <                 wildcardops                       >   <<     \5     >      whatfor      >
   */
-  const binds = []
   const fieldAliases = getAliases(tableDef.hash).join('|')
   const aliases = new RegExp(`\\b(?<alias>${fieldAliases})\\b\\s*`) // Aliases that translate to fields we search.
   const parser = new RegExp(`(?:${likeops.source})?(?:${aliases.source + wildcardops.source})?${whatfors.source}[,;]?\\s*`, 'gi')
 
-  const matchClause = []
-  console.log(`helpers.getMatchClause(..., ${search})`)
+  const union: object[] = []
+  const intersect: object[] = []
   for (const token of search.matchAll(parser)) {
-    console.log(`helpers.getMatchClause - token: ${token.toString()}`)
     const { likeop, alias, wildcardop, whatfor } = token.groups as any
-    const whatforbind = whatfor.replace(/^(["'])(.*?)\1$/, '$2') // Strip any grouping quotes.
-    if (!alias) {
-      // Build default match clause for whatforbind
-      const filterObj: any = {}
-      // for (const field of tableDef.defaults) {
-      // }
-      matchClause.push(filterObj)
+    const searchVal = whatfor.replace(/^(["'])(.*?)\1$/, '$2') // Strip any grouping quotes.
+    const negation = likeop ? /^(?:not\s+|-)$/.test(likeop) : false
+    const intersection = likeop ? /^(?:and\s+|\+)$/.test(likeop) : false
+    /*
+    */
+    console.log('getMatchClause - token.likeop:', likeop)
+    console.log('getMatchClause - token.alias:', alias)
+    console.log('getMatchClause - token.wildcardop:', wildcardop)
+    console.log('getMatchClause - token.whatfor:', whatfor)
+    console.log('getMatchClause - negation:', negation)
+    console.log('getMatchClause - intersection:', intersection)
+    if (!alias) { // Build default match clause.
+      const defaults: object[] = []
+      for (const field of tableDef.defaults) {
+        defaults.push({ [field]: getFilterExpression(searchVal, tableDef.metas?.[field] ?? 'string', negation) })
+      }
+      if (intersection) intersect.push({ $or: defaults })
+      else union.push(...defaults)
       continue
     }
     const fieldName = tableDef.hash[alias]
     const fieldType = tableDef.metas?.[fieldName]
+    const op = tableDef.opHash?.[wildcardop]
+    console.log('getMatchClause - fieldName:', fieldName)
+    console.log('getMatchClause - fieldType:', fieldType)
+    console.log('getMatchClause - op:', op)
     if (!fieldType) {
       console.error(`helpers.getMatchClause - fieldType not found for fieldName "${fieldName}" of alias "${alias}".`)
       continue
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
-      console.log(`helpers.getMatchClause - typeof fieldType: ${typeof fieldType}: ${typeof fieldType === 'object' ? fieldType.toString() : fieldType}`)
+      if (intersection) intersect.push({ [fieldName]: getFilterExpression(searchVal, fieldType, negation, op) })
+      else union.push({ [fieldName]: getFilterExpression(searchVal, fieldType, negation, op) })
     }
-    let regExBind = ''
-    if (!wildcardop || /^(?:contains|:)/.test(wildcardop))/**/ regExBind = `/${whatforbind}/i`
-    else if (/^(?:ends\s?with)/.test(wildcardop)) /*        */ regExBind = `/${whatforbind}$/i`
-    else if (/^(?:(?:begins|starts)\s?with)/.test(wildcardop)) regExBind = `/^${whatforbind}/i`
-    else /*                     /^(?:is|=)/                 */ regExBind = whatforbind
-    // We've created our bind parameter for this token, now let's build the clause.
-    let clause = regExBind
-    if (/^(?:<=)/.test(likeop)) clause = `{ $lte: ${clause} }`
-    else if (/^(?:>=)/.test(likeop)) clause = `{ $gte: ${clause} }`
-    else if (/^(?:<)/.test(likeop)) clause = `{ $lt: ${clause} }`
-    else if (/^(?:>)/.test(likeop)) clause = `{ $gt: ${clause} }`
-    if (/^(?:not\s+|-)$/.test(likeop)) clause = `{ $ne: ${clause} }`
-    else /*  /^(?:and\s+|\+)$/ or !likeop */ clause = `${clause}`
-    // Prepend our alias's property name, if alias was parsed, else default to tableDef.defaults.
-    if (alias) (clause = `{'${tableDef.hash[alias]}': ${clause}}`)
-    else clause = tableDef.defaults.map((field: string) => (`{'${field}': ${clause}}`)).join('\n $or ')
-    matchClause.push(clause)
   }
-  return { mql: '{ ' + matchClause.join('} $and {') + ' }' }
+  if (union.length && intersect.length) return { $and: [{ $or: union }, ...intersect] }
+  else if (intersect.length) return { $and: intersect }
+  else if (union.length) return { $or: union }
+  return {} // Find all.
 }

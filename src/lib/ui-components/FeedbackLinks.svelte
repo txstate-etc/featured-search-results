@@ -41,7 +41,7 @@
   TODO: Add reference description for component that's displayed in VSCode editors.
 -->
 
-{#if targetParams.length > 0}
+{#if targetParams.length }
   <div class='feedback-links'>
     {#each targetParams as target}
       {preamble}<a href='{`${targetURL}${buildPath(target, pathKeys)}`}' target='_blank'>{getText(target, pathKeys)}</a>{postscript}<br>

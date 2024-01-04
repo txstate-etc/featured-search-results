@@ -35,7 +35,7 @@
     },
     tags: (value, record) => {
       return `<div class='tags'>${value.map((tag: string) => {
-        return `<div class='tag'><a href='${appBase}/results?q=${tag}' target='_blank'>${tag}</a></div>`
+        return `<div class='tag'><a href='${appBase}/results?q=tags:${tag}' target='_blank'>${tag}</a></div>`
       }).join('')}</div>`
     }
   }
@@ -56,7 +56,7 @@
 
 <h1>Featured Search Results</h1>
 <SearchBar target={`${appBase}/results`} search={data.query} reloadHandle={data.reloadHandle}/>
-{#if data.results && data.results.length > 0}
+{#if data.results?.length}
   <div class='results-root-container'>
     <ResponsiveTable data={data.results} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} />
   </div>

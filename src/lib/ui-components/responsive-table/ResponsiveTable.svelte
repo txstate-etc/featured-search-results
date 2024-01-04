@@ -297,7 +297,7 @@
   }
 </script>
 
-{#if effectiveMetas && data.length > 0 }
+{#if effectiveMetas && data.length }
 <div class:table-container={true}>
   <table style={`--longestKey: ${longestKey}`}>
     <slot name='caption' contextualizedData={groupedData}>
@@ -329,7 +329,7 @@
           {#if nestedHead.sortable}
             <th id={nestedHead.key}
               class:nested-container={true}
-              colspan={plainMetas.length > 0 ? plainMetas.length : 1}
+              colspan={plainMetas.length ? plainMetas.length : 1}
               aria-sort={nestedHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}>
               <button class='sortable-column-header' on:click={async () => { await sortByHeading(nestedHead) }}>
                 {getHeadingText(nestedHead.key)}
@@ -340,14 +340,14 @@
               </button>
             </th>
           {:else}
-            <th id={nestedHead.key} class:nested-container={true} class='column-header' aria-sort='none' colspan={plainMetas.length > 0 ? plainMetas.length : 1}>
+            <th id={nestedHead.key} class:nested-container={true} class='column-header' aria-sort='none' colspan={plainMetas.length ? plainMetas.length : 1}>
               {getHeadingText(nestedHead.key)}
             </th>
           {/if}
         </tr>
       {/each}
     </thead>
-    {#if (spanning && subrowMetas.length > 0)} <!-- Possible multiple rows per record with subrow records spanned by source record data. -->
+    {#if (spanning && subrowMetas.length)} <!-- Possible multiple rows per record with subrow records spanned by source record data. -->
       {#each groupedData as recordGroup, gidx}
         <tbody>
           {#each recordGroup.group as record, ridx}
@@ -395,7 +395,7 @@
           {/each}
         </tbody>
       {/each}
-    {:else if (nesting && nestedMetas.length > 0)} <!-- Possibly multiple rows per record with subrow records spaning width of row. -->
+    {:else if (nesting && nestedMetas.length)} <!-- Possibly multiple rows per record with subrow records spaning width of row. -->
       {#each data as record, idx}
         <tbody>
           <tr>
@@ -419,7 +419,7 @@
           {#each nestedMetas as dataMeta}
             <tr>
               <td data-key={getHeadingText(dataMeta.key)} headers={dataMeta.key}
-                colspan={plainMetas.length > 0 ? plainMetas.length : 1}
+                colspan={plainMetas.length ? plainMetas.length : 1}
                 class={dataMeta.shouldNest ? 'complex-container' : 'simple-container'}>
                 {#if dataMeta.type === 'array'}
                   <div class='complex-container array'>

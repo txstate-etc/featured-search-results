@@ -4,7 +4,7 @@
   import { MessageType, type Feedback, type FormStore, type SubmitResponse } from '@txstate-mws/svelte-forms'
   import FeedbackLinks from './FeedbackLinks.svelte'
   import { VALIDATE_ONLY, apiURL, appURL } from '$lib/util/globals'
-  import { isValidHttpUrl } from '$lib/util/helpers'
+  import { isValidHttpUrl, normalizeUrl } from '$lib/util/helpers'
   import { FieldHidden, FieldNumber, FieldSelect, FieldStandard, FieldText, Form, Icon, Input } from '@dosgato/dialog'
   import FieldMultiple from './FieldMultiple.svelte'
   // import helpCircle from '@iconify-icons/mdi/help-circle'
@@ -103,11 +103,9 @@
   async function validate (state: ResultState): Promise<Feedback[]> {
     // Make sure the URL is lowercased on case-insensitive portions so we can be sure to catch duplicates.
     state.url = state.url.trim()
-    const parsedURL = isValidHttpUrl(state.url) ? new URL(state.url) : undefined
-    if (parsedURL) {
-      parsedURL.protocol = parsedURL.protocol.toLowerCase()
-      parsedURL.hostname = parsedURL.hostname.toLowerCase()
-      const newURL = state.url.endsWith('/') ? parsedURL.toString() : parsedURL.toString().replace(/\/$/, '')
+    const normalized = isValidHttpUrl(state.url) ? normalizeUrl(state.url) : undefined
+    if (normalized) {
+      const newURL = state.url.endsWith('/') ? normalized : normalized.replace(/\/$/, '')
       if (newURL !== state.url) {
         state.url = newURL
         await store.setField('url', newURL)
@@ -152,7 +150,7 @@
   }
   beforeNavigate(({ to, from, cancel }) => {
     const dirtyFields = Array.from(store.dirtyFields.entries())
-    if (dirtyFields.length > 0 && !deleting) {
+    if (dirtyFields.length && !deleting) {
       const confirmed = window.confirm('You have unsaved changes. Are you sure you want to leave?')
       // const confirmed = window.confirm('You are about to exit without saving your work. Would you like to continue?')
       if (!confirmed) cancel()

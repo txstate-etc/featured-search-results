@@ -14,14 +14,14 @@ export async function POST ({ url, locals, request }) {
   const postedResult = new Result()
   postedResult.fromPartialJson(body)
   const existingResultUrls: ResultDocument[] | undefined = await Result.findByUrl(postedResult.url)
-  if (existingResultUrls && existingResultUrls.length > 0) {
+  if (existingResultUrls?.length) {
     messages.push({ type: MessageType.ERROR, path: 'url', message: 'This URL is equivalent to existing Result records.' })
     messages.push(...existingResultUrls.map(r => {
       return { type: MessageType.WARNING, path: `equivalent.url.${r.id}.${r.title}`, message: `URL is equivalent to ${r.title}'s URL.` }
     }))
   }
   const existingResultTitles: ResultDocument[] | undefined = await Result.find({ title: postedResult.title })
-  if (existingResultTitles && existingResultTitles.length > 0) {
+  if (existingResultTitles?.length) {
     messages.push({ type: MessageType.ERROR, path: 'title', message: 'This Title is the same as existing Result records.' })
     messages.push(...existingResultTitles.map(r => {
       return { type: MessageType.WARNING, path: `equivalent.title.${r.id}.${r.title}`, message: `Title is the same as ${r.title}'s Title.` }
