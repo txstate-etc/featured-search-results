@@ -1,6 +1,9 @@
+<script lang='ts' context='module'>
+  import { appBase, DEFAULT_PAGESIZE_OPTIONS, DEFAULT_PAGINATION_SIZE } from '$lib/util/globals'
+  import type { SortParam } from '$lib/util/helpers'
+</script>
 <script lang=ts>
   import { onMount } from 'svelte'
-  import { appBase, DEFAULT_PAGESIZE_OPTIONS, DEFAULT_PAGINATION_SIZE } from '$lib/util/globals'
 
   /** TODO:
    - Add form submit to pagesize <select>
@@ -25,14 +28,16 @@
   export let page: number = 0
   /** The search query associated with the results being paginated. */
   export let search: string
+  export let sorts: SortParam[] = []
   /** The list of pagesize options to offer. */
   export let sizeops: { value: number }[] = DEFAULT_PAGESIZE_OPTIONS
   /** The total number of results associated with the search query. */
   export let count: number | undefined
 
-  onMount(() => {
-    // Get a reference to the form object so you can call submit when pagesize <select on:change={}>
-  })
+  function requestData (sort: SortParam[], search?: string, target?: string): object[] {
+    sorts = sort
+    return []
+  }
 
   /** Need to bound the range of links generated so we only display a maximum width worth of links.
       Maybe subcomponent that out - or just keep in here to have all in one place. */
@@ -46,7 +51,7 @@
 </script>
 
 <!-- Test this, the browser should add these to form (rename to appropriate acronyms) but SvelteKit might get in the way. If it doesn't remove all the appending here. -->
-<form name='Pagination' action={`${target}?q=${search}&p=${page}&n=${pagesize}`} method='GET'>
+<form name='Pagination' id='paginator' action={`${target}?q=${search}&p=${page}&n=${pagesize}&s=${JSON.stringify(sorts)}`} method='GET'>
   <select name='pagesize'>
     {#each sizeops as option}
       <option value={option.value} selected={option.value === pagesize} />
@@ -59,7 +64,7 @@
 {/if}
 {#if pageCount > 1 }
   {#each Array(Math.ceil(pageCount)) as _, index (index)}
-    <a href={`${target}?q=${search}&p=${index}&s=${pagesize}`}>{index}</a>
+    <a href={`${target}?q=${search}&p=${index}&n=${pagesize}&s=${JSON.stringify(sorts)}`}>{index}</a>
   {/each}
 {/if}
 

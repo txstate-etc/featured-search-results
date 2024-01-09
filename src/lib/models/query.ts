@@ -21,11 +21,11 @@
 import { DateTime } from 'luxon'
 import mongoose from 'mongoose'
 const { Schema, models, model, deleteModel } = mongoose
-import type { Model, Document, ObjectId } from 'mongoose'
+import type { Model, Document, ObjectId, PipelineStage } from 'mongoose'
 // import paginate from 'mongoose-paginate-v2'
 import { isBlank, keyby, unique } from 'txstate-utils'
 import { type ResultDocument, type ResultBasicPlusId, entryMatch } from './result.js'
-import { querysplit } from '../util/helpers.js'
+import { type Paging, getMongoStages, getQueriesDef, querysplit } from '../util/helpers.js'
 
 export interface QueryBasic {
   /** The string that makes this query. */
@@ -58,9 +58,14 @@ export type QueryDocument = Document<ObjectId> & IQuery & IQueryMethods
 export type QueryDocumentWithResults = QueryDocument & { results: ResultDocument[] }
 
 interface QueryModel extends Model<IQuery, any, IQueryMethods> {
+  castAggResult: (input: Record<string, any>) => QueryDocument
   /** Updates or Inserts the corresponding `query` document, setting its `results` to passed in array,
    *  and pushing a `new Date()` to the document's `hits` array. */
   record: (query: string, results: ResultDocument[]) => void
+  /** Returns an array of the top 5000 `Query` objects sorted by their `hitcount` in
+   *  descending order and getting their corresponding `results` array populated
+   *  based on the Advanced Search string provided. */
+  searchAllQueries: (search: string, pagination?: Paging) => Promise<{ matches: QueryDocument[], total: number }>
   /** Returns an array of the top 5000 `Query` objects sorted by their `hitcount` in
    *  descending order and getting their corresponding `results` array populated. */
   getAllQueries: () => Promise<QueryDocument[]>
@@ -98,6 +103,20 @@ QuerySchema.methods.basic = function () {
 QuerySchema.statics.record = async function (query: string, results: ResultDocument[]) {
   if (isBlank(query)) return
   await Query.findOneAndUpdate({ query: query.toLowerCase().replace(/[^\w-]+/g, ' ').trim() }, { $set: { results }, $push: { hits: new Date() } }, { upsert: true }).exec()
+}
+QuerySchema.statics.castAggResult = function (input: Record<string, any>) {
+  return new Query({ query: input.query, hitcount: input.hitcount, hits: input.hits, lasthit: input.lasthit, results: input.results })
+}
+const queriesDef = getQueriesDef()
+QuerySchema.statics.searchAllQueries = async function (search: string, pagination?: Paging) {
+  const clause = getMongoStages(queriesDef, search, pagination?.sorts)
+  console.log(JSON.stringify(clause))
+  const searchResult = (await Query.aggregate<{ docs: object[], totalMatches: number }>(clause))[0] as { docs: object[], totalMatches: number }
+  if (searchResult.docs.length) {
+    const matches = (await Query.populate(searchResult.docs.map((query) => Query.castAggResult(query)), 'results')).map((query) => query.basic())
+    return { matches, total: searchResult.totalMatches }
+  }
+  return { matches: [], total: 0 }
 }
 QuerySchema.statics.getAllQueries = async function () {
   const queries = (await Query.aggregate([

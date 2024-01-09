@@ -7,7 +7,7 @@
   import { DateTime } from 'luxon'
 
   /** @type {import('./$types').PageData} */
-  export let data: { query: string, results: ResultDocument[] | undefined, reloadHandle: string }
+  export let data: { query: string, results: ResultDocument[] | undefined, total: number, reloadHandle: string }
 
   const propsMetas: PropMeta[] = [
     { key: 'title', type: 'string', sortable: true },

@@ -25,7 +25,8 @@ const allowedCorsEndpoints = /^\/(search|peoplesearch|counter|departments)\/?$/
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle ({ event, resolve }) {
-  logEvent(event)
+  // logEvent(event)
+  console.log('Event handler called.')
   const unifiedJwt = event.url.searchParams.get('unifiedJwt')
   // if we are coming back from unified auth, unified auth will have set
   // both 'requestedUrl' and 'unifiedJwt' as parameters
@@ -79,6 +80,7 @@ export async function handle ({ event, resolve }) {
     response.headers.set('Access-Control-Allow-Origin', origin ?? '*')
     response.headers.set('Access-Control-Allow-Credentials', 'true')
   }
-  logResponse(response)
+  // logResponse(response)
+  console.log('Returned from response.')
   return response
 }

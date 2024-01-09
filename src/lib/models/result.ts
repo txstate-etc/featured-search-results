@@ -60,6 +60,8 @@ export interface ResultFull extends ResultBasicPlusId {
 export type ResultDocument = Document<ObjectId> & IResult & IResultMethods
 
 interface ResultModel extends Model<IResult, any, IResultMethods> {
+  /** Returns a ResultDocument from the `input` Record. */
+  castAggResult: (input: Record<string, any>) => ResultDocument
   /** @async Returns array of all `Result` documents with `keywords` that start with any of the `words`. */
   getByQuery: (words: string[]) => Promise<ResultDocument[]>
   /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `match()` on the tokenized `query`. */
@@ -336,6 +338,16 @@ ResultSchema.methods.valid = function () {
   // Additional warning validation on http instead of https URL.
   if (/^http:/i.test(this.url)) resp.push({ type: 'warning', path: 'url', message: "URL is using 'http:' not 'https:'" })
   return resp
+}
+ResultSchema.statics.castAggResult = function (input: Record<string, any>) {
+  return new Result({
+    _id: input._id,
+    title: input.title,
+    url: input.url,
+    entries: input.entries,
+    tags: input.tags,
+    currency: input.currency
+  })
 }
 ResultSchema.statics.getByQuery = async function (words: string[]) {
   if (words.length === 0) throw new Error('Attempted Result.getByQuery(words: string[]) with an empty array.')

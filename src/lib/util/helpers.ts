@@ -1,6 +1,17 @@
 /* eslint-disable @typescript-eslint/dot-notation */
 /* eslint-disable quote-props */
+import type { PipelineStage } from 'mongoose'
 import { isNotBlank } from 'txstate-utils'
+
+export interface SortParam {
+  field: string
+  direction: 'asc' | 'desc'
+}
+export interface Paging {
+  page?: number
+  size?: number
+  sorts?: SortParam[]
+}
 
 /** Uses URL constructor to test if `urlString` is a value conformant to valid URL standards. */
 export function isValidUrl (urlString: string | undefined | null) {
@@ -159,13 +170,9 @@ export function querysplit (query: string) {
 
 /** `typeof` operator doesn't distinguish between 'object' and 'array' and we want the distinction here. */
 export type EnhancedType = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function' | 'array'
-export type NestingType = 'object' | 'array'
-export type AggOp = 'count' | 'sum' | 'avg' | 'min' | 'max'
-export type NestedProp<T> = T | NestedMeta<T>
 // eslint-disable-next-line @typescript-eslint/consistent-indexed-object-style
-export type NestedMeta<T> = { [key in NestingType]?: NestedProp<T> }
-export type SearchMetas<T> = Record<string, NestedMeta<T> | NestedProp<T>>
-export type SearchPropDefaults = EnhancedType | AggOp | 'date'
+export type MappingType = Record<string, any> | EnhancedType | 'date'
+
 /** Utility function for getting the `typeof` an object with `array` differentiated from `object`. */
 export function getType (obj: any) {
   let type: EnhancedType = typeof obj
@@ -176,11 +183,15 @@ interface SearchMappings {
   /** A mapping of search aliases to the table field they correspond to. */
   hash: Record<string, string>
   /** The fields of the record set and their associated primative-ish type. */
-  metas?: SearchMetas<SearchPropDefaults>
+  metas?: Record<string, any>
+  /** Any lookup definitions needed for foreign keyed collections. */
+  lookups?: Record<string, PipelineStage>
   /** A mapping of search operators to common filter comparisons. */
   opHash?: Record<string, string>
   /** The default fields to compare search values against when none are specified. */
   defaults: string[]
+  /** For DBs that struggle with certain sorting patterns like parallel arrays in MongoDB. */
+  noSort?: Set<string>
   /** Convenience reference of distinct table fields available to compare against. */
   fields: Set<string>
 }
@@ -227,11 +238,7 @@ export function getPeopleDef (): SearchMappings {
     'category': 'category'
   }
   const defaults: string[] = ['lastname', 'firstname', 'userid', 'phone', 'email']
-  return {
-    hash,
-    defaults,
-    fields: getFields(hash)
-  } as const
+  return { hash, defaults, fields: getFields(hash) } as const
 }
 /** What to search for. Quoted things as a single what-for or anything that's either an escaped [comma, semicolon, space]
  *  or is not a [comma, semicolon or space] - making commas, semicolons, or spaces our delimiters when not grouped by quotes. */
@@ -337,6 +344,77 @@ export function getLimitClause (pageNum: number, pageSizes: number) {
   return (pageSizes > 0) ? ` limit ${offset}${pageSizes}` : limitDefault
 }
 
+interface MetaStage {
+  union: object[]
+  intersect: object[]
+  projection: Record<string, any>
+  lookups: PipelineStage[]
+  post: { union: object[], intersect: object[] }
+}
+/** Returns an object reference to a utility representation of the relationship between search
+ *  terms and the underlying `Query` documents. */
+export function getQueriesDef (): SearchMappings {
+  const hash: Record<string, string> = {
+    'match words': 'query',
+    'keyphrase': 'query',
+    'aliases': 'query',
+    'keywords': 'query',
+    'query': 'query',
+    'search': 'query',
+    'term': 'query',
+    'terms': 'query',
+    'title': 'results::results.title',
+    'page name': 'results::results.title',
+    'url': 'results::results.url',
+    'path': 'results::results.url',
+    'domain': 'results::results.url',
+    'subdomain': 'results::results.url',
+    'hostname': 'results::results.url',
+    'hits': 'query::hitcount',
+    'count': 'query::hitcount',
+    'hitcount': 'query::hitcount',
+    'lasthit': 'query::lasthit',
+    'last hit': 'query::lasthit'
+  }
+  const metas: MappingType = {
+    'query': 'string',
+    'query::hitcount': { $size: '$hits' },
+    'hitcount': 'number',
+    'query::lasthit': { $arrayElemAt: [{ $slice: ['$hits', -1] }, 0] },
+    'lasthit': 'date',
+    'results::results.title': undefined,
+    'results.title': 'string',
+    'results::results.url': undefined,
+    'results.url': 'string'
+  }
+  const lookups: Record<string, PipelineStage> = {
+    results: {
+      $lookup: {
+        from: 'results',
+        localField: 'results',
+        foreignField: '_id',
+        as: 'results',
+        pipeline: [{ $project: { title: 1, url: 1 } }]
+      }
+    }
+  }
+  const opHash: Record<string, string> = {
+    ':': 'eq',
+    '=': 'eq',
+    'is': 'eq',
+    'contains': 'in',
+    '<': 'lt',
+    '<=': 'lte',
+    'starts with': 'lte',
+    'startswith': 'lte',
+    '>': 'gt',
+    '>=': 'gte',
+    'ends with': 'gte',
+    'endswith': 'gte'
+  }
+  const defaults: string[] = ['query']
+  return { hash, metas, lookups, opHash, defaults, fields: getFields(hash) } as const
+}
 /** Returns an object reference to a utility representation of the relationship between search
  *  terms and the underlying `Result` documents. */
 export function getResultsDef (): SearchMappings {
@@ -353,7 +431,7 @@ export function getResultsDef (): SearchMappings {
     'broken': 'currency.broken',
     'brokensince': 'currency.brokensince',
     'duplicateurl': 'currency.conflictingUrls.url',
-    'duplicateurls': 'currency.conflictingUrls',
+    'duplicateurls': 'results::conflictingUrls.length',
     'duplicatetitle': 'currency.conflictingTitles.title',
     'duplicatetitles': 'currency.conflictingTitles',
     'duplicatematch': 'currency.conflictingMatchings.mode',
@@ -364,6 +442,8 @@ export function getResultsDef (): SearchMappings {
     'keywords': 'entries.keywords',
     'search': 'entries.keywords',
     'query': 'entries.keywords',
+    'term': 'entries.keywords',
+    'terms': 'entries.keywords',
     'mode': 'entries.mode',
     'type': 'entries.mode',
     'priority': 'entries.priority',
@@ -371,13 +451,14 @@ export function getResultsDef (): SearchMappings {
     'hits': 'entries.hitCountCached',
     'count': 'entries.hitCountCached'
   }
-  const metas: SearchMetas<SearchPropDefaults> = {
+  const metas: MappingType = {
     'title': 'string',
     'tags': { array: 'string' },
     'url': 'string',
     'currency.broken': 'boolean',
     'currency.brokensince': 'date',
-    'currency.conflictingUrls': 'boolean',
+    'results::conflictingUrls.length': { $size: '$currency.conflictingUrls' },
+    'conflictingUrls.length': 'number',
     'currency.conflictingUrls.url': 'string',
     'currency.conflictingTitles': 'boolean',
     'currency.conflictingTitles.title': 'string',
@@ -403,17 +484,138 @@ export function getResultsDef (): SearchMappings {
     'endswith': 'gte'
   }
   const defaults: string[] = ['title', 'tags', 'url', 'entries.keywords']
-  return { hash, metas, opHash, defaults, fields: getFields(hash) } as const
+  const noSort: Set<string> = new Set<string>(['entries.keywords', 'entries.mode', 'entries.priority', 'entries.hitCountCached'])
+  return { hash, metas, opHash, defaults, fields: getFields(hash), noSort } as const
 }
-function getFilterExpression (searchVal: string, type: NestedProp<SearchPropDefaults>, negation?: boolean, op?: string | undefined): object {
-  if (negation) return { $not: getFieldExpression(searchVal, type, op) }
-  return getFieldExpression(searchVal, type, op)
+/** Returns an array of MQL aggregation stages using `tableDef`, parsable `search` string, and an array of `sorts` SortParam as parameters.
+ * @param {SearchMappings} tableDef - A utility object used to associate search aliases and defaults to table fields.
+ * @param {string} search
+ * * A string that will be parsed for tokens of simple search terms, tokens of advanced search phrases, or combos of the two.
+ * @returns
+ * ```
+ *   { mql: string, binds: [string] }
+ * ```
+ * @example
+ * ```
+ *   getMatchClause(someTableDef,'alias1 is a, alias2 begins with b')
+ *   // Returns:
+ *   { mql: '{ field1: ?, field2: /$?/i }' }
+ * ``` */
+export function getMongoStages (tableDef: SearchMappings, search: string, sorts: SortParam[] = []): PipelineStage[] {
+  /* Advanced search phrases consist of the following RegEx-ish form.
+  (and |not |+|-)?((tableDef.hash.keys) *(contains|(ends|begins|starts) with|is|:|<=|>=|=|<|>) *)?(["']*|[,; ]+)<what to search for>\5+[,;]? *
+  <   likeops   >  <     aliases      >  <                 wildcardops                       >   <<     \5     >      whatfor      >
+  */
+  const fieldAliases = getAliases(tableDef.hash).join('|')
+  const aliases = new RegExp(`\\b(?<alias>${fieldAliases})\\b\\s*`) // Aliases that translate to fields we search.
+  const parser = new RegExp(`(?:${likeops.source})?(?:${aliases.source + wildcardops.source})?${whatfors.source}[,;]?\\s*`, 'gi')
+  // console.log(parser)
+
+  const metaStage: MetaStage = {
+    union: [],
+    intersect: [],
+    projection: {},
+    lookups: [],
+    post: { union: [], intersect: [] }
+  }
+  for (const token of search.matchAll(parser)) {
+    const { likeop, alias, wildcardop, whatfor } = token.groups as any
+    const searchVal = whatfor.replace(/^(["'])(.*?)\1$/, '$2') // Strip any grouping quotes.
+    const negation = likeop ? /^(?:not\s+|-)$/.test(likeop) : false
+    const intersection = likeop ? /^(?:and\s+|\+)$/.test(likeop) : false
+    console.table(token)
+    console.log('getMatchClause - negation:', negation, ' intersection:', intersection)
+    if (!alias) { // Build default match clause.
+      const defaults: object[] = []
+      for (const field of tableDef.defaults) {
+        if (field.includes('::')) {
+          mutateLookupsAndProjections(tableDef, metaStage, field, searchVal, negation, intersection)
+          console.log('getMatchClause - post-metaStage:', metaStage)
+          continue
+        }
+        defaults.push({ [field]: getFilterExpression(searchVal, tableDef.metas?.[field] ?? 'string', negation, field) })
+      }
+      if (intersection) metaStage.intersect.push({ $or: defaults })
+      else metaStage.union.push(...defaults)
+      continue
+    }
+    const fieldName = tableDef.hash[alias]
+    const op = tableDef.opHash?.[wildcardop]
+    console.log('getMatchClause - fieldName:', fieldName, ' op:', op)
+    // Handle Projections and Lookups.
+    if (fieldName.includes('::')) {
+      mutateLookupsAndProjections(tableDef, metaStage, fieldName, searchVal, negation, intersection, op)
+      console.log('getMatchClause - post-metaStage:', metaStage)
+      continue
+    }
+    // Get initial stage match clause.
+    const fieldType = tableDef.metas?.[fieldName]
+    console.log('getMatchClause - fieldType:', fieldType)
+    if (intersection) metaStage.intersect.push({ [fieldName]: getFilterExpression(searchVal, fieldType, negation, fieldName, op) })
+    else metaStage.union.push({ [fieldName]: getFilterExpression(searchVal, fieldType, negation, fieldName, op) })
+  }
+  // Pre-Filter before lookups and projections.
+  const stages: PipelineStage[] = [getMatchStage(metaStage.union, metaStage.intersect)]
+  // Add any lookups.
+  if (metaStage.lookups.length) stages.push(...metaStage.lookups)
+  // Add projection.
+  if (Object.values(metaStage.projection).length) stages.push({ $addFields: metaStage.projection })
+  // Add any post-projection matching.
+  stages.push(getMatchStage(metaStage.post.union, metaStage.post.intersect))
+  // Add any sorting.
+  stages.push(getSortStage(tableDef, sorts))
+  // Add count of results matched.
+  stages.push({ $group: { _id: null, docs: { $push: '$$ROOT' }, totalMatches: { $sum: 1 } } })
+  return stages
+}
+function mutateLookupsAndProjections (tableDef: SearchMappings, metaStage: MetaStage, fieldName: string, searchVal: string, negation: boolean, intersection: boolean, op?: string | undefined) {
+  const [local, alias] = fieldName.split('::')
+  metaStage.projection[alias] = tableDef.metas?.[fieldName]
+  if (tableDef.lookups?.[local] && !metaStage.projection[local]) {
+    metaStage.lookups.push(tableDef.lookups[local])
+    console.table(metaStage.lookups)
+  }
+  const fieldType = tableDef.metas?.[alias]
+  if (intersection) metaStage.post.intersect.push({ [alias]: getFilterExpression(searchVal, fieldType, negation, alias, op) })
+  else metaStage.post.union.push({ [alias]: getFilterExpression(searchVal, fieldType, negation, alias, op) })
+  return metaStage
+}
+function getMatchStage (unions: object[], intersects: object[]): PipelineStage {
+  if (unions.length && intersects.length) return { $match: { $and: [{ $or: unions }, ...intersects] } }
+  else if (intersects.length) return { $match: { $and: intersects } }
+  else if (unions.length) return { $match: { $or: unions } }
+  return { $match: {} }
+}
+function getSortStage (tableDef: SearchMappings, sortOrder: SortParam[]): PipelineStage {
+  const sort: Record<string, any> = {}
+  for (const order of sortOrder) {
+    const field = order.field
+    if (tableDef.noSort?.has(field)) continue
+    sort[field] = order.direction === 'asc' ? 1 : -1
+  }
+  for (const field of tableDef.defaults) {
+    if (!sort[field] && !tableDef.noSort?.has(field)) sort[field] = 1
+  }
+  return { $sort: sort }
+}
+function getFilterExpression (searchVal: string, type: MappingType, negation?: boolean, field?: string, op?: string | undefined): object {
+  if (negation) return { $not: getFieldExpression(searchVal, type, field, op) }
+  return getFieldExpression(searchVal, type, field, op)
 }
 const ISODay = 86400000
-function getFieldExpression (searchVal: string, type: NestedProp<SearchPropDefaults>, op?: string | undefined): object {
+function getFieldExpression (searchVal: string, type: MappingType, field?: string, op?: string | undefined): Record<string, any> {
   if (typeof type === 'object') {
     if (type.object) return getFieldExpression(searchVal, type.object, op)
-    else if (type.array) return { $elemMatch: getFieldExpression(searchVal, type.array, op) }
+    else if (type.array) {
+      if (type.array === 'count') {
+        const expr: Record<string, any> = getFieldExpression(searchVal, 'number', op)
+        for (const key in expr) {
+          expr[key] = [{ $size: `$${field}` }, expr[key]]
+        }
+        return { $expr: expr }
+      }
+      return { $elemMatch: getFieldExpression(searchVal, type.array, op) }
+    }
   }
   if (op === undefined || op === 'in') { // Also `contains` on strings.
     if (type === 'string') return { $regex: searchVal, $options: 'i' }
@@ -452,71 +654,4 @@ function getFieldExpression (searchVal: string, type: NestedProp<SearchPropDefau
     if (type === 'date') return { $gte: new Date(searchVal) }
   }
   throw new Error(`getFilterExpression - type:op "${JSON.stringify(type)}:${op}" not found. - Should never reach this error.`)
-}
-
-/** Returns an MQL `match` clause using `tableDef` and parsable `search` string as parameters.
- * @param {SearchMappings} tableDef - A utility object used to associate search aliases and defaults to table fields.
- * @param {string} search
- * * A string that will be parsed for tokens of simple search terms, tokens of advanced search phrases, or combos of the two.
- * @returns
- * ```
- *   { mql: string, binds: [string] }
- * ```
- * @example
- * ```
- *   getMatchClause(someTableDef,'alias1 is a, alias2 begins with b')
- *   // Returns:
- *   { mql: '{ field1: ?, field2: /$?/i }' }
- * ``` */
-export function getMatchClause (tableDef: SearchMappings, search: string) {
-  /* Advanced search phrases consist of the following RegEx-ish form.
-  (and |not |+|-)?((tableDef.hash.keys) *(contains|(ends|begins|starts) with|is|:|<=|>=|=|<|>) *)?(["']*|[,; ]+)<what to search for>\5+[,;]? *
-  <   likeops   >  <     aliases      >  <                 wildcardops                       >   <<     \5     >      whatfor      >
-  */
-  const fieldAliases = getAliases(tableDef.hash).join('|')
-  const aliases = new RegExp(`\\b(?<alias>${fieldAliases})\\b\\s*`) // Aliases that translate to fields we search.
-  const parser = new RegExp(`(?:${likeops.source})?(?:${aliases.source + wildcardops.source})?${whatfors.source}[,;]?\\s*`, 'gi')
-
-  const union: object[] = []
-  const intersect: object[] = []
-  for (const token of search.matchAll(parser)) {
-    const { likeop, alias, wildcardop, whatfor } = token.groups as any
-    const searchVal = whatfor.replace(/^(["'])(.*?)\1$/, '$2') // Strip any grouping quotes.
-    const negation = likeop ? /^(?:not\s+|-)$/.test(likeop) : false
-    const intersection = likeop ? /^(?:and\s+|\+)$/.test(likeop) : false
-    /*
-    */
-    console.log('getMatchClause - token.likeop:', likeop)
-    console.log('getMatchClause - token.alias:', alias)
-    console.log('getMatchClause - token.wildcardop:', wildcardop)
-    console.log('getMatchClause - token.whatfor:', whatfor)
-    console.log('getMatchClause - negation:', negation)
-    console.log('getMatchClause - intersection:', intersection)
-    if (!alias) { // Build default match clause.
-      const defaults: object[] = []
-      for (const field of tableDef.defaults) {
-        defaults.push({ [field]: getFilterExpression(searchVal, tableDef.metas?.[field] ?? 'string', negation) })
-      }
-      if (intersection) intersect.push({ $or: defaults })
-      else union.push(...defaults)
-      continue
-    }
-    const fieldName = tableDef.hash[alias]
-    const fieldType = tableDef.metas?.[fieldName]
-    const op = tableDef.opHash?.[wildcardop]
-    console.log('getMatchClause - fieldName:', fieldName)
-    console.log('getMatchClause - fieldType:', fieldType)
-    console.log('getMatchClause - op:', op)
-    if (!fieldType) {
-      console.error(`helpers.getMatchClause - fieldType not found for fieldName "${fieldName}" of alias "${alias}".`)
-      continue
-    } else {
-      if (intersection) intersect.push({ [fieldName]: getFilterExpression(searchVal, fieldType, negation, op) })
-      else union.push({ [fieldName]: getFilterExpression(searchVal, fieldType, negation, op) })
-    }
-  }
-  if (union.length && intersect.length) return { $and: [{ $or: union }, ...intersect] }
-  else if (intersect.length) return { $and: intersect }
-  else if (union.length) return { $or: union }
-  return {} // Find all.
 }

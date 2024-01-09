@@ -186,7 +186,7 @@
         </button>
       </div>
       -->
-      <FieldMultiple path='entries' label='Matchings' helptext='' removable={true} let:index>
+      <FieldMultiple path='entries' label='Matchings' helptext='' removable={true} confirmDelete='Delete this matching?' let:index>
         <div class='result-entries-record'>
           <span data-tooltip={keyphraseTooltip} class={index === 0 ? 'tooltip-shown tooltipped' : 'tooltipped'}>
             <FieldText path='keyphrase' label='Terms:' defaultValue={''} required />
