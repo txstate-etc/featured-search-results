@@ -1,6 +1,6 @@
 <script lang=ts>
   import ResultEditor from '$lib/ui-components/ResultEditor.svelte'
-  import type { ResultDocument, TemplateResult } from '$lib/models/result.js'
+  import type { TemplateResult } from '$lib/models/result.js'
   import { apiURL } from '$lib/util/globals'
 
   /** @type {import('./$types').PageData} */

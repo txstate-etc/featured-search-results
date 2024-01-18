@@ -1,5 +1,5 @@
 <script lang='ts' context='module'>
-  import type { TemplateResult, RawJsonResult, ResultFull } from '$lib/models/result.js'
+  import type { TemplateResult, RawJsonResult, ResultFull, ResultEntry } from '$lib/models/result.js'
   import type { PopupMenuItem } from '@txstate-mws/svelte-components'
   import { MessageType, type Feedback, type FormStore, type SubmitResponse } from '@txstate-mws/svelte-forms'
   import FeedbackLinks from './FeedbackLinks.svelte'
@@ -161,6 +161,9 @@
       $store.data.id = undefined
     }
   })
+  function deleteMatchingConfirm (item: ResultEntry) {
+    return `Are you sure you want to delete "${item.keyphrase}"?`
+  }
   $: submitContext = data?.id ? 'Update' : 'Create'
   $: resultId = doIdReset ? data?.id : data?.id ?? $store?.data?.id
 </script>
@@ -186,7 +189,7 @@
         </button>
       </div>
       -->
-      <FieldMultiple path='entries' label='Matchings' helptext='' removable={true} confirmDelete='Delete this matching?' let:index>
+      <FieldMultiple path='entries' label='Matchings' helptext='' removable={true} confirmDelete={deleteMatchingConfirm} let:index>
         <div class='result-entries-record'>
           <span data-tooltip={keyphraseTooltip} class={index === 0 ? 'tooltip-shown tooltipped' : 'tooltipped'}>
             <FieldText path='keyphrase' label='Terms:' defaultValue={''} required />

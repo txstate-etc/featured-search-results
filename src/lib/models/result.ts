@@ -1,3 +1,4 @@
+/* eslint-disable quote-props */
 /* In the parlance of Search-Featured-Results a `Result` is an associative object that searches
  * can be compared against for correlated `url:title` pairs to be ranked and returned. The search
  * queries are compared against the Result documents' lists of corresponding `entries` (or "alias"
@@ -21,11 +22,11 @@
 import axios from 'axios'
 import { DateTime } from 'luxon'
 import mongoose from 'mongoose'
-const { Schema, models, model, Error } = mongoose
+const { Schema, models, model, Error, deleteModel } = mongoose
 import type { Model, Document, ObjectId } from 'mongoose'
-// import paginate from 'mongoose-paginate-v2'
 import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
-import { getUrlEquivalencies, isValidHttpUrl, normalizeUrl, querysplit } from '../util/helpers.js'
+import { getUrlEquivalencies, isValidHttpUrl, normalizeUrl, querysplit, getMongoStages, getFields } from '../util/helpers.js'
+import type { Paging, AdvancedSearchResult, AggregateResult, SearchMappings, MappingType } from '../util/helpers.js'
 import type { Feedback } from '@txstate-mws/svelte-forms'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
@@ -35,6 +36,100 @@ const matchModesToString = new Map<ResultModes, string>([
   ['phrase', 'Phrase'],
   ['exact', 'Exact']
 ])
+
+/** Returns an object reference to a utility representation of the relationship between search
+ *  terms and the underlying `Result` documents. */
+export function getResultsDef (): SearchMappings {
+  const hash: Record<string, string> = {
+    'title': 'title',
+    'pagename': 'title',
+    'page name': 'title',
+    'tag': 'tags',
+    'tags': 'tags',
+    'tagcount': 'results::tags-length',
+    'tag count': 'results::tags-length',
+    'url': 'url',
+    'path': 'url',
+    'domain': 'url',
+    'subdomain': 'url',
+    'hostname': 'url',
+    'broken': 'currency.broken',
+    'brokensince': 'currency.brokensince',
+    'duplicateurl': 'currency.conflictingUrls.url',
+    'duplicateurls': 'results::conflictingUrls-length',
+    'duplicatetitle': 'currency.conflictingTitles.title',
+    'duplicatetitles': 'results::conflictingTitles-length',
+    'duplicatematch': 'currency.conflictingMatchings.mode',
+    'duplicatematches': 'results::conflictingMatchings-length',
+    'matchwords': 'entries.keywords',
+    'match words': 'entries.keywords',
+    'matchwordcount': 'results::keywords-length',
+    'matchword count': 'results::keywords-length',
+    'keyphrase': 'entries.keywords',
+    'aliases': 'entries.keywords',
+    'keyword': 'entries.keywords',
+    'keywords': 'entries.keywords',
+    'keywordcount': 'results::keywords-length',
+    'keyword count': 'results::keywords-length',
+    'search': 'entries.keywords',
+    'query': 'entries.keywords',
+    'term': 'entries.keywords',
+    'terms': 'entries.keywords',
+    'termcount': 'results::keywords-length',
+    'term count': 'results::keywords-length',
+    'mode': 'entries.mode',
+    'type': 'entries.mode',
+    'priority': 'entries.priority',
+    'weight': 'entries.priority',
+    'hits': 'entries.hitCountCached',
+    'count': 'entries.hitCountCached'
+  }
+  const metas: MappingType = {
+    'title': 'string',
+    'tags': { array: 'string' },
+    'results::tags-length': { $size: '$tags' },
+    'tags-length': 'number',
+    'url': 'string',
+    'currency.broken': 'boolean',
+    'currency.brokensince': 'date',
+    'results::conflictingUrls-length': { $size: '$currency.conflictingUrls' },
+    'conflictingUrls-length': 'number',
+    'results::conflictingTitles-length': { $size: '$currency.conflictingTitles' },
+    'conflictingTitles-length': 'number',
+    'results::conflictingMatchings-length': { $size: '$currency.conflictingMatchings' },
+    'conflictingMatchings-length': 'number',
+    'results::keywords-length': { $size: '$entries.keywords' },
+    'keywords-length': 'number',
+    'currency.conflictingUrls.url': 'string',
+    'currency.conflictingTitles': 'boolean',
+    'currency.conflictingTitles.title': 'string',
+    'currency.conflictingMatchings': 'boolean',
+    'currency.conflictingMatchings.mode': 'string',
+    'entries.keywords': { array: 'string' },
+    'entries.mode': 'string',
+    'entries.priority': 'number',
+    'entries.hitCountCached': 'number'
+  }
+  const opHash: Record<string, string> = {
+    ':': 'in',
+    '=': 'eq',
+    'is': 'eq',
+    'contains': 'in',
+    '<': 'lt',
+    '<=': 'lte',
+    'starts with': 'lte',
+    'startswith': 'lte',
+    'begins with': 'lte',
+    'beginswith': 'lte',
+    '>': 'gt',
+    '>=': 'gte',
+    'ends with': 'gte',
+    'endswith': 'gte'
+  }
+  const defaults: string[] = ['title', 'tags', 'url', 'entries.keywords']
+  const noSort: Set<string> = new Set<string>(['entries.keywords', 'entries.mode', 'entries.priority', 'entries.hitCountCached'])
+  return { hash, metas, opHash, defaults, fields: getFields(hash), noSort } as const
+}
 
 export interface ResultEntry {
   /** Space delimited list of words to associate with the URL based on the `mode`. */
@@ -62,6 +157,9 @@ export type ResultDocument = Document<ObjectId> & IResult & IResultMethods
 interface ResultModel extends Model<IResult, any, IResultMethods> {
   /** Returns a ResultDocument from the `input` Record. */
   castAggResult: (input: Record<string, any>) => ResultDocument
+  /** Returns an array of the `Result` objects sorted by their `title, tags, url, entries.keywords` in
+   *  descending order based on the Advanced Search string provided. */
+  searchAllResults: (search: string, pagination?: Paging) => Promise<AdvancedSearchResult>
   /** @async Returns array of all `Result` documents with `keywords` that start with any of the `words`. */
   getByQuery: (words: string[]) => Promise<ResultDocument[]>
   /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `match()` on the tokenized `query`. */
@@ -349,6 +447,22 @@ ResultSchema.statics.castAggResult = function (input: Record<string, any>) {
     currency: input.currency
   })
 }
+const resultDef = getResultsDef()
+ResultSchema.statics.searchAllResults = async function (search: string, pagination?: Paging): Promise<AdvancedSearchResult> {
+  const filter = await getMongoStages(resultDef, search, pagination)
+  const searchResult = (await Result.aggregate<AggregateResult>(filter.pipeline))[0]
+  if (searchResult.matches.length) {
+    // This would be where we insert sub-array filtering using the filter.metaSearch object to guide us.
+    return {
+      matches: searchResult.matches.map(r => this.castAggResult(r).full()),
+      total: searchResult.matchCount[0].total,
+      search,
+      pagination,
+      meta: filter.metaSearch
+    }
+  }
+  return { matches: [], total: 0, search, pagination, meta: filter.metaSearch }
+}
 ResultSchema.statics.getByQuery = async function (words: string[]) {
   if (words.length === 0) throw new Error('Attempted Result.getByQuery(words: string[]) with an empty array.')
   const ret = await this.find({
@@ -494,5 +608,5 @@ ResultSchema.statics.currencyTestLoop = async function () {
   setTimeout(() => { this.currencyTestLoop().catch(console.error) }, 600000)
 }
 
-if (mongoose.models.Result) mongoose.deleteModel('Result')
+if (models?.Result) deleteModel('Result')
 export const Result = model<IResult, ResultModel>('Result', ResultSchema)

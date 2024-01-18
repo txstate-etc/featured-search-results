@@ -3,18 +3,17 @@
   import ResponsiveTable from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import type { Transforms, PropMeta, HeadingTexts, Sortings } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import { appBase } from '$lib/util/globals'
-  import type { QueryBasic } from '$lib/models/query'
   import type { ResultBasicPlusId } from '$lib/models/result'
   import { DateTime } from 'luxon'
   import { htmlEncode } from 'txstate-utils'
-  import { querysplit } from '$lib/util/helpers'
+  import { querysplit, type AdvancedSearchResult } from '$lib/util/helpers'
 
   /* TODO: Run queries against the api to generate queries to search for.
     localhost/search?q=texas+state
     featured.search.qual.txstate.edu/search?q=bubba+hotep       */
 
   /** @type {import('./$types').PageData} */
-  export let data: { query: string, results: QueryBasic[] | undefined, reloadHandle: string }
+  export let data: AdvancedSearchResult & { reloadHandle: string }
 
   const propsMetas: PropMeta[] = [
     { key: 'query', type: 'string', sortable: true },
@@ -44,13 +43,14 @@
 </script>
 
 <h1>Visitor Searches</h1>
-<SearchBar target={`${appBase}/queries`} search={data.query} reloadHandle={data.reloadHandle}/>
-{#if data.results?.length}
+<SearchBar target={`${appBase}/queries`} search={data.search} reloadHandle={data.reloadHandle}/>
+{#if data.matches?.length}
   <div class='results-root-container'>
-    <ResponsiveTable data={data.results} {propsMetas} {headingTexts} {transforms}/>
+    <p>Result Total: {data.total}</p>
+    <ResponsiveTable data={data.matches} {propsMetas} {headingTexts} {transforms}/>
   </div>
 {:else}
-  <p>Hmmm... We couldn't find any matches for "{data.query ?? ''}".<br/>
+  <p>Hmmm... We couldn't find any matches for "{data.search ?? ''}".<br/>
   Double check your search for spelling errors or try different search terms.</p>
 {/if}
 <!-- Stubbing a pagination concept.

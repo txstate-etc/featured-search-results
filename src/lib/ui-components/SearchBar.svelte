@@ -1,10 +1,17 @@
 <script lang='ts'>
   import { invalidate } from '$app/navigation'
+  import { DEFAULT_PAGINATION_SIZE } from '$lib/util/globals'
+  import type { SortParam } from '$lib/util/helpers'
 
   /** Two-way bind for sharing the `search` value with sibling components. */
   export let search: string = ''
   /** The endpoint to direct search requests to. */
   export let target: string
+  /** The maximum number of results to display per page - and offset multiplier for subsequent pages. */
+  export let pagesize: number = DEFAULT_PAGINATION_SIZE
+  /** The page offset (0 = 1st page) */
+  export let page: number = 0
+  export let sorts: SortParam[] = []
   /** Handle that pageLoad assigned to itself for the last search ran.
    * Used to invalidate the cache for the last search ran so we can re-run it and find
    * any new results that may have been added since the last search. */
@@ -17,7 +24,7 @@
   }
 </script>
 
-<form name='SearchBar' action={target} method='GET' data-sveltekit-keepfocus>
+<form name='SearchBar' action={`${target}?q=${search}&p=${page}&n=${pagesize}&s=${JSON.stringify(sorts)}`} method='GET' data-sveltekit-keepfocus>
   <div class='searchbar'>
     <input type='search' name='q' placeholder='Search...' bind:value={search} />
     <button on:click={rerunLoad} type='submit' class='submit-button'>Search</button>

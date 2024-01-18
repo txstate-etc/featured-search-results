@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/dot-notation */
+/* eslint-disable quote-props */
 /* In the parlance of Search-Featured-Result a `Query` is a record of all search requests
  * submitted for `Result` matching. Each `Query` record is uniquely identified by its
  * "cleaned" query string:
@@ -18,14 +20,89 @@
  * Query `hits` that are older than 6 months are removed from all Query documents every 27 minutes.
  * If any Query documents end up with empty `hits` arrays as a result - they are deleted.
  */
+import { Result } from './result.js'
 import { DateTime } from 'luxon'
 import mongoose from 'mongoose'
 const { Schema, models, model, deleteModel } = mongoose
 import type { Model, Document, ObjectId, PipelineStage } from 'mongoose'
-// import paginate from 'mongoose-paginate-v2'
 import { isBlank, keyby, unique } from 'txstate-utils'
-import { type ResultDocument, type ResultBasicPlusId, entryMatch } from './result.js'
-import { type Paging, getMongoStages, getQueriesDef, querysplit } from '../util/helpers.js'
+import { type ResultDocument, type ResultBasicPlusId, entryMatch, getResultsDef } from './result.js'
+import { getMongoStages, querysplit, getFields } from '../util/helpers.js'
+import type { Paging, AdvancedSearchResult, AggregateResult, SearchMappings, MetaSearch, MappingType } from '../util/helpers.js'
+
+/** Returns an object reference to a utility representation of the relationship between search
+ *  terms and the underlying `Query` documents. */
+export function getQueriesDef (): SearchMappings {
+  const hash: Record<string, string> = {
+    'match words': 'query',
+    'keyphrase': 'query',
+    'aliases': 'query',
+    'keywords': 'query',
+    'query': 'query',
+    'search': 'query',
+    'term': 'query',
+    'terms': 'query',
+    'title': 'results::',
+    'pagename': 'results::',
+    'page name': 'results::',
+    'url': 'results::',
+    'path': 'results::',
+    'domain': 'results::',
+    'subdomain': 'results::',
+    'hostname': 'results::',
+    'hits': 'query::hitcount',
+    'count': 'query::hitcount',
+    'hitcount': 'query::hitcount',
+    'lasthit': 'query::lasthit',
+    'last hit': 'query::lasthit',
+    'resultcount': 'query::results-length',
+    'result count': 'query::results-length'
+  }
+  const metas: MappingType = {
+    'query': 'string',
+    'query::hitcount': { $size: '$hits' }, // Translate to using test for existance of Number(value) in $hits array.
+    'hitcount': 'number',
+    'query::lasthit': { $arrayElemAt: [{ $slice: ['$hits', -1] }, 0] },
+    'lasthit': 'date',
+    'results::': undefined, // TODO: Add filtering for results title and url?
+    'query::results-length': { $size: '$results' },
+    'results-length': 'number'
+  }
+  const correlations: Record<string, (metaSearch: MetaSearch) => Promise<MetaSearch>> = {
+    results: async (metaSearch) => {
+      const tableDef = getResultsDef()
+      const unionFilter = await getMongoStages(tableDef, metaSearch.correlations.results.unionSearches.join(''))
+      const unionResults: ObjectId[] = (await Result.aggregate<AggregateResult>(unionFilter.pipeline))[0].matches.map(result => result['_id'])
+      unionResults.forEach(result => metaSearch.correlations.results.unionIds.add(result))
+      const intersectFilter = await getMongoStages(tableDef, metaSearch.correlations.results.intersectSearches.join(''))
+      const intersectResults = (await Result.aggregate<AggregateResult>(intersectFilter.pipeline))[0].matches.map(result => result['_id'])
+      intersectResults.forEach(result => metaSearch.correlations.results.intersectIds.add(result))
+      return metaSearch
+    }
+  }
+  const pretty: PipelineStage = {
+    $project: { query: 1, results: 1, hitcount: 1, lasthit: 1 }
+  }
+  const opHash: Record<string, string> = {
+    ':': 'in',
+    '=': 'eq',
+    'is': 'eq',
+    'contains': 'in',
+    '<': 'lt',
+    '<=': 'lte',
+    'starts with': 'lte',
+    'startswith': 'lte',
+    'begins with': 'lte',
+    'beginswith': 'lte',
+    '>': 'gt',
+    '>=': 'gte',
+    'ends with': 'gte',
+    'endswith': 'gte'
+  }
+  const defaults: string[] = ['query']
+  const noSort: Set<string> = new Set<string>(['rusults'])
+  return { hash, metas, correlations, opHash, defaults, noSort, pretty, fields: getFields(hash) } as const
+}
 
 export interface QueryBasic {
   /** The string that makes this query. */
@@ -65,7 +142,7 @@ interface QueryModel extends Model<IQuery, any, IQueryMethods> {
   /** Returns an array of the top 5000 `Query` objects sorted by their `hitcount` in
    *  descending order and getting their corresponding `results` array populated
    *  based on the Advanced Search string provided. */
-  searchAllQueries: (search: string, pagination?: Paging) => Promise<{ matches: QueryDocument[], total: number }>
+  searchAllQueries: (search: string, pagination?: Paging) => Promise<AdvancedSearchResult>
   /** Returns an array of the top 5000 `Query` objects sorted by their `hitcount` in
    *  descending order and getting their corresponding `results` array populated. */
   getAllQueries: () => Promise<QueryDocument[]>
@@ -85,8 +162,6 @@ const QuerySchema = new Schema<IQuery, QueryModel, IQueryMethods>({
   lasthit: { type: Date },
   results: [{ type: Schema.Types.ObjectId, ref: 'Result' }]
 })
-// QuerySchema.plugin(paginate)
-
 QuerySchema.index({ query: 1 })
 // we always push later dates on the end of hits, so hits[0] is the minimum and the
 // only index we need - luckily mongo supports this with dot notation
@@ -108,15 +183,16 @@ QuerySchema.statics.castAggResult = function (input: Record<string, any>) {
   return new Query({ query: input.query, hitcount: input.hitcount, hits: input.hits, lasthit: input.lasthit, results: input.results })
 }
 const queriesDef = getQueriesDef()
-QuerySchema.statics.searchAllQueries = async function (search: string, pagination?: Paging) {
-  const clause = getMongoStages(queriesDef, search, pagination?.sorts)
-  console.log(JSON.stringify(clause))
-  const searchResult = (await Query.aggregate<{ docs: object[], totalMatches: number }>(clause))[0] as { docs: object[], totalMatches: number }
-  if (searchResult.docs.length) {
-    const matches = (await Query.populate(searchResult.docs.map((query) => Query.castAggResult(query)), 'results')).map((query) => query.basic())
-    return { matches, total: searchResult.totalMatches }
+QuerySchema.statics.searchAllQueries = async function (search: string, pagination?: Paging): Promise<AdvancedSearchResult> {
+  const filter = await getMongoStages(queriesDef, search, pagination)
+  // console.log(JSON.stringify(clause))
+  const searchResult = (await Query.aggregate<AggregateResult>(filter.pipeline))[0]
+  if (searchResult.matches.length) {
+    const matches = (await Query.populate(searchResult.matches.map((query) => Query.castAggResult(query)), 'results')).map((query) => query.basic())
+    // This would be where we insert sub-array filtering using the filter.metaSearch object to guide us.
+    return { matches, total: searchResult.matchCount[0].total, search, pagination, meta: filter.metaSearch }
   }
-  return { matches: [], total: 0 }
+  return { matches: [], total: 0, search, pagination, meta: filter.metaSearch }
 }
 QuerySchema.statics.getAllQueries = async function () {
   const queries = (await Query.aggregate([
@@ -138,8 +214,8 @@ QuerySchema.statics.cleanup = async function () {
   const expires = DateTime.local().minus({ months: 6 }).toJSDate()
   await Query.updateMany(
     { 'hits.0': { $lte: expires } },
-    { $pull: { hits: { $lte: expires } } },
-    { multi: true }
+    { $pull: { hits: { $lte: expires } } }//,
+    // { multi: true }
   )
   await Query.deleteMany({ hits: { $eq: [] } })
   await Query.updateHitCounts()
@@ -207,5 +283,5 @@ QuerySchema.statics.cleanupLoop = async function () {
   setTimeout(() => { Query.cleanupLoop().catch(console.error) }, 27 * 60 * 1000)
 }
 
-if (models.Query) deleteModel('Query')
+if (models?.Query) deleteModel('Query')
 export const Query = model<IQuery, QueryModel>('Query', QuerySchema)

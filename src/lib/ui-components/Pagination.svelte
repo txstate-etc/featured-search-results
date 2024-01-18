@@ -20,19 +20,19 @@
   across all Query and Result records.
   */
 
+  /** The search query associated with the results being paginated. */
+  export let search: string
   /** The endpoint to direct pagination update requests to. */
-  export let target: string = `${appBase}/results`
+  export let target: string
   /** The maximum number of results to display per page - and offset multiplier for subsequent pages. */
   export let pagesize: number = DEFAULT_PAGINATION_SIZE
   /** The page offset (0 = 1st page) */
   export let page: number = 0
-  /** The search query associated with the results being paginated. */
-  export let search: string
   export let sorts: SortParam[] = []
   /** The list of pagesize options to offer. */
   export let sizeops: { value: number }[] = DEFAULT_PAGESIZE_OPTIONS
   /** The total number of results associated with the search query. */
-  export let count: number | undefined
+  export let total: number | undefined
 
   function requestData (sort: SortParam[], search?: string, target?: string): object[] {
     sorts = sort
@@ -41,12 +41,12 @@
 
   /** Need to bound the range of links generated so we only display a maximum width worth of links.
       Maybe subcomponent that out - or just keep in here to have all in one place. */
-  $:pageCount = (count ?? pagesize) / pagesize
+  $:pageCount = Math.ceil((total ?? pagesize) / pagesize)
   $:pageStart = (page * pagesize) + 1
   $:pageEnd = (page + 1) * pagesize
-  $:displayCount = count ?? 0
-  $:displayStart = (pageStart < displayCount) ? pageStart : displayCount
-  $:displayEnd = (pageEnd < displayCount) ? pageEnd : displayCount
+  $:displayTotal = total ?? 0
+  $:displayStart = (pageStart < displayTotal) ? pageStart : displayTotal
+  $:displayEnd = (pageEnd < displayTotal) ? pageEnd : displayTotal
 
 </script>
 
@@ -59,8 +59,8 @@
   </select>
   <slot />
 </form>
-{#if displayCount > 0}
-  <p>Showing {displayStart} to {displayEnd} of {displayCount} entries.</p>
+{#if displayTotal > 0}
+  <p>Showing {displayStart} to {displayEnd} of {displayTotal} entries.</p>
 {/if}
 {#if pageCount > 1 }
   {#each Array(Math.ceil(pageCount)) as _, index (index)}

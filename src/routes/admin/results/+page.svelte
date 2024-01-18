@@ -1,13 +1,13 @@
 <script lang=ts>
   import SearchBar from '$lib/ui-components/SearchBar.svelte'
-  import type { ResultDocument } from '$lib/models/result'
   import { appBase } from '$lib/util/globals'
   import ResponsiveTable from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import type { Transforms, PropMeta, HeadingTexts, Sortings } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import { DateTime } from 'luxon'
+  import type { AdvancedSearchResult } from '$lib/util/helpers'
 
   /** @type {import('./$types').PageData} */
-  export let data: { query: string, results: ResultDocument[] | undefined, total: number, reloadHandle: string }
+  export let data: AdvancedSearchResult & { reloadHandle: string }
 
   const propsMetas: PropMeta[] = [
     { key: 'title', type: 'string', sortable: true },
@@ -55,13 +55,13 @@
 </script>
 
 <h1>Featured Search Results</h1>
-<SearchBar target={`${appBase}/results`} search={data.query} reloadHandle={data.reloadHandle}/>
-{#if data.results?.length}
+<SearchBar target={`${appBase}/results`} search={data.search} reloadHandle={data.reloadHandle}/>
+{#if data.matches?.length}
   <div class='results-root-container'>
-    <ResponsiveTable data={data.results} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} />
+    <ResponsiveTable data={data.matches} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} />
   </div>
 {:else}
-  <p>Hmmm... We couldn't find any matches for "{data.query ?? ''}".<br/>
+  <p>Hmmm... We couldn't find any matches for "{data.search ?? ''}".<br/>
   Double check your search for spelling errors or try different search terms.</p>
 {/if}
 <!-- Stubbing a pagination concept. May put this in the respective lists instead of here.

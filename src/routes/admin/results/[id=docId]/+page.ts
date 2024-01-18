@@ -1,5 +1,4 @@
 import { error } from '@sveltejs/kit'
-import type { TemplateResult } from '$lib/models/result.js'
 import { apiBase } from '$lib/util/globals.js'
 
 /** @type {import('./$types').PageLoad} */
