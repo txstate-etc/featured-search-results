@@ -1,5 +1,5 @@
 <script lang='ts'>
-  import { invalidate } from '$app/navigation'
+  import { goto, invalidate } from '$app/navigation'
   import { DEFAULT_PAGINATION_SIZE } from '$lib/util/globals'
   import type { SortParam } from '$lib/util/helpers'
 
@@ -20,6 +20,7 @@
   /** Force page to go ahead and reload the page data despite the url not being changed. */
   async function rerunLoad () {
     await invalidate(reloadHandle)
+    await goto(`${target}?q=${search}&p=${page}&n=${pagesize}&s=${JSON.stringify(sorts)}`)
   }
 </script>
 

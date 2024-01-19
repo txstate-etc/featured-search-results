@@ -49,7 +49,7 @@
 </script>
 
 <h1>Visitor Searches</h1>
-<SearchBar target={`${appBase}/queries`} bind:search={data.search} reloadHandle={data.reloadHandle}/>
+<SearchBar target={`${appBase}/queries`} bind:search={data.search} reloadHandle={data.reloadHandle} {pagesize} {page} {sorts}/>
 {#if data.matches?.length}
   <div class='results-root-container'>
     <Pagination target={`${appBase}/queries`} search={data.search} bind:pagesize bind:page {sorts} total={data.total}>

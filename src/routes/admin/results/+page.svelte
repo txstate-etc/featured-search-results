@@ -36,7 +36,7 @@
     },
     tags: (value, record) => {
       return `<div class='tags'>${value.map((tag: string) => {
-        return `<div class='tag'><a href='${appBase}/results?q=tags:${tag}' target='_blank'>${tag}</a></div>`
+        return `<div class='tag'><a href='${appBase}/results?q=tags=${tag}' target='_blank'>${tag}</a></div>`
       }).join('')}</div>`
     }
   }
@@ -61,7 +61,7 @@
 </script>
 
 <h1>Featured Search Results</h1>
-<SearchBar target={`${appBase}/results`} bind:search={data.search} reloadHandle={data.reloadHandle}/>
+<SearchBar target={`${appBase}/results`} bind:search={data.search} reloadHandle={data.reloadHandle} {pagesize} {page} {sorts}/>
 {#if data.matches?.length}
   <div class='results-root-container'>
     <Pagination target={`${appBase}/results`} search={data.search} bind:pagesize bind:page {sorts} total={data.total}>
