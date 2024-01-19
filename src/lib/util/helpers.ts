@@ -8,9 +8,9 @@ export interface SortParam {
   direction: 'asc' | 'desc'
 }
 export interface Paging {
-  page?: number
-  size?: number
-  sorts: SortParam[]
+  page?: number // url-param: p
+  size?: number // url-param: n
+  sorts: SortParam[] // url-param: s
 }
 export interface AdvancedSearchResult {
   matches: Record<string, any>[]

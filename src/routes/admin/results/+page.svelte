@@ -1,10 +1,11 @@
 <script lang=ts>
   import SearchBar from '$lib/ui-components/SearchBar.svelte'
-  import { appBase } from '$lib/util/globals'
+  import { DEFAULT_PAGINATION_SIZE, appBase } from '$lib/util/globals'
   import ResponsiveTable from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import type { Transforms, PropMeta, HeadingTexts, Sortings } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import { DateTime } from 'luxon'
-  import type { AdvancedSearchResult } from '$lib/util/helpers'
+  import type { AdvancedSearchResult, SortParam } from '$lib/util/helpers'
+  import Pagination from '$lib/ui-components/Pagination.svelte'
 
   /** @type {import('./$types').PageData} */
   export let data: AdvancedSearchResult & { reloadHandle: string }
@@ -52,23 +53,25 @@
   function getRowspanKeys (data: Record<string, any>[]) {
     return ['title', 'brokensince', 'tags', 'id', 'url']
   }
+
+  const defaultSorts: SortParam[] = []
+  $:pagesize = data.pagination?.size ?? DEFAULT_PAGINATION_SIZE
+  $:page = data.pagination?.page ?? 0
+  $:sorts = data.pagination?.sorts ?? defaultSorts
 </script>
 
 <h1>Featured Search Results</h1>
-<SearchBar target={`${appBase}/results`} search={data.search} reloadHandle={data.reloadHandle}/>
+<SearchBar target={`${appBase}/results`} bind:search={data.search} reloadHandle={data.reloadHandle}/>
 {#if data.matches?.length}
   <div class='results-root-container'>
-    <ResponsiveTable data={data.matches} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} />
+    <Pagination target={`${appBase}/results`} search={data.search} bind:pagesize bind:page {sorts} total={data.total}>
+      <ResponsiveTable data={data.matches} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} />
+    </Pagination>
   </div>
 {:else}
   <p>Hmmm... We couldn't find any matches for "{data.search ?? ''}".<br/>
   Double check your search for spelling errors or try different search terms.</p>
 {/if}
-<!-- Stubbing a pagination concept. May put this in the respective lists instead of here.
-<Pagination>
-  <ResultList {data}/>
-</Pagination>
--->
 
 <style>
   :global(tbody > tr > td) {

@@ -17,8 +17,7 @@
    * any new results that may have been added since the last search. */
   export let reloadHandle: string = ''
 
-  /** STUB: Looking into getting unchanged searches to go ahead and reload the page data despite the url not being changed.
-   *  Need to look into overloading the submit button. */
+  /** Force page to go ahead and reload the page data despite the url not being changed. */
   async function rerunLoad () {
     await invalidate(reloadHandle)
   }
@@ -26,7 +25,7 @@
 
 <form name='SearchBar' action={`${target}?q=${search}&p=${page}&n=${pagesize}&s=${JSON.stringify(sorts)}`} method='GET' data-sveltekit-keepfocus>
   <div class='searchbar'>
-    <input type='search' name='q' placeholder='Search...' bind:value={search} />
+    <input type='search' name='q' placeholder='Search...' autocomplete='on' bind:value={search} />
     <button on:click={rerunLoad} type='submit' class='submit-button'>Search</button>
   </div>
 </form>

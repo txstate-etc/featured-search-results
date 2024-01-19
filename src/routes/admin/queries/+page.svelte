@@ -2,11 +2,12 @@
   import SearchBar from '$lib/ui-components/SearchBar.svelte'
   import ResponsiveTable from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import type { Transforms, PropMeta, HeadingTexts, Sortings } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
-  import { appBase } from '$lib/util/globals'
+  import { DEFAULT_PAGINATION_SIZE, appBase } from '$lib/util/globals'
   import type { ResultBasicPlusId } from '$lib/models/result'
   import { DateTime } from 'luxon'
   import { htmlEncode } from 'txstate-utils'
-  import { querysplit, type AdvancedSearchResult } from '$lib/util/helpers'
+  import { querysplit, type AdvancedSearchResult, type SortParam } from '$lib/util/helpers'
+  import Pagination from '$lib/ui-components/Pagination.svelte'
 
   /* TODO: Run queries against the api to generate queries to search for.
     localhost/search?q=texas+state
@@ -40,24 +41,25 @@
       return DateTime.fromISO(value).toRelative() ?? ''
     }
   }
+
+  const defaultSorts: SortParam[] = [{ field: 'query', direction: 'asc' }]
+  $:pagesize = data.pagination?.size ?? DEFAULT_PAGINATION_SIZE
+  $:page = data.pagination?.page ?? 0
+  $:sorts = data.pagination?.sorts ?? defaultSorts
 </script>
 
 <h1>Visitor Searches</h1>
-<SearchBar target={`${appBase}/queries`} search={data.search} reloadHandle={data.reloadHandle}/>
+<SearchBar target={`${appBase}/queries`} bind:search={data.search} reloadHandle={data.reloadHandle}/>
 {#if data.matches?.length}
   <div class='results-root-container'>
-    <p>Result Total: {data.total}</p>
-    <ResponsiveTable data={data.matches} {propsMetas} {headingTexts} {transforms}/>
+    <Pagination target={`${appBase}/queries`} search={data.search} bind:pagesize bind:page {sorts} total={data.total}>
+      <ResponsiveTable data={data.matches} {propsMetas} {headingTexts} {transforms}/>
+    </Pagination>
   </div>
 {:else}
   <p>Hmmm... We couldn't find any matches for "{data.search ?? ''}".<br/>
   Double check your search for spelling errors or try different search terms.</p>
 {/if}
-<!-- Stubbing a pagination concept.
-<Pagination>
-  <ResultList {data}/>
-</Pagination>
--->
 
 <style>
   :global(.create-result-button) {
