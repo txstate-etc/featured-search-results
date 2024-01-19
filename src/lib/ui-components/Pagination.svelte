@@ -91,7 +91,7 @@
           {#if nextPage !== undefined}
             <a href={`${target}?q=${search}&p=${nextPage}&n=${pagesize}&s=${JSON.stringify(sorts)}`}>&gt;</a>
           {/if}
-          {#if linksFrameEnd < pageCount}
+          {#if linksFrameEnd <= pageCount}
             <a href={`${target}?q=${search}&p=${pageCount}&n=${pagesize}&s=${JSON.stringify(sorts)}`}>&gt;&gt;</a>
           {/if}
         </div>

@@ -3,7 +3,7 @@ import { getPagingParams, stringifyPagingParams, type AdvancedSearchResult } fro
 
 /** @type {import('./$types').PageLoad} */
 export async function load ({ fetch, url, depends }) {
-  const search = (url.searchParams.get('q') ?? '').trim()
+  const search = (url.searchParams.get('q') ?? '').trim().toLowerCase()
   const pagination = getPagingParams(url.searchParams)
   const reloadHandle: string = `queries:search:${search}`
   depends(reloadHandle)

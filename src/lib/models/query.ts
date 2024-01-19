@@ -186,7 +186,7 @@ const queriesDef = getQueriesDef()
 QuerySchema.statics.searchAllQueries = async function (search: string, pagination?: Paging): Promise<AdvancedSearchResult> {
   const filter = await getMongoStages(queriesDef, search, pagination)
   // console.log(JSON.stringify(clause))
-  const searchResult = (await Query.aggregate<AggregateResult>(filter.pipeline))[0]
+  const searchResult = (await Query.aggregate<AggregateResult>(filter.pipeline, { allowDiskUse: true }))[0]
   if (searchResult.matches.length) {
     const matches = (await Query.populate(searchResult.matches.map((query) => Query.castAggResult(query)), 'results')).map((query) => query.basic())
     // This would be where we insert sub-array filtering using the filter.metaSearch object to guide us.

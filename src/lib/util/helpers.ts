@@ -2,6 +2,7 @@
 /* eslint-disable quote-props */
 import type { ObjectId, PipelineStage } from 'mongoose'
 import { isNotBlank } from 'txstate-utils'
+import { DEFAULT_PAGINATION_SIZE } from './globals'
 
 export interface SortParam {
   field: string
@@ -21,10 +22,10 @@ export interface AdvancedSearchResult {
 }
 
 export function getPagingParams (params: URLSearchParams): Paging {
-  const page = params.get('p') ?? undefined
-  const size = params.get('n') ?? undefined
-  const sorts = params.get('s') ?? undefined
-  const pagination: Paging = { sorts: sorts ? JSON.parse(sorts) : [] }
+  const page = params.get('p') ?? 1
+  const size = params.get('n') ?? DEFAULT_PAGINATION_SIZE
+  const sorts = params.get('s') ?? '[]'
+  const pagination: Paging = { sorts: JSON.parse(sorts) }
   if (page) pagination.page = Number(page)
   if (size) pagination.size = Number(size)
   return pagination
@@ -472,7 +473,9 @@ export async function getMongoStages (tableDef: SearchMappings, search: string, 
       else metaSearch.unions.push(...defaults)
       continue
     }
-    const fieldName = tableDef.hash[alias]
+    const parsedAlias = alias.toLowerCase()
+    const fieldName = tableDef.hash[parsedAlias]
+    console.log('parsedAlias:', parsedAlias, ' fieldName:', fieldName, ' metaSearch.curr:', metaSearch.curr)
     const op = tableDef.opHash?.[wildcardop]
     // Handle Correlations and Projections.
     if (fieldName.includes('::')) {

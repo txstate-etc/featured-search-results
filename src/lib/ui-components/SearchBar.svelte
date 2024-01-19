@@ -26,7 +26,7 @@
 
 <form name='SearchBar' action={`${target}?q=${search}&p=${page}&n=${pagesize}&s=${JSON.stringify(sorts)}`} method='GET' data-sveltekit-keepfocus>
   <div class='searchbar'>
-    <input type='search' name='q' placeholder='Search...' autocomplete='on' bind:value={search} />
+    <input type='search' placeholder='Search...' bind:value={search} />
     <button on:click={rerunLoad} type='submit' class='submit-button'>Search</button>
   </div>
 </form>
