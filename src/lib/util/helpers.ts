@@ -2,7 +2,6 @@
 /* eslint-disable quote-props */
 import type { ObjectId, PipelineStage } from 'mongoose'
 import { isNotBlank } from 'txstate-utils'
-import { DEFAULT_PAGINATION_SIZE } from './globals'
 
 export interface SortParam {
   field: string
@@ -21,9 +20,9 @@ export interface AdvancedSearchResult {
   meta?: MetaSearch
 }
 
-export function getPagingParams (params: URLSearchParams): Paging {
+export function getPagingParams (params: URLSearchParams, defaultPageSize: number): Paging {
   const page = params.get('p') ?? 1
-  const size = params.get('n') ?? DEFAULT_PAGINATION_SIZE
+  const size = params.get('n') ?? defaultPageSize
   const sorts = params.get('s') ?? '[]'
   const pagination: Paging = { sorts: JSON.parse(sorts) }
   if (page) pagination.page = Number(page)
