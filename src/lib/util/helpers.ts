@@ -474,7 +474,6 @@ export async function getMongoStages (tableDef: SearchMappings, search: string, 
     }
     const parsedAlias = alias.toLowerCase()
     const fieldName = tableDef.hash[parsedAlias]
-    console.log('parsedAlias:', parsedAlias, ' fieldName:', fieldName, ' metaSearch.curr:', metaSearch.curr)
     const op = tableDef.opHash?.[wildcardop]
     // Handle Correlations and Projections.
     if (fieldName.includes('::')) {
@@ -492,7 +491,6 @@ export async function getMongoStages (tableDef: SearchMappings, search: string, 
     if (metaSearch.correlations[key].unionIds.size) metaSearch.unions.push({ [key]: { $in: [...metaSearch.correlations[key].unionIds] } })
     if (metaSearch.correlations[key].intersectIds.size) metaSearch.intersects.push({ [key]: { $in: [...metaSearch.correlations[key].intersectIds] } })
   }
-  console.log('Post Token & Correlations Processing - metaSearch:', metaSearch)
   // Pre-Filter before $addFields projections and matchings against those.
   const pipeline: PipelineStage[] = [getMatchStage(metaSearch.unions, metaSearch.intersects)]
   // Add projection.
@@ -503,6 +501,7 @@ export async function getMongoStages (tableDef: SearchMappings, search: string, 
   const pagingObjs = getPaginationStages(tableDef, paging)
   metaSearch.pagingStages = pagingObjs.meta
   pipeline.push({ $facet: { matchCount: [{ $count: 'total' }], matches: pagingObjs.pipeline as any[] } })
+  console.log('Search Translation - metaSearch:', metaSearch)
   return { pipeline, metaSearch }
 }
 function mutateCorrelationsAndProjections (tableDef: SearchMappings, metaSearch: MetaSearch, fieldName: string, op?: string | undefined) {

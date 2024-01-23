@@ -47,7 +47,6 @@
   $:linksFrameStart = (pageOffset - 2 > 1) ? pageOffset - 2 : 1
   $:linksFrameEnd = (pageOffset + 3 < pageCount) ? page + 3 : pageCount + 1
   $:linksFrame = Array(linksFrameEnd - linksFrameStart).fill(0).map((_, i) => i + linksFrameStart)
-  $:console.log('linksFrame', linksFrame)
 
   async function handlePageSizeChange (e: Event) {
     const etarget = e.target as HTMLSelectElement
