@@ -441,7 +441,6 @@ export async function getMongoStages (tableDef: SearchMappings, search: string, 
   const aliases = new RegExp(`\\b(?<alias>${fieldAliases})\\b\\s*`) // Aliases that translate to fields we search.
   const parser = new RegExp(`(?:${likeops.source})?(?:${aliases.source + wildcardops.source})?${whatfors.source}[,;]?\\s*`, 'gi')
   // console.log(parser)
-
   const metaSearch: MetaSearch = {
     search,
     paging,
@@ -491,6 +490,7 @@ export async function getMongoStages (tableDef: SearchMappings, search: string, 
     if (metaSearch.correlations[key].unionIds.size) metaSearch.unions.push({ [key]: { $in: [...metaSearch.correlations[key].unionIds] } })
     if (metaSearch.correlations[key].intersectIds.size) metaSearch.intersects.push({ [key]: { $in: [...metaSearch.correlations[key].intersectIds] } })
   }
+  const pagingPipeline = mutatePaginationStages(tableDef, metaSearch)
   // Pre-Filter before $addFields projections and matchings against those.
   const pipeline: PipelineStage[] = [getMatchStage(metaSearch.unions, metaSearch.intersects)]
   // Add projection.
@@ -498,9 +498,8 @@ export async function getMongoStages (tableDef: SearchMappings, search: string, 
   // Add any post-projection matching.
   pipeline.push(getMatchStage(metaSearch.projected.unions, metaSearch.projected.intersects))
   // $facet `matchCount` and sorted with optionally paginated `matches`.
-  const pagingObjs = getPaginationStages(tableDef, paging)
-  metaSearch.pagingStages = pagingObjs.meta
-  pipeline.push({ $facet: { matchCount: [{ $count: 'total' }], matches: pagingObjs.pipeline as any[] } })
+  pipeline.push({ $facet: { matchCount: [{ $count: 'total' }], matches: pagingPipeline as any[] } })
+  console.log('Search Translation - pagingpipeline:', pagingPipeline)
   console.log('Search Translation - metaSearch:', metaSearch)
   return { pipeline, metaSearch }
 }
@@ -525,13 +524,23 @@ function getMatchStage (unions: object[], intersects: object[]): PipelineStage {
   else if (unions.length) return { $match: { $or: unions } }
   return { $match: {} }
 }
-function getPaginationStages (tableDef: SearchMappings, pagination: Paging): { pipeline: PipelineStage[], meta: PagingStages } {
+function mutatePaginationStages (tableDef: SearchMappings, metaSearch: MetaSearch): PipelineStage[] {
+  console.log('Search Translation - pagination:', metaSearch.paging)
   const sort: Record<string, any> = {}
-  for (const order of pagination.sorts) {
-    const field = order.field
-    const value = tableDef.metas?.[field]
-    if (!(typeof value === 'string' && Boolean(value)) || tableDef.noSort?.has(field)) continue
-    sort[field] = order.direction === 'asc' ? 1 : -1
+  for (const order of metaSearch.paging.sorts) {
+    // Add any projections needed for sorting.
+    const fieldName = tableDef.hash[order.field]
+    if (fieldName.includes('::')) {
+      const [collection, alias] = fieldName.split('::')
+      if (isNotBlank(alias)) {
+        metaSearch.projections[alias] ??= tableDef.metas?.[fieldName]
+      }
+      sort[alias] ??= order.direction === 'asc' ? 1 : -1
+      continue
+    }
+    const value = tableDef.metas?.[fieldName]
+    if (!(typeof value === 'string' && Boolean(value)) || tableDef.noSort?.has(fieldName)) continue
+    sort[fieldName] = order.direction === 'asc' ? 1 : -1
   }
   for (const field of tableDef.defaults) {
     if (!tableDef.noSort?.has(field)) sort[field] ??= 1
@@ -539,13 +548,14 @@ function getPaginationStages (tableDef: SearchMappings, pagination: Paging): { p
   // Build our return objects: `pipeline` for immediate use and `meta` for communicating back to the caller.
   const pipeline: PipelineStage[] = []
   const meta: PagingStages = {
-    sort: pipeline[pipeline.push({ $sort: sort })],
-    skip: (pagination.page && pagination.size)
-      ? pipeline[pipeline.push({ $skip: (pagination.page - 1) * pagination.size })]
+    sort: pipeline[pipeline.push({ $sort: sort }) - 1],
+    skip: (metaSearch.paging.page && metaSearch.paging.size)
+      ? pipeline[pipeline.push({ $skip: (metaSearch.paging.page - 1) * metaSearch.paging.size }) - 1]
       : undefined,
-    limit: pipeline[pipeline.push({ $limit: pagination.size ?? 1000 })]
+    limit: pipeline[pipeline.push({ $limit: metaSearch.paging.size ?? 1000 }) - 1]
   }
-  return { pipeline, meta }
+  metaSearch.pagingStages = meta
+  return pipeline
 }
 function getFilterExpression (searchVal: string, type: MappingType, negation?: boolean, field?: string, op?: string | undefined): object {
   if (negation) return { $not: getFieldExpression(searchVal, type, field, op) }

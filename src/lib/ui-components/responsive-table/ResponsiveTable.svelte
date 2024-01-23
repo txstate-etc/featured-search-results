@@ -1,5 +1,5 @@
 <script lang='ts' context='module'>
-  import { getType, type EnhancedType } from '$lib/util/helpers.js'
+  import { getType, type EnhancedType, type SortParam } from '$lib/util/helpers.js'
   import { htmlEncode } from 'txstate-utils'
   const sIconChars = {
     asc: '&#9661;', // &#9661; ▲
@@ -23,9 +23,9 @@
   export interface Transforms extends Record<string, TransformFunction> {}
 
   export type SyncSortFunction = (a: any, b: any) => number
-  export type AsyncSortFunction = (options: { key: string, direction?: 'asc' | 'desc' }) => Promise<TableData[]>
-  export type SortFunction = SyncSortFunction | AsyncSortFunction
-  export interface Sortings extends Record<string, SortFunction> {}
+  export type AsyncSortFunction = (options: SortParam) => Promise<TableData[]>
+  export interface Sortings extends Record<string, SyncSortFunction> {}
+  export interface AsyncSortings extends Record<string, AsyncSortFunction> {}
 
   export interface ResponsiveTableProps {
     data: TableData[]
@@ -150,6 +150,7 @@
   export let transforms: Transforms | undefined = {}
   /** Pass in any special sort handling functions, keyed by the property names in your data. */
   export let sortings: Sortings | undefined = {}
+  export let asyncSortings: AsyncSortings = {}
   /** Pass in any heading renaming for your data properties. */
   export let headingTexts: HeadingTexts | undefined = {}
   /** Optional function bind to return an array of property names to nest on their own row.
@@ -246,13 +247,12 @@
     if (meta.key !== selectedHeading) { // Reset column state and resort.
       selectedHeading = meta.key
       ascending = true
-      if (sortings?.[meta.key]) {
+      if (asyncSortings?.[meta.key]) {
+        const sorter = asyncSortings[meta.key]
+        data = await sorter({ field: meta.key, direction: 'asc' })
+      } else if (sortings?.[meta.key]) {
         const sorter = sortings[meta.key]
-        if (sorter.length === 1) {
-          data = await (sorter as AsyncSortFunction)({ key: meta.key, direction: 'asc' })
-        } else {
-          data = data.sort((a, b) => { return (sorter as SyncSortFunction)(a[meta.key], b[meta.key]) })
-        }
+        data = data.sort((a, b) => { return sorter(a[meta.key], b[meta.key]) })
       } else if (arithmeticTypes.has(meta.type)) {
         data = data.sort((a, b) => { return a[meta.key] - b[meta.key] })
       } else if (meta.type === 'string') {
@@ -264,8 +264,9 @@
       }
     } else {
       ascending = !ascending
-      if (sortings?.[meta.key]?.length === 1) {
-        data = await (sortings[meta.key] as AsyncSortFunction)({ key: meta.key, direction: ascending ? 'asc' : 'desc' })
+      if (asyncSortings?.[meta.key]) {
+        const sorter = asyncSortings[meta.key]
+        data = await sorter({ field: meta.key, direction: ascending ? 'asc' : 'desc' })
       } else {
         data = data.reverse()
       }
@@ -310,7 +311,7 @@
             {#if plainHead.sortable}
               <th id={plainHead.key}
                 aria-sort={plainHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}>
-                <button class='sortable-column-header' on:click={async () => { await sortByHeading(plainHead) }}>
+                <button class='sortable-column-header' on:click|preventDefault|stopPropagation={async () => await sortByHeading(plainHead)}>
                   {getHeadingText(plainHead.key)}
                   <slot name='sortIcons' {ascending} {selectedHeading} key={plainHead.key}>
                     <div hidden={plainHead.key !== selectedHeading} class='order-icon'>{@html ascending ? sIconChars.asc : sIconChars.desc}</div>
@@ -331,7 +332,7 @@
               class:nested-container={true}
               colspan={plainMetas.length ? plainMetas.length : 1}
               aria-sort={nestedHead.key !== selectedHeading ? 'none' : (ascending) ? 'ascending' : 'descending'}>
-              <button class='sortable-column-header' on:click={async () => { await sortByHeading(nestedHead) }}>
+              <button class='sortable-column-header' on:click|preventDefault|stopPropagation={async () => await sortByHeading(nestedHead)}>
                 {getHeadingText(nestedHead.key)}
                 <slot name='sortIcons' {ascending} {selectedHeading} key={nestedHead.key}>
                   <span hidden={nestedHead.key !== selectedHeading} class:order-icon={true}>{@html ascending ? sIconChars.asc : sIconChars.desc}</span>

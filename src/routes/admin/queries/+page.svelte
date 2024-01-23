@@ -1,13 +1,14 @@
 <script lang=ts>
   import SearchBar from '$lib/ui-components/SearchBar.svelte'
   import ResponsiveTable from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
-  import type { Transforms, PropMeta, HeadingTexts, Sortings } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
+  import type { Transforms, PropMeta, HeadingTexts, Sortings, TableData, AsyncSortings, AsyncSortFunction } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import { DEFAULT_PAGINATION_SIZE, appBase } from '$lib/util/globals'
   import type { ResultBasicPlusId } from '$lib/models/result'
   import { DateTime } from 'luxon'
   import { htmlEncode } from 'txstate-utils'
   import { querysplit, type AdvancedSearchResult, type SortParam } from '$lib/util/helpers'
   import Pagination from '$lib/ui-components/Pagination.svelte'
+  import { goto, invalidate } from '$app/navigation'
 
   /* TODO: Run queries against the api to generate queries to search for.
     localhost/search?q=texas+state
@@ -41,6 +42,23 @@
       return DateTime.fromISO(value).toRelative() ?? ''
     }
   }
+  async function fullSort (options: { field: string, direction: 'asc' | 'desc' }): Promise<TableData[]> {
+    const URL = `${appBase}/queries?q=${data.search}&p=${data.pagination?.page ?? 0}&n=${data.pagination?.size ?? DEFAULT_PAGINATION_SIZE}&s=${JSON.stringify([options])}`
+    await invalidate(data.reloadHandle)
+    await goto(URL)
+    return data.matches
+  }
+  const asyncSortings: AsyncSortings = {
+  /* TODO: Fix sorting so that entries sub-sort before passing to interpollator.
+    priority: async (options: {key: string, direction: 'asc' | 'desc'}): Promise<TableData[]> => {
+      return data = await fetch(`${apiBase}/results/${data.query}/entries.priority/${direction}`)
+    } */
+    query: fullSort,
+    hits: async (options: { field: string, direction?: 'asc' | 'desc' }): Promise<TableData[]> => {
+      return await fullSort({ field: 'hitcount', direction: options.direction ?? 'asc' })
+    },
+    lasthit: fullSort
+  }
 
   const defaultSorts: SortParam[] = [{ field: 'query', direction: 'asc' }]
   $:pagesize = data.pagination?.size ?? DEFAULT_PAGINATION_SIZE
@@ -53,7 +71,7 @@
 {#if data.matches?.length}
   <div class='results-root-container'>
     <Pagination target={`${appBase}/queries`} search={data.search} bind:pagesize bind:page {sorts} total={data.total}>
-      <ResponsiveTable data={data.matches} {propsMetas} {headingTexts} {transforms}/>
+      <ResponsiveTable data={data.matches} {propsMetas} {headingTexts} {transforms} {asyncSortings}/>
     </Pagination>
   </div>
 {:else}

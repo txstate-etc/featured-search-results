@@ -2,13 +2,14 @@
   import SearchBar from '$lib/ui-components/SearchBar.svelte'
   import { DEFAULT_PAGINATION_SIZE, appBase } from '$lib/util/globals'
   import ResponsiveTable from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
-  import type { Transforms, PropMeta, HeadingTexts, Sortings } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
+  import type { Transforms, PropMeta, HeadingTexts, TableData, AsyncSortFunction, AsyncSortings } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import { DateTime } from 'luxon'
   import type { AdvancedSearchResult, SortParam } from '$lib/util/helpers'
   import Pagination from '$lib/ui-components/Pagination.svelte'
+  import { goto, invalidate } from '$app/navigation'
 
   /** @type {import('./$types').PageData} */
-  export let data: AdvancedSearchResult & { reloadHandle: string }
+  export let data: AdvancedSearchResult & { reloadHandle: string } & { refresh: (options: { key: string, direction: 'asc' | 'desc' }[]) => Promise<TableData[]> }
 
   const propsMetas: PropMeta[] = [
     { key: 'title', type: 'string', sortable: true },
@@ -40,14 +41,23 @@
       }).join('')}</div>`
     }
   }
-  const sortings: Sortings = {
+  async function fullSort (options: { field: string, direction: 'asc' | 'desc' }): Promise<TableData[]> {
+    const URL = `${appBase}/results?q=${data.search}&p=${data.pagination?.page ?? 0}&n=${data.pagination?.size ?? DEFAULT_PAGINATION_SIZE}&s=${JSON.stringify([options])}`
+    console.log(URL)
+    await invalidate(data.reloadHandle)
+    await goto(URL)
+    return data.matches
+  }
+  const asyncSortings: AsyncSortings = {
   /* TODO: Fix sorting so that entries sub-sort before passing to interpollator.
     priority: async (options: {key: string, direction: 'asc' | 'desc'}): Promise<TableData[]> => {
       return data = await fetch(`${apiBase}/results/${data.query}/entries.priority/${direction}`)
     } */
-    // const aHighest = a.reduce((y: any, z: any) => Math.max(y, z.priority), -1000)
-    // const bHighest = b.reduce((y: any, z: any) => Math.max(y, z.priority), -1000)
-    // return aHighest - bHighest
+    title: fullSort,
+    tags: async (options: { field: string, direction?: 'asc' | 'desc' }): Promise<TableData[]> => {
+      return await fullSort({ field: 'tagcount', direction: options.direction ?? 'asc' })
+    },
+    brokensince: fullSort
   }
 
   function getRowspanKeys (data: Record<string, any>[]) {
@@ -65,7 +75,7 @@
 {#if data.matches?.length}
   <div class='results-root-container'>
     <Pagination target={`${appBase}/results`} search={data.search} bind:pagesize bind:page {sorts} total={data.total}>
-      <ResponsiveTable data={data.matches} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} />
+      <ResponsiveTable data={data.matches} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} {asyncSortings} />
     </Pagination>
   </div>
 {:else}
