@@ -1,7 +1,7 @@
 <script lang=ts>
   import SearchBar from '$lib/ui-components/SearchBar.svelte'
   import ResponsiveTable from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
-  import type { Transforms, PropMeta, HeadingTexts, Sortings, TableData, AsyncSortings, AsyncSortFunction } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
+  import type { Transforms, PropMeta, HeadingTexts, TableData, AsyncSortings } from '$lib/ui-components/responsive-table/ResponsiveTable.svelte'
   import { DEFAULT_PAGINATION_SIZE, appBase } from '$lib/util/globals'
   import type { ResultBasicPlusId } from '$lib/models/result'
   import { DateTime } from 'luxon'
@@ -26,6 +26,9 @@
   const headingTexts: HeadingTexts = {
     lasthit: 'Last Hit'
   }
+  const sortedMapping: Record<string, string> = {
+    hitcount: 'hits'
+  }
   const transforms: Transforms = {
     results: (value, record) => {
       if (Array.isArray(value) && value.length > 0) {
@@ -40,6 +43,9 @@
     },
     lasthit: (value, record) => {
       return DateTime.fromISO(value).toRelative() ?? ''
+    },
+    hits: (value, record) => {
+      return value.toLocaleString()
     }
   }
   async function fullSort (options: { field: string, direction: 'asc' | 'desc' }): Promise<TableData[]> {
@@ -55,15 +61,16 @@
     } */
     query: fullSort,
     hits: async (options: { field: string, direction?: 'asc' | 'desc' }): Promise<TableData[]> => {
-      return await fullSort({ field: 'hitcount', direction: options.direction ?? 'asc' })
+      return await fullSort({ field: 'hitcount', direction: options.direction ?? 'desc' })
     },
     lasthit: fullSort
   }
 
-  const defaultSorts: SortParam[] = [{ field: 'query', direction: 'asc' }]
+  const defaultSorts: SortParam[] = [{ field: 'hitcount', direction: 'desc' }]
   $:pagesize = data.pagination?.size ?? DEFAULT_PAGINATION_SIZE
   $:page = data.pagination?.page ?? 0
   $:sorts = data.pagination?.sorts ?? defaultSorts
+  $:sortedOn = data.pagination?.sorts.length ? data.pagination.sorts : defaultSorts
 </script>
 
 <h1>Visitor Searches</h1>
@@ -71,7 +78,7 @@
 {#if data.matches?.length}
   <div class='results-root-container'>
     <Pagination target={`${appBase}/queries`} search={data.search} bind:pagesize bind:page {sorts} total={data.total}>
-      <ResponsiveTable data={data.matches} {propsMetas} {headingTexts} {transforms} {asyncSortings}/>
+      <ResponsiveTable data={data.matches} {propsMetas} {headingTexts} {transforms} {asyncSortings} {sortedOn} {sortedMapping}/>
     </Pagination>
   </div>
 {:else}

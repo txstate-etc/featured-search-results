@@ -64,10 +64,11 @@
     return ['title', 'brokensince', 'tags', 'id', 'url']
   }
 
-  const defaultSorts: SortParam[] = []
+  const defaultSorts: SortParam[] = [{ field: 'title', direction: 'asc' }]
   $:pagesize = data.pagination?.size ?? DEFAULT_PAGINATION_SIZE
   $:page = data.pagination?.page ?? 0
   $:sorts = data.pagination?.sorts ?? defaultSorts
+  $:sortedOn = data.pagination?.sorts.length ? data.pagination.sorts : defaultSorts
 </script>
 
 <h1>Featured Search Results</h1>
@@ -75,7 +76,7 @@
 {#if data.matches?.length}
   <div class='results-root-container'>
     <Pagination target={`${appBase}/results`} search={data.search} bind:pagesize bind:page {sorts} total={data.total}>
-      <ResponsiveTable data={data.matches} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} {asyncSortings} />
+      <ResponsiveTable data={data.matches} {propsMetas} {transforms} {headingTexts} spanning={true} {getRowspanKeys} {asyncSortings} {sortedOn}/>
     </Pagination>
   </div>
 {:else}

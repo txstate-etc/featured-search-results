@@ -26,7 +26,7 @@ const { Schema, models, model, Error, deleteModel } = mongoose
 import type { Model, Document, ObjectId } from 'mongoose'
 import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
 import { getUrlEquivalencies, isValidHttpUrl, normalizeUrl, querysplit, getMongoStages, getFields } from '../util/helpers.js'
-import type { Paging, AdvancedSearchResult, AggregateResult, SearchMappings, MappingType } from '../util/helpers.js'
+import type { Paging, AdvancedSearchResult, AggregateResult, SearchMappings, MappingType, SortParam } from '../util/helpers.js'
 import type { Feedback } from '@txstate-mws/svelte-forms'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
@@ -127,8 +127,9 @@ export function getResultsDef (): SearchMappings {
     'endswith': 'gte'
   }
   const defaults: string[] = ['title', 'tags', 'url', 'entries.keywords']
+  const sortDefaults: SortParam[] = [{ field: 'title', direction: 'asc' }, { field: 'tagcount', direction: 'desc' }]
   const noSort: Set<string> = new Set<string>(['entries.keywords', 'entries.mode', 'entries.priority', 'entries.hitCountCached'])
-  return { hash, metas, opHash, defaults, fields: getFields(hash), noSort } as const
+  return { hash, metas, opHash, defaults, sortDefaults, fields: getFields(hash), noSort } as const
 }
 
 export interface ResultEntry {

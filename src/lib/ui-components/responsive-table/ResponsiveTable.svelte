@@ -134,6 +134,9 @@
          analysis enough to recognise the value of different sorting granularities. This can be
          handled by the page through the asnyc sorting callback referencing user preferences.
     3) Cleanup nesting of complex-container vs simple-container css classes in generated table.
+    4) Update Sorting so that it can handle and pass multiple sort priorities.
+    5) Figure out sort-icon display glitch where it toggles back and forth between asc and desc
+       when the user clicks on the same column heading twice in a row.
   */
 
   /** Array of `TableData[]` records to generate a table for. Uses the first element to figure out the shape of the data. All
@@ -150,7 +153,13 @@
   export let transforms: Transforms | undefined = {}
   /** Pass in any special sort handling functions, keyed by the property names in your data. */
   export let sortings: Sortings | undefined = {}
+  /** Pass in any special async sort handling functions, keyed by the property names in your data. This
+   * is useful for paginated result sets that need to make API calls to sort on the whole data set. */
   export let asyncSortings: AsyncSortings = {}
+  /** Array indicating what order the data is sorted on if sorted. */
+  export let sortedOn: SortParam[] = []
+  /** Translation between back-end sorting fieldnames passed to and from the API to front end PropMeta keys. */
+  export let sortedMapping: Record<string, string> = {}
   /** Pass in any heading renaming for your data properties. */
   export let headingTexts: HeadingTexts | undefined = {}
   /** Optional function bind to return an array of property names to nest on their own row.
@@ -234,8 +243,8 @@
     return meta.sort((a, b) => { return Number(nestingKeys.has(a.key)) - Number(nestingKeys.has(b.key)) })
   }
 
-  let ascending = true
-  let selectedHeading = ''
+  let ascending = sortedOn[0]?.direction === 'asc' ? true : false ?? true
+  let selectedHeading = sortedMapping?.[sortedOn[0]?.field] ?? sortedOn[0]?.field ?? ''
   /** By default this sorts `data` by the heading `{ key, type }` data associated with the records in it. Array and object properties
    * are default sorted simply by their length. This also handles updating what heading is selected for soriting and toggling asc/desc.
    *
@@ -244,6 +253,7 @@
    * in the table - useful for sorting on the whole data set when only portions are given to the table to display in pagination schemes.
    * The async fuctions take a single `options` object parameter as defined by the exported `AsyncSortFunction` type. */
   async function sortByHeading (meta: PropMeta) {
+    console.log('sortByHeading', meta)
     if (meta.key !== selectedHeading) { // Reset column state and resort.
       selectedHeading = meta.key
       ascending = true
@@ -296,6 +306,7 @@
       !(typeof val === 'object' && !Object.values(val).some(hasSubstance))
     )
   }
+  $:console.log('ResponsiveTable - sortedOn:', sortedOn[0], 'ascending:', ascending, 'selectedHeading:', selectedHeading)
 </script>
 
 {#if effectiveMetas && data.length }

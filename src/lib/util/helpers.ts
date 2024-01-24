@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/dot-notation */
 /* eslint-disable quote-props */
-import type { ObjectId, PipelineStage } from 'mongoose'
+import type { ObjectId, PipelineStage, SortOrder } from 'mongoose'
 import { isNotBlank } from 'txstate-utils'
 
 export interface SortParam {
@@ -216,6 +216,8 @@ export interface SearchMappings {
   opHash?: Record<string, string>
   /** The default fields to compare search values against when none are specified. */
   defaults: string[]
+  /** The defualt sort orderings to use. */
+  sortDefaults?: SortParam[]
   /** For DBs that struggle with certain sorting patterns like parallel arrays in MongoDB. */
   noSort?: Set<string>
   /** Optional projection to run that normalizes the results and excludes un-needed bits from docs in the pipeline
@@ -532,18 +534,29 @@ function mutatePaginationStages (tableDef: SearchMappings, metaSearch: MetaSearc
     const fieldName = tableDef.hash[order.field]
     if (fieldName.includes('::')) {
       const [collection, alias] = fieldName.split('::')
-      if (isNotBlank(alias)) {
+      if (isNotBlank(alias) && !tableDef.noSort?.has(alias)) {
         metaSearch.projections[alias] ??= tableDef.metas?.[fieldName]
+        sort[alias] ??= order.direction === 'asc' ? 1 : -1
       }
-      sort[alias] ??= order.direction === 'asc' ? 1 : -1
       continue
     }
     const value = tableDef.metas?.[fieldName]
     if (!(typeof value === 'string' && Boolean(value)) || tableDef.noSort?.has(fieldName)) continue
     sort[fieldName] = order.direction === 'asc' ? 1 : -1
   }
-  for (const field of tableDef.defaults) {
-    if (!tableDef.noSort?.has(field)) sort[field] ??= 1
+  if (tableDef.sortDefaults) {
+    for (const param of tableDef.sortDefaults) {
+      const fieldName = tableDef.hash[param.field]
+      if (fieldName.includes('::')) {
+        const [collection, alias] = fieldName.split('::')
+        if (isNotBlank(alias) && !tableDef.noSort?.has(alias)) {
+          metaSearch.projections[alias] ??= tableDef.metas?.[fieldName]
+          sort[alias] ??= param.direction === 'asc' ? 1 : -1
+        }
+        continue
+      }
+      if (!tableDef.noSort?.has(param.field)) sort[param.field] ??= param.direction === 'asc' ? 1 : -1
+    }
   }
   // Build our return objects: `pipeline` for immediate use and `meta` for communicating back to the caller.
   const pipeline: PipelineStage[] = []

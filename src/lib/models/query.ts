@@ -28,7 +28,7 @@ import type { Model, Document, ObjectId, PipelineStage } from 'mongoose'
 import { isBlank, keyby, unique } from 'txstate-utils'
 import { type ResultDocument, type ResultBasicPlusId, entryMatch, getResultsDef } from './result.js'
 import { getMongoStages, querysplit, getFields } from '../util/helpers.js'
-import type { Paging, AdvancedSearchResult, AggregateResult, SearchMappings, MetaSearch, MappingType } from '../util/helpers.js'
+import type { Paging, AdvancedSearchResult, AggregateResult, SearchMappings, MetaSearch, MappingType, SortParam } from '../util/helpers.js'
 
 /** Returns an object reference to a utility representation of the relationship between search
  *  terms and the underlying `Query` documents. */
@@ -100,8 +100,9 @@ export function getQueriesDef (): SearchMappings {
     'endswith': 'gte'
   }
   const defaults: string[] = ['query']
+  const sortDefaults: SortParam[] = [{ field: 'hitcount', direction: 'desc' }]
   const noSort: Set<string> = new Set<string>(['rusults'])
-  return { hash, metas, correlations, opHash, defaults, noSort, pretty, fields: getFields(hash) } as const
+  return { hash, metas, correlations, opHash, defaults, sortDefaults, noSort, pretty, fields: getFields(hash) } as const
 }
 
 export interface QueryBasic {
