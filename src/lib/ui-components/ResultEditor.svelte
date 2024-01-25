@@ -160,7 +160,6 @@
   }
   $: submitContext = data?.id ? 'Update' : 'Create'
   $: resultId = doIdReset ? data?.id : data?.id ?? $store?.data?.id
-  $:console.log(data?.entries)
 </script>
 <!--
   @component

@@ -253,7 +253,6 @@
    * in the table - useful for sorting on the whole data set when only portions are given to the table to display in pagination schemes.
    * The async fuctions take a single `options` object parameter as defined by the exported `AsyncSortFunction` type. */
   async function sortByHeading (meta: PropMeta) {
-    console.log('sortByHeading', meta)
     if (meta.key !== selectedHeading) { // Reset column state and resort.
       selectedHeading = meta.key
       ascending = true
@@ -306,7 +305,6 @@
       !(typeof val === 'object' && !Object.values(val).some(hasSubstance))
     )
   }
-  $:console.log('ResponsiveTable - sortedOn:', sortedOn[0], 'ascending:', ascending, 'selectedHeading:', selectedHeading)
 </script>
 
 {#if effectiveMetas && data.length }

@@ -74,7 +74,8 @@ export async function PUT ({ params, url, request, locals }) {
   }
   messages.push(...result.valid())
   if (!isValidation) {
-    if (messages.length === 0) {
+    const errorMessages = messages.filter(m => m.type === MessageType.ERROR)
+    if (errorMessages.length === 0) {
       try {
         await result.save()
         messages.push({ type: MessageType.SUCCESS, path: 'update', message: `'${result.title}' updated successfully.` })

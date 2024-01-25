@@ -12,5 +12,4 @@
 <ResultEditor data={data.result} {apiTarget}/>
 
 <style>
-
 </style>

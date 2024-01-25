@@ -501,8 +501,7 @@ export async function getMongoStages (tableDef: SearchMappings, search: string, 
   pipeline.push(getMatchStage(metaSearch.projected.unions, metaSearch.projected.intersects))
   // $facet `matchCount` and sorted with optionally paginated `matches`.
   pipeline.push({ $facet: { matchCount: [{ $count: 'total' }], matches: pagingPipeline as any[] } })
-  console.log('Search Translation - pagingpipeline:', pagingPipeline)
-  console.log('Search Translation - metaSearch:', metaSearch)
+  console.log('Search Translation - metaSearch:', JSON.stringify(metaSearch, null, 2))
   return { pipeline, metaSearch }
 }
 function mutateCorrelationsAndProjections (tableDef: SearchMappings, metaSearch: MetaSearch, fieldName: string, op?: string | undefined) {
@@ -527,7 +526,6 @@ function getMatchStage (unions: object[], intersects: object[]): PipelineStage {
   return { $match: {} }
 }
 function mutatePaginationStages (tableDef: SearchMappings, metaSearch: MetaSearch): PipelineStage[] {
-  console.log('Search Translation - pagination:', metaSearch.paging)
   const sort: Record<string, any> = {}
   for (const order of metaSearch.paging.sorts) {
     // Add any projections needed for sorting.

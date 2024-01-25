@@ -27,8 +27,8 @@ export async function POST ({ url, locals, request }) {
   }
   messages.push(...postedResult.valid())
   if (!isValidation) {
-    // if (messages.some(message => [MessageType.ERROR, MessageType.SYSTEM].includes(message.type as MessageType))) {
-    if (messages.length === 0) {
+    const errorMessages = messages.filter(m => m.type === MessageType.ERROR)
+    if (errorMessages.length === 0) {
       try {
         const saved = await postedResult.save()
         messages.push({ type: MessageType.SUCCESS, path: `save.${saved.id}.${saved.title}`, message: `'${postedResult.title}' saved successfully.` })

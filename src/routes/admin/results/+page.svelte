@@ -43,7 +43,6 @@
   }
   async function fullSort (options: { field: string, direction: 'asc' | 'desc' }): Promise<TableData[]> {
     const URL = `${appBase}/results?q=${data.search}&p=${data.pagination?.page ?? 0}&n=${data.pagination?.size ?? DEFAULT_PAGINATION_SIZE}&s=${JSON.stringify([options])}`
-    console.log(URL)
     await invalidate(data.reloadHandle)
     await goto(URL)
     return data.matches
