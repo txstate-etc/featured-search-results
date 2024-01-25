@@ -25,6 +25,7 @@
 		"luxon": "^3.4.4",
 		"mongoose": "^8.1.0",
 		"mysql2-async": "^2.0.0",
+		"svelte-markdown": "^0.4.1",
 		"txstate-utils": "^1.8.15"
 	},
 	"devDependencies": {

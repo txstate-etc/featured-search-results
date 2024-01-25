@@ -73,6 +73,7 @@
 
 <h1>Featured Search Results</h1>
 <SearchBar target={`${appBase}/results`} bind:search={data.search} reloadHandle={data.reloadHandle} {pagesize} {page} {sorts}/>
+<a class='advanced-search-link' href={`${appBase}/guides/advanced-search`} target='_blank'>Advanced Search Guide</a>
 {#if data.matches?.length}
   <div class='results-root-container'>
     <Pagination target={`${appBase}/results`} search={data.search} bind:pagesize bind:page {sorts} total={data.total}>
@@ -93,6 +94,12 @@
   .results-root-container {
     margin-top: var(--element-container-spacing);
     margin-bottom: var(--element-container-spacing);
+    position: relative;
+    top: -1rem;
+  }
+  .advanced-search-link {
+    position:relative;
+    top: var(--margin-below-labels)
   }
   :global(.tags) {
     display: flex;

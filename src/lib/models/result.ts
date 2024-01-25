@@ -451,7 +451,7 @@ ResultSchema.statics.castAggResult = function (input: Record<string, any>) {
 const resultDef = getResultsDef()
 ResultSchema.statics.searchAllResults = async function (search: string, pagination?: Paging): Promise<AdvancedSearchResult> {
   const filter = await getMongoStages(resultDef, search, pagination)
-  const searchResult = (await Result.aggregate<AggregateResult>(filter.pipeline))[0]
+  const searchResult = (await Result.aggregate<AggregateResult>(filter.pipeline, { collation: { locale: 'en', caseLevel: false, numericOrdering: true } }))[0]
   if (searchResult.matches.length) {
     // This would be where we insert sub-array filtering using the filter.metaSearch object to guide us.
     return {

@@ -46,8 +46,5 @@
     margin-right: var(--margin-below-labels);
     border: var(--dialog-container-border);
   }
-  button {
-    padding: var(--search-button-padding);
-  }
-
+  button { padding: var(--search-button-padding); }
 </style>
