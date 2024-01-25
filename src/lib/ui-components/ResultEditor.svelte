@@ -2,19 +2,13 @@
   import type { TemplateResult, RawJsonResult, ResultFull, ResultEntry } from '$lib/models/result.js'
   import type { PopupMenuItem } from '@txstate-mws/svelte-components'
   import { MessageType, type Feedback, type FormStore, type SubmitResponse } from '@txstate-mws/svelte-forms'
-  import FeedbackLinks from './FeedbackLinks.svelte'
-  import { VALIDATE_ONLY, apiURL, appURL } from '$lib/util/globals'
+  import { VALIDATE_ONLY, apiURL } from '$lib/util/globals'
   import { isValidHttpUrl, normalizeUrl } from '$lib/util/helpers'
   import { FieldHidden, FieldNumber, FieldSelect, FieldStandard, FieldText, Form, Icon, Input } from '@dosgato/dialog'
   import FieldMultiple from './FieldMultiple.svelte'
   // import helpCircle from '@iconify-icons/mdi/help-circle'
   import deleteCircle from '@iconify-icons/mdi/delete'
   import { beforeNavigate, goto } from '$app/navigation'
-
-  // Used for extracting values used by FeedbackLinks to build links to other records.
-  const equivUrlsRegex = /^equivalent\.url\.(?<id>[^.]*)\.(?<title>.*)/
-  const equivTitlesRegex = /^equivalent\.title\.(?<id>[^.]*)\.(?<title>.*)/
-  const savedRegex = /^save\.(?<id>[^.]*)\.(?<title>.*)/
 
   /**
   ```ts
@@ -166,6 +160,7 @@
   }
   $: submitContext = data?.id ? 'Update' : 'Create'
   $: resultId = doIdReset ? data?.id : data?.id ?? $store?.data?.id
+  $:console.log(data?.entries)
 </script>
 <!--
   @component
@@ -174,11 +169,7 @@
 <Form bind:store name='result' {submit} {validate} {preload} let:saved let:messages>
   <div class='result-form'>
     <FieldText path='title' label='Display Title:' defaultValue={''} required/>
-    <FeedbackLinks data={messages} path={equivTitlesRegex} targetURL={`${appURL}/results/`} pathKeys={['id', 'title']}
-      buildPath={(found, keys) => found.id} preamble='Edit ' getText={(found, keys) => found.title} postscript="'s record."/>
     <FieldText path='url' label='Target URL:' defaultValue={'https://'} required />
-    <FeedbackLinks data={messages} path={equivUrlsRegex} targetURL={`${appURL}/results/`} pathKeys={['id', 'title']}
-      buildPath={(found, keys) => found.id} preamble='Edit ' getText={(found, keys) => found.title} postscript="'s record."/>
     <!-- svelte-forms(entries[]) -->
     <div class='result-entries'>
       <!--

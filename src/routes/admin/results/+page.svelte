@@ -17,7 +17,7 @@
     { key: 'keyphrase', type: 'string' },
     { key: 'mode', type: 'string' },
     { key: 'count', type: 'number' },
-    { key: 'tags', type: 'string', sortable: true },
+    { key: 'tags', type: 'string' },
     { key: 'brokensince', type: 'string', sortable: true }
   ]
   const headingTexts: HeadingTexts = {
@@ -49,14 +49,10 @@
     return data.matches
   }
   const asyncSortings: AsyncSortings = {
-  /* TODO: Fix sorting so that entries sub-sort before passing to interpollator.
-    priority: async (options: {key: string, direction: 'asc' | 'desc'}): Promise<TableData[]> => {
-      return data = await fetch(`${apiBase}/results/${data.query}/entries.priority/${direction}`)
-    } */
     title: fullSort,
-    tags: async (options: { field: string, direction?: 'asc' | 'desc' }): Promise<TableData[]> => {
+    /* tags: async (options: { field: string, direction?: 'asc' | 'desc' }): Promise<TableData[]> => {
       return await fullSort({ field: 'tagcount', direction: options.direction ?? 'asc' })
-    },
+    }, */
     brokensince: fullSort
   }
 

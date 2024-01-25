@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit'
 import { Result, type ResultDocument, type RawJsonResult, type ResultFull, type TemplateResult } from '$lib/models/result.js'
 import { MessageType, type Feedback } from '@txstate-mws/svelte-forms'
-import { VALIDATE_ONLY } from '$lib/util/globals.js'
+import { VALIDATE_ONLY, appURL } from '$lib/util/globals.js'
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST ({ url, locals, request }) {
@@ -15,16 +15,14 @@ export async function POST ({ url, locals, request }) {
   postedResult.fromPartialJson(body)
   const existingResultUrls: ResultDocument[] | undefined = await Result.findByUrl(postedResult.url)
   if (existingResultUrls?.length) {
-    messages.push({ type: MessageType.ERROR, path: 'url', message: 'This URL is equivalent to existing Result records.' })
     messages.push(...existingResultUrls.map(r => {
-      return { type: MessageType.WARNING, path: `equivalent.url.${r.id}.${r.title}`, message: `URL is equivalent to ${r.title}'s URL.` }
+      return { type: MessageType.WARNING, path: 'url', message: `URL is equivalent to [${r.title}](${appURL}/results/${r.id})'s URL.` }
     }))
   }
   const existingResultTitles: ResultDocument[] | undefined = await Result.find({ title: postedResult.title })
   if (existingResultTitles?.length) {
-    messages.push({ type: MessageType.ERROR, path: 'title', message: 'This Title is the same as existing Result records.' })
     messages.push(...existingResultTitles.map(r => {
-      return { type: MessageType.WARNING, path: `equivalent.title.${r.id}.${r.title}`, message: `Title is the same as ${r.title}'s Title.` }
+      return { type: MessageType.WARNING, path: 'title', message: `This Title is a duplicate to [${r.title}](${appURL}/results/${r.id})'s Title.` }
     }))
   }
   messages.push(...postedResult.valid())

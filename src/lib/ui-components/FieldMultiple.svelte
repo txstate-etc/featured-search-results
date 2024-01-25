@@ -75,7 +75,7 @@
   $: messages = compact ? $messageStore : []
 </script>
 
-<Container {label} {messages} {conditional} {related} {helptext} let:helptextid>
+<Container {path} {label} {messages} {conditional} {related} {helptext} let:helptextid>
   {noOp(fieldMultipleContext.helptextid = helptextid)}
   <AddMore {path} {initialState} {minLength} {maxLength} {conditional} let:path let:currentLength let:maxLength let:index let:minned let:maxed let:value let:onDelete let:onMoveUp let:onMoveDown>
     {@const showDelete = removable && !minned}

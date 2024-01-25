@@ -1,7 +1,7 @@
 import { Result, type RawJsonResult, type ResultDocument, type TemplateResult } from '$lib/models/result.js'
 import { error, json } from '@sveltejs/kit'
 import { MessageType, type Feedback } from '@txstate-mws/svelte-forms'
-import { VALIDATE_ONLY } from '$lib/util/globals.js'
+import { VALIDATE_ONLY, appURL } from '$lib/util/globals.js'
 import { isBlank } from 'txstate-utils'
 
 /** Returns the associcated `Feedback MessageType` from common HTML status codes and ranges. */
@@ -62,16 +62,14 @@ export async function PUT ({ params, url, request, locals }) {
   result.fromPartialJson(body)
   const existingResultUrls: ResultDocument[] | undefined = (await Result.findByUrl(result.url)).filter(r => r.id !== result.id)
   if (existingResultUrls?.length) {
-    messages.push({ type: MessageType.WARNING, path: 'url', message: 'This URL is a duplicate equivalent to the URL of other Result records.' })
     messages.push(...existingResultUrls.map(r => {
-      return { type: MessageType.WARNING, path: `equivalent.url.${r.id}.${r.title}`, message: `URL is a duplicate equivalent to ${r.title}'s URL.` }
+      return { type: MessageType.WARNING, path: 'url', message: `URL is equivalent to [${r.title}](${appURL}/results/${r.id})'s URL.` }
     }))
   }
   const existingResultTitles: ResultDocument[] | undefined = (await Result.find({ title: result.title }) as ResultDocument[]).filter(r => r.id !== result.id)
-  if (existingResultTitles.length) {
-    messages.push({ type: MessageType.WARNING, path: 'title', message: 'This Title is a duplicate to the Title of other Result records.' })
+  if (existingResultTitles?.length) {
     messages.push(...existingResultTitles.map(r => {
-      return { type: MessageType.WARNING, path: `equivalent.title.${r.id}.${r.title}`, message: `Title is a duplicate to ${r.title}'s Title.` }
+      return { type: MessageType.WARNING, path: 'title', message: `This Title is a duplicate to [${r.title}](${appURL}/results/${r.id})'s Title.` }
     }))
   }
   messages.push(...result.valid())

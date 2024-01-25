@@ -383,10 +383,9 @@ ResultSchema.methods.fromPartialJson = function (input: TemplateResult) {
   this.tags = []
   this.entries = []
   for (const entry of sortby(input.entries ?? [], 'priority', true)) {
-    const mode = entry.mode?.trim().toLowerCase() ?? 'keyword' as ResultModes
     this.entries.push({
       keywords: querysplit(entry.keyphrase ?? ''),
-      mode,
+      mode: entry.mode?.trim().toLowerCase() ?? 'keyword' as ResultModes,
       priority: entry.priority,
       hitCountCached: 0
     } as unknown as IResultEntry)
