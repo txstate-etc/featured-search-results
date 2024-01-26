@@ -1,5 +1,3 @@
-// TODO: Add checks for URLs with protocol and hostname portions that have uppercase characters and convert them to lowercase.
-
 /* Run from mongosh shell connected to associated landscape's database to:
   1. Map old priority values to new priority/weight values.
   2. Update results that made it into the old dataset without having their title or url trimmed.
@@ -8,7 +6,7 @@
   Should only need to run this once per refresh from the old dataset or on landscapes still running the old dataset.
 */
 
-// Update priority values.
+// Update old priority values to new priority/weight mappings.
 db.results.updateMany({ 'entries.priority': 3 }, { $set: { 'entries.$[e].priority': 92 } }, { arrayFilters: [{ 'e.priority': 3 }] })
 db.results.updateMany({ 'entries.priority': 2 }, { $set: { 'entries.$[e].priority': 72 } }, { arrayFilters: [{ 'e.priority': 2 }] })
 // No priorities had a value of 1.
@@ -23,7 +21,7 @@ db.results.find({ $or: [{ title: { $regex: '^\\s+.*' } }, { title: { $regex: '.*
   try { db.results.replaceOne({ _id: doc._id }, doc) }
   catch (e) { console.log(e) }
 })
-// Update untrimmed urls. - May throw errors due to duplicate keys on url but first we want to try simple trimming first.
+// Update untrimmed urls. - May throw errors due to duplicate keys on url but we want to try simple trimming first.
 db.results.find({ $or: [{ url: { $regex: '^\\s+.*' } }, { url: { $regex: '.*\\s+$' } }] }).forEach(doc => {
   doc.url = doc.url.trim();
   try { db.results.replaceOne({ _id: doc._id }, doc) }

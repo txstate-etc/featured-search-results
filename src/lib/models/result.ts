@@ -31,7 +31,7 @@ import type { Feedback } from '@txstate-mws/svelte-forms'
 
 export type ResultModes = 'keyword' | 'phrase' | 'exact'
 const matchModes = ['keyword', 'phrase', 'exact']
-const matchModesToString = new Map<ResultModes, string>([
+export const matchModesToString = new Map<ResultModes, string>([
   ['keyword', 'Keyword'],
   ['phrase', 'Phrase'],
   ['exact', 'Exact']
@@ -196,7 +196,7 @@ interface IResultMethods {
   /** Tests if result's `tags` array already includes `tag`. */
   hasTag: (tag: string) => boolean
   /** Tests for non-blank `title` and `url` values, at least one entry, and that the `url` starts with a scheme. */
-  valid: () => Feedback[]
+  getValidationFeedback: () => Feedback[]
   /** Uses feedback from `this.valid` to attempt to heal records failing validation where it can. */
   healRecord: (feedback?: Feedback[]) => void
   /** Tests `url` for 2xx response on a 5 second timeout.
@@ -404,11 +404,12 @@ ResultSchema.methods.hasEntry = function (entry: IResultEntry) {
 ResultSchema.methods.hasTag = function (tag: string) {
   return this.tags.includes(tag)
 }
-function findDuplicateMatchings (entries: IResultEntry[]) {
+export interface DuplicateMatching { index: number, mode: ResultModes }
+export function findDuplicateMatchings (entries: IResultEntry[]) {
   const exacts = new Set<string>()
   const keywords = new Set<string>()
   const phrases = new Set<string>()
-  const duplicates: { index: number, mode: ResultModes }[] = []
+  const duplicates: DuplicateMatching[] = []
   entries.forEach((entry, index) => {
     const terms = entry.keywords.join(' ').toLocaleLowerCase()
     if (entry.mode === 'exact') {
@@ -421,7 +422,7 @@ function findDuplicateMatchings (entries: IResultEntry[]) {
   })
   return duplicates
 }
-ResultSchema.methods.valid = function () {
+ResultSchema.methods.getValidationFeedback = function () {
   // this.validate() will only throw errors for us to catch. Use validateSync() instead.
   const validation: mongoose.Error.ValidationError | null = this.validateSync()
   const resp: Feedback[] = validation
@@ -429,10 +430,6 @@ ResultSchema.methods.valid = function () {
       ({ type: 'error', path: key, message: (validation.errors[key] as mongoose.Error.ValidatorError).properties.message })
     )
     : []
-  // Additional entries validation external to Model until we can create entriesSchema to apply nest-wide validator to.
-  resp.push(...findDuplicateMatchings(this.entries).map<Feedback>(dup => {
-    return { type: 'error', path: `entries.${dup.index}.keywords`, message: `Duplicate Terms for ${matchModesToString.get(dup.mode)} Type.` }
-  }))
   // Additional warning validation on http instead of https URL.
   if (/^http:/i.test(this.url)) resp.push({ type: 'warning', path: 'url', message: "URL is using 'http:' not 'https:'" })
   return resp
@@ -486,7 +483,7 @@ ResultSchema.statics.findByUrl = async function (url: string) {
   const equivalencies = getUrlEquivalencies(url)
   return this.find({ url: { $in: equivalencies } })
 }
-const reservedTags = ['duplicate', 'broken-url', 'needs-url-normalization', '']
+const reservedTags = ['duplicate', 'duplicate-url', 'duplicate-title', 'duplicate-match-phrase', 'broken-url', 'needs-url-normalization', '']
 ResultSchema.methods.currencyTest = async function () {
   // Reset duplicate and broken-url tags as well as remove any duplicate tags.
   this.tags = this.tags.filter((t, i) => !reservedTags.includes(t) && this.tags.indexOf(t) === i)
@@ -521,20 +518,30 @@ ResultSchema.methods.currencyTest = async function () {
   const dupUrls = await Result.findByUrl(this.url)
   if (dupUrls?.length) {
     this.currency.conflictingUrls = dupUrls.map((r: ResultDocument) => { return { id: r.id, url: r.url } }).filter((r: any) => r.id !== this.id)
-    if (this.currency.conflictingUrls.length && !this.hasTag('duplicate')) this.tags.push('duplicate')
+    if (this.currency.conflictingUrls.length) {
+      if (!this.hasTag('duplicate')) this.tags.push('duplicate')
+      if (!this.hasTag('duplicate-url')) this.tags.push('duplicate-url')
+    }
   } else if (this.currency.conflictingUrls) delete this.currency.conflictingUrls
   // Test currency of duplicate title validation.
   this.title = this.title.trim()
   const dupTitles = await Result.find({ title: { $regex: `^\\s*${this.title}\\s*$`, $options: 'i' } })
   if (dupTitles?.length) {
     this.currency.conflictingTitles = dupTitles.map((r: any) => { return { id: r.id, title: r.title } }).filter((r: any) => r.id !== this.id)
-    if (this.currency.conflictingTitles?.length && !this.hasTag('duplicate')) this.tags.push('duplicate')
+    if (this.currency.conflictingTitles?.length) {
+      if (!this.hasTag('duplicate')) this.tags.push('duplicate')
+      if (!this.hasTag('duplicate-title')) this.tags.push('duplicate-title')
+    }
   } else if (this.currency.conflictingTitles) delete this.currency.conflictingTitles
   // Test currency of duplicate term:type matchings validation.
-  this.currency.conflictingMatchings = findDuplicateMatchings(this.entries)
-  if (this.currency.conflictingMatchings.length === 0) {
-    delete this.currency.conflictingMatchings
-  } else if (!this.hasTag('duplicate')) this.tags.push('duplicate')
+  const dupMatchings = findDuplicateMatchings(this.entries)
+  if (dupMatchings.length) {
+    this.currency.conflictingMatchings = dupMatchings
+    if (this.currency.conflictingMatchings.length) {
+      if (!this.hasTag('duplicate')) this.tags.push('duplicate')
+      if (!this.hasTag('duplicate-match-phrase')) this.tags.push('duplicate-match-phrase')
+    }
+  } else if (this.currency.conflictingMatchings) delete this.currency.conflictingMatchings
   // Test currency of url domain migration.
   try {
     let alreadypassed = false
@@ -564,7 +571,7 @@ ResultSchema.methods.currencyTest = async function () {
   this.currency.tested = new Date()
   try {
     // Heal existing Result documents where we can.
-    this.healRecord(this.valid())
+    this.healRecord(this.getValidationFeedback())
     await this.save()
   } catch (e) {
     console.error(e)
@@ -590,11 +597,10 @@ ResultSchema.methods.healRecord = function (feedback?: Feedback[]) {
 ResultSchema.statics.currencyTestAll = async function () {
   console.info('Running currency test.')
   const results = await this.find({
-    $or: [{
-      'currency.tested': { $lte: DateTime.local().minus({ minutes: 1 }).toJSDate() }
-    }, {
-      'currency.tested': { $exists: false }
-    }]
+    $or: [
+      { 'currency.tested': { $lte: DateTime.local().minus({ days: 1 }).toJSDate() } },
+      { 'currency.tested': { $exists: false } }
+    ]
   }) as ResultDocument[]
   await eachConcurrent(results, async result => { await result.currencyTest() })
   console.info('Finished currency test.')

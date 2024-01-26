@@ -1,9 +1,28 @@
 <script lang="ts">
   import { afterNavigate, goto } from '$app/navigation'
   import { apiBase, appBase, type ClientAuth } from '$lib/util/globals'
+  import arrowUUpRightBold from '@iconify-icons/mdi/arrow-u-up-right-bold'
+  import { Icon } from '@dosgato/dialog'
+  import { browser } from '$app/environment'
   import '@fontsource/roboto'
 
   export let data: ClientAuth
+
+  let backToTop: HTMLButtonElement
+  function scrollHandler () {
+    if (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) {
+      backToTop.style.display = 'block'
+    } else {
+      backToTop.style.display = 'none'
+    }
+  }
+  if (browser) {
+    window.onscroll = scrollHandler
+  }
+  function goToTop () {
+    document.body.scrollTop = 0
+    document.documentElement.scrollTop = 0
+  }
 
   afterNavigate(() => {
     // make sure we're still logged in, and as the same user
@@ -22,6 +41,10 @@
     await goto(apiBase + '/logout')
   }
 </script>
+
+<button bind:this={backToTop} id='back-to-top' title='Back to Top' aria-label='Back to Top' on:click={() => goToTop()}>
+  <Icon icon={arrowUUpRightBold} />
+</button>
 
 <header>
   <title>Search Results Admin</title>
@@ -73,6 +96,7 @@
     --colors-blue: #005481;
     --colors-grey: #808080;
     --colors-red: #FF1717;
+    --colors-transparent-blue: #00548180;
 
     --colors-navbar-background: var(--colors-maroon);
     --colors-input-background: var(--colors-paper);
@@ -121,6 +145,21 @@
     &.submitting,.validating {
       background-color: var(--dg-button-disabled-bg);
     }
+  }
+  #back-to-top {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 99;
+    font-size: 18px;
+    border: none;
+    outline: none;
+    background-color: var(--colors-transparent-blue);
+    color: white;
+    cursor: pointer;
+    padding: 15px;
+    border-radius: 4px;
+    display: none;
   }
   main {
     flex-grow: 1;
