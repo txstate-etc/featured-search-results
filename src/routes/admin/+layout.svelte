@@ -28,7 +28,7 @@
   <nav class='navbar'>
     <div class='container-fluid'>
       <div class='navbar-head'>
-        <a class='app-brand' href={appBase}>Featured Search</a>
+        <a class='app-brand' href={appBase + '/results'}>Featured Search</a>
       </div>
       <ul class='navlist navbar-flex navbar-right'>
         <li><a href={appBase + '/results/create'}>Add Search Result</a></li>

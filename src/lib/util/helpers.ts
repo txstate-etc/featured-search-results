@@ -63,6 +63,16 @@ export function normalizeUrl (url: string) {
   return url.trim()
 }
 
+/** Recursively checks if `val` is not empty, nothing but spaces, or undefined/null. */
+export function hasSubstance (val: any): boolean {
+  return (
+    val !== undefined && val !== null &&
+    !(typeof val === 'string' && val.trim().length === 0) &&
+    !(Array.isArray(val) && !val.some(hasSubstance)) &&
+    !(typeof val === 'object' && !Object.values(val).some(hasSubstance))
+  )
+}
+
 // Debugging fuctions
 const excludeHeaders = new Set(['cookie'])
 const excludeHeadersRegex = new RegExp(`^(${[...excludeHeaders].join('|')})$`, 'i')
@@ -488,7 +498,7 @@ export async function getMongoStages (tableDef: SearchMappings, search: string, 
   }
   // Add any correlated ObjectId matching using the correlation searches we built up.
   for (const key of Object.keys(metaSearch.correlations)) {
-    metaSearch.correlations = (await tableDef.correlations![key](metaSearch)).correlations // Mutate metaSearch with the corresponding correlation function to populate the correlated IDs.
+    await tableDef.correlations![key](metaSearch) // Mutate metaSearch with the corresponding correlation function to populate the correlated IDs.
     if (metaSearch.correlations[key].unionIds.size) metaSearch.unions.push({ [key]: { $in: [...metaSearch.correlations[key].unionIds] } })
     if (metaSearch.correlations[key].intersectIds.size) metaSearch.intersects.push({ [key]: { $in: [...metaSearch.correlations[key].intersectIds] } })
   }
@@ -501,7 +511,14 @@ export async function getMongoStages (tableDef: SearchMappings, search: string, 
   pipeline.push(getMatchStage(metaSearch.projected.unions, metaSearch.projected.intersects))
   // $facet `matchCount` and sorted with optionally paginated `matches`.
   pipeline.push({ $facet: { matchCount: [{ $count: 'total' }], matches: pagingPipeline as any[] } })
-  console.log('Search Translation - metaSearch:', JSON.stringify(metaSearch, null, 2))
+  // Log our MetaSearch object for debugging and tuning.
+  console.log('Search Translation - metaSearch:', JSON.stringify(metaSearch, (key, value) => {
+    if (key === '$in' && value.length > 4) return value.length + ' entries'
+    if (!hasSubstance(value)) return undefined
+    if (key === 'curr') return undefined
+    if (value instanceof Set) return [...value]
+    return value
+  }, 2))
   return { pipeline, metaSearch }
 }
 function mutateCorrelationsAndProjections (tableDef: SearchMappings, metaSearch: MetaSearch, fieldName: string, op?: string | undefined) {

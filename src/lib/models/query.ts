@@ -71,12 +71,16 @@ export function getQueriesDef (): SearchMappings {
   const correlations: Record<string, (metaSearch: MetaSearch) => Promise<MetaSearch>> = {
     results: async (metaSearch) => {
       const tableDef = getResultsDef()
-      const unionFilter = await getMongoStages(tableDef, metaSearch.correlations.results.unionSearches.join(''))
-      const unionResults: ObjectId[] = (await Result.aggregate<AggregateResult>(unionFilter.pipeline))[0].matches.map(result => result['_id'])
-      unionResults.forEach(result => metaSearch.correlations.results.unionIds.add(result))
-      const intersectFilter = await getMongoStages(tableDef, metaSearch.correlations.results.intersectSearches.join(''))
-      const intersectResults = (await Result.aggregate<AggregateResult>(intersectFilter.pipeline))[0].matches.map(result => result['_id'])
-      intersectResults.forEach(result => metaSearch.correlations.results.intersectIds.add(result))
+      if (metaSearch.correlations.results.unionSearches.length) {
+        const unionFilter = await getMongoStages(tableDef, metaSearch.correlations.results.unionSearches.join(''))
+        const unionResults: ObjectId[] = (await Result.aggregate<AggregateResult>(unionFilter.pipeline))[0].matches.map(result => result['_id'])
+        unionResults.forEach(result => metaSearch.correlations.results.unionIds.add(result))
+      }
+      if (metaSearch.correlations.results.intersectSearches.length) {
+        const intersectFilter = await getMongoStages(tableDef, metaSearch.correlations.results.intersectSearches.join(''))
+        const intersectResults = (await Result.aggregate<AggregateResult>(intersectFilter.pipeline))[0].matches.map(result => result['_id'])
+        intersectResults.forEach(result => metaSearch.correlations.results.intersectIds.add(result))
+      }
       return metaSearch
     }
   }

@@ -1,5 +1,5 @@
 <script lang='ts' context='module'>
-  import { getType, type EnhancedType, type SortParam } from '$lib/util/helpers.js'
+  import { getType, type EnhancedType, type SortParam, hasSubstance } from '$lib/util/helpers.js'
   import { htmlEncode } from 'txstate-utils'
   const sIconChars = {
     asc: '&#9661;', // &#9661; ▲
@@ -296,15 +296,6 @@
     return effectiveMetas[effectiveMetas.length - 1].key === key
   }
 
-  /** Recursively checks if `val` is not empty, nothing but spaces, or undefined/null. */
-  function hasSubstance (val: any): boolean {
-    return (
-      val !== undefined && val !== null &&
-      !(typeof val === 'string' && val.trim().length === 0) &&
-      !(Array.isArray(val) && !val.some(hasSubstance)) &&
-      !(typeof val === 'object' && !Object.values(val).some(hasSubstance))
-    )
-  }
 </script>
 
 {#if effectiveMetas && data.length }
