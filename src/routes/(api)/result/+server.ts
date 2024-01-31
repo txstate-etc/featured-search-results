@@ -18,20 +18,24 @@ export async function POST ({ url, locals, request }) {
     messages.push(...existingUrls.map(r => {
       return { type: MessageType.WARNING, path: 'url', message: `URL is equivalent to [${r.title}](${appURL}/results/${r.id})'s URL.` }
     }))
+    if (!postedResult.hasTag('duplicate-url')) postedResult.tags.push('duplicate-url')
   } else postedResult.tags = postedResult.tags.filter((t: string) => t !== 'duplicate-url')
   const existingTitles: ResultDocument[] | undefined = await Result.find({ title: postedResult.title })
   if (existingTitles?.length) {
     messages.push(...existingTitles.map(r => {
       return { type: MessageType.WARNING, path: 'title', message: `This Title is a duplicate to [${r.title}](${appURL}/results/${r.id})'s Title.` }
     }))
+    if (!postedResult.hasTag('duplicate-title')) postedResult.tags.push('duplicate-title')
   } else postedResult.tags = postedResult.tags.filter((t: string) => t !== 'duplicate-title')
   const dupMatchings: DuplicateMatching[] = findDuplicateMatchings(postedResult.entries)
   if (dupMatchings.length) {
     messages.push(...dupMatchings.map<Feedback>(dup => {
       return { type: MessageType.ERROR, path: `entries.${dup.index}.keywords`, message: `Duplicate Terms for ${matchModesToString.get(dup.mode)} Type.` }
     }))
+    if (!postedResult.hasTag('duplicate-match-phrase')) postedResult.tags.push('duplicate-match-phrase')
   } else postedResult.tags = postedResult.tags.filter((t: string) => t !== 'duplicate-match-phrase')
   if (!existingUrls?.length && !existingTitles?.length && !dupMatchings.length) postedResult.tags = postedResult.tags.filter((t: string) => t !== 'duplicate')
+  else if (!postedResult.hasTag('duplicate')) postedResult.tags.push('duplicate')
   messages.push(...postedResult.getValidationFeedback())
   if (!isValidation) {
     const errorMessages = messages.filter(m => m.type === MessageType.ERROR)

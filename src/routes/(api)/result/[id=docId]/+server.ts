@@ -65,20 +65,24 @@ export async function PUT ({ params, url, request, locals }) {
     messages.push(...existingUrls.map(r => {
       return { type: MessageType.WARNING, path: 'url', message: `URL is equivalent to [${r.title}](${appURL}/results/${r.id})'s URL.` }
     }))
+    if (!result.hasTag('duplicate-url')) result.tags.push('duplicate-url')
   } else result.tags = result.tags.filter((t: string) => t !== 'duplicate-url')
   const existingTitles: ResultDocument[] | undefined = (await Result.find({ title: result.title }) as ResultDocument[]).filter(r => r.id !== result.id)
   if (existingTitles?.length) {
     messages.push(...existingTitles.map(r => {
       return { type: MessageType.WARNING, path: 'title', message: `This Title is a duplicate to [${r.title}](${appURL}/results/${r.id})'s Title.` }
     }))
+    if (!result.hasTag('duplicate-title')) result.tags.push('duplicate-title')
   } else result.tags = result.tags.filter((t: string) => t !== 'duplicate-title')
   const dupMatchings: DuplicateMatching[] = findDuplicateMatchings(result.entries)
   if (dupMatchings.length) {
     messages.push(...dupMatchings.map<Feedback>(dup => {
       return { type: MessageType.ERROR, path: `entries.${dup.index}.keywords`, message: `Duplicate Terms for ${matchModesToString.get(dup.mode)} Type.` }
     }))
+    if (!result.hasTag('duplicate-match-phrase')) result.tags.push('duplicate-match-phrase')
   } else result.tags = result.tags.filter((t: string) => t !== 'duplicate-match-phrase')
   if (!existingUrls?.length && !existingTitles?.length && !dupMatchings.length) result.tags = result.tags.filter((t: string) => t !== 'duplicate')
+  else if (!result.hasTag('duplicate')) result.tags.push('duplicate')
   messages.push(...result.getValidationFeedback())
   // TODO: Add check for reserved tags of results model currencyTest that can be removed or added and do so accordingly.
   if (!isValidation) {
