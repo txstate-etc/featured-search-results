@@ -216,14 +216,35 @@ export function getType (obj: any) {
   return type
 }
 export interface SearchMappings {
-  /** A mapping of search aliases to the table field they correspond to. */
-  hash: Record<string, string>
-  /** The fields of the record set and their associated primative-ish type. */
+  /** A mapping of search aliases to the table field they correspond to.
+   * @`::` Alternatives
+   * - For correlations, such as values not directly stored in the table or collection, you can define the alias mapping as
+   * `'<correlation>::'` where the `correlation` would be the key of any correlations defined in the `correlations` property. Any search phrases that
+   * correspond to a corrleation can be re-evaluated in the context of their table/collection's `SearchMappings` and then foreign key intersected or
+   * unioned with the originating `SearchMappings`' results based on any intersect flags in the associated search phrase.
+   * - For multi-step translations, such as those needed for MongoDB aggregation pipelines, you can define what the alias maps to as
+   * `'<correlation>::<post translation key>'` where the `correlation` would be the key of any correlations defined in the `correlations` property or
+   * the base collection identifier and the `post translation key` would be the post translation lookup for the field type in the `metas` property.
+   * Combined they form the key to the intermediary translation statement in the `metas` property. */
+  aliasMap: Record<string, string>
+  /** The fields of the record set and their associated primative-ish type.
+   * @`::` Alternatives
+   * - For correlations, such as values not directly stored in the table or collection, you still need to define a corresponding
+   * `'<correlation>::'` key in the `metas` property but for now nothing is done with it so declare it as `undefined`.
+   * - For multi-step translations, such as those needed for MongoDB aggregation pipelines, you can define `'<correlation>::<post translation key>'`
+   * properties with the associated type being a target data source query for what the `post translation key` would be an aggregate field of.
+   * For example: if you want to be able to query about the size of an array in Mongo documents you could define a property like
+   * `'collectionName:arrayName-length': { $size: '$arrayName' }` and then follow that `metas` property up with a secondary `metas` property that
+   * defines the primative-ish type of the aggregation - `'arrayName-length': 'number'`. */
   metas?: Record<string, any>
-  /** Any lookup definitions needed for foreign keyed collections. */
+  /** Any lookup definitions needed for foreign keyed tables/collections. This can use values in the MetaSearch object passed to it but of most
+   * likely significance is the `correlations` property that will be populated by the same key as the corresponding correlation. Under that key
+   * will MAY be the properties `unionSearches` and `intersectSearches` for the correlation function to mutate the MetaSearch record with by
+   * executing the respective searches with their respective SearchMappings definitions to find and pass back correlating foreign keys for use
+   * in joining against the originating data set via the Sets `metaSearch.correlations[key].unionIds` and `metaSearch.correlations[key].intersectIds`. */
   correlations?: Record<string, (metaSearch: MetaSearch) => Promise<MetaSearch>>
-  /** A mapping of search operators to common filter comparisons. */
-  opHash?: Record<string, string>
+  /** A mapping of search operators to target data source comparisons. */
+  opMap?: Record<string, string>
   /** The default fields to compare search values against when none are specified. */
   defaults: string[]
   /** The defualt sort orderings to use. */
@@ -236,13 +257,13 @@ export interface SearchMappings {
   /** Convenience reference of distinct table fields available to compare against. */
   fields: Set<string>
 }
-/** Get the distinct values from `hash` as the field names in an SQL table or Mongo Collection. */
-export function getFields (hash: any) {
-  return new Set<string>(Object.values(hash)) // Set() to just the distinct field names.
+/** Get the distinct values from `aliasMap` as the field names in an SQL table or Mongo Collection. */
+export function getFields (map: any) {
+  return new Set<string>(Object.values(map)) // Set() to just the distinct field names.
 }
-/** Get the keys from `hash` as the aliases to the field names in an SQL table. */
-export function getAliases (hash: Record<string, string>) {
-  return Object.keys(hash)
+/** Get the keys from `aliasMap` as the aliases to the field names in an SQL table. */
+export function getAliases (map: Record<string, string>) {
+  return Object.keys(map)
 }
 /** What to search for. Quoted things as a single what-for or anything that's either an escaped [comma, semicolon, space]
  *  or is not a [comma, semicolon or space] - making commas, semicolons, or spaces our delimiters when not grouped by quotes. */
@@ -252,7 +273,7 @@ export const likeops = /(?<likeop>\+|-|\b(?:not|and)\b\s*)/ // Like, or Not Like
 /** Returns an object reference to a utility representation of the relationship between search
  *  terms and the underlying `people` table. */
 export function getPeopleDef (): SearchMappings {
-  const hash: Record<string, string> = {
+  const aliasMap: Record<string, string> = {
     'lastname': 'lastname',
     'last name': 'lastname',
     'last': 'lastname',
@@ -284,7 +305,7 @@ export function getPeopleDef (): SearchMappings {
     'category': 'category'
   }
   const defaults: string[] = ['lastname', 'firstname', 'userid', 'phone', 'email']
-  return { hash, defaults, fields: getFields(hash) } as const
+  return { aliasMap, defaults, fields: getFields(aliasMap) } as const
 }
 /** Returns an SQL `where` clause using `tableDef` and parsable `search` string as parameters.
  * @param {SearchMappings} tableDef - A utility object used to associate search aliases and defaults to table fields.
@@ -302,11 +323,11 @@ export function getPeopleDef (): SearchMappings {
  * ``` */
 export function getWhereClause (tableDef: SearchMappings, search: string) {
   /* Advanced search phrases consist of the following RegEx-ish form.
-  (and |not |+|-)?((tableDef.hash.keys) *(contains|(ends|begins|starts) with|is|:|=|<|>) *)?(["']*|[,; ]+)<what to search for>\5+[,;]? *
+  (and |not |+|-)?((tableDef.aliasMap.keys) *(contains|(ends|begins|starts) with|is|:|=|<|>) *)?(["']*|[,; ]+)<what to search for>\5+[,;]? *
   <   likeops   >  <     aliases      >  <                 wildcardops                 >   <<     \5     >      whatfor      >
   */
   const binds = []
-  const fieldAliases = getAliases(tableDef.hash).join('|')
+  const fieldAliases = getAliases(tableDef.aliasMap).join('|')
   // We need to break the RegEx down to interpolate the fieldAliases. While we're at it might as well tokenize
   // the parts into their respective purposes for easier editing if we decide to change functionality.
   const aliases = new RegExp(`\\b(?<alias>${fieldAliases})\\b\\s*`) // Aliases that translate to fields we search.
@@ -326,7 +347,7 @@ export function getWhereClause (tableDef: SearchMappings, search: string) {
     if (/^(?:not\s+|-)$/.test(likeop)) clause = `not like ${clause}`
     else /*  /^(?:and\s+|\+)$/ or !likeop */ clause = `like ${clause}`
     // Prepend our alias's SQL field name, if alias was parsed, else default to tableDef.defaults.
-    if (alias) binds.push(wildcardbind) && (clause = `${tableDef.hash[alias]} ${clause}`)
+    if (alias) binds.push(wildcardbind) && (clause = `${tableDef.aliasMap[alias]} ${clause}`)
     else clause = tableDef.defaults.map((field: string) => (binds.push(wildcardbind) && `(${field} ${clause})`)).join(' or ')
     whereClause.push(`(${clause})`)
   }
@@ -446,10 +467,10 @@ export interface AggregateResult {
  * ``` */
 export async function getMongoStages (tableDef: SearchMappings, search: string, paging: Paging = { sorts: [] }): Promise<{ pipeline: PipelineStage[], metaSearch: MetaSearch }> {
   /* Advanced search phrases consist of the following RegEx-ish form.
-  (and |not |+|-)?((tableDef.hash.keys) *(contains|(ends|begins|starts) with|is|:|<=|>=|=|<|>) *)?(["']*|[,; ]+)<what to search for>\5+[,;]? *
+  (and |not |+|-)?((tableDef.aliasMap.keys) *(contains|(ends|begins|starts) with|is|:|<=|>=|=|<|>) *)?(["']*|[,; ]+)<what to search for>\5+[,;]? *
   <   likeops   >  <     aliases      >  <                 wildcardops                       >   <<     \5     >      whatfor      >
   */
-  const fieldAliases = getAliases(tableDef.hash).join('|')
+  const fieldAliases = getAliases(tableDef.aliasMap).join('|')
   const aliases = new RegExp(`\\b(?<alias>${fieldAliases})\\b\\s*`) // Aliases that translate to fields we search.
   const parser = new RegExp(`(?:${likeops.source})?(?:${aliases.source + wildcardops.source})?${whatfors.source}[,;]?\\s*`, 'gi')
   // console.log(parser)
@@ -484,8 +505,8 @@ export async function getMongoStages (tableDef: SearchMappings, search: string, 
       continue
     }
     const parsedAlias = alias.toLowerCase()
-    const fieldName = tableDef.hash[parsedAlias]
-    const op = tableDef.opHash?.[wildcardop]
+    const fieldName = tableDef.aliasMap[parsedAlias]
+    const op = tableDef.opMap?.[wildcardop]
     // Handle Correlations and Projections.
     if (fieldName.includes('::')) {
       mutateCorrelationsAndProjections(tableDef, metaSearch, fieldName, op)
@@ -546,7 +567,7 @@ function mutatePaginationStages (tableDef: SearchMappings, metaSearch: MetaSearc
   const sort: Record<string, any> = {}
   for (const order of metaSearch.paging.sorts) {
     // Add any projections needed for sorting.
-    const fieldName = tableDef.hash[order.field]
+    const fieldName = tableDef.aliasMap[order.field]
     if (fieldName.includes('::')) {
       const [collection, alias] = fieldName.split('::')
       if (isNotBlank(alias) && !tableDef.noSort?.has(alias)) {
@@ -561,7 +582,7 @@ function mutatePaginationStages (tableDef: SearchMappings, metaSearch: MetaSearc
   }
   if (tableDef.sortDefaults) {
     for (const param of tableDef.sortDefaults) {
-      const fieldName = tableDef.hash[param.field]
+      const fieldName = tableDef.aliasMap[param.field]
       if (fieldName.includes('::')) {
         const [collection, alias] = fieldName.split('::')
         if (isNotBlank(alias) && !tableDef.noSort?.has(alias)) {

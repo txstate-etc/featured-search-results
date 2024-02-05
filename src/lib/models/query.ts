@@ -33,7 +33,7 @@ import type { Paging, AdvancedSearchResult, AggregateResult, SearchMappings, Met
 /** Returns an object reference to a utility representation of the relationship between search
  *  terms and the underlying `Query` documents. */
 export function getQueriesDef (): SearchMappings {
-  const hash: Record<string, string> = {
+  const aliasMap: Record<string, string> = {
     'match words': 'query',
     'keyphrase': 'query',
     'aliases': 'query',
@@ -87,7 +87,7 @@ export function getQueriesDef (): SearchMappings {
   const pretty: PipelineStage = {
     $project: { query: 1, results: 1, hitcount: 1, lasthit: 1 }
   }
-  const opHash: Record<string, string> = {
+  const opMap: Record<string, string> = {
     ':': 'in',
     '=': 'eq',
     'is': 'eq',
@@ -106,7 +106,7 @@ export function getQueriesDef (): SearchMappings {
   const defaults: string[] = ['query']
   const sortDefaults: SortParam[] = [{ field: 'hitcount', direction: 'desc' }]
   const noSort: Set<string> = new Set<string>(['rusults'])
-  return { hash, metas, correlations, opHash, defaults, sortDefaults, noSort, pretty, fields: getFields(hash) } as const
+  return { aliasMap, metas, correlations, opMap, defaults, sortDefaults, noSort, pretty, fields: getFields(aliasMap) } as const
 }
 
 export interface QueryBasic {

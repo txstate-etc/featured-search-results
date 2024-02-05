@@ -17,15 +17,13 @@
 		"@dosgato/dialog": "1.1.9",
 		"@fontsource/roboto": "^5.0.8",
 		"@txstate-mws/svelte-store": "^1.0.8",
-		"axios": "1.6.5",
+		"axios": "1.6.7",
 		"cron": "^3.1.6",
-		"devalue": "^4.3.2",
 		"jose": "^5.2.0",
 		"libphonenumber-js": "^1.10.54",
 		"luxon": "^3.4.4",
-		"mongoose": "^8.1.0",
+		"mongoose": "^8.1.1",
 		"mysql2-async": "^2.0.0",
-		"svelte-markdown": "^0.4.1",
 		"txstate-utils": "^1.8.15"
 	},
 	"devDependencies": {

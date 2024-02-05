@@ -40,7 +40,7 @@ export const matchModesToString = new Map<ResultModes, string>([
 /** Returns an object reference to a utility representation of the relationship between search
  *  terms and the underlying `Result` documents. */
 export function getResultsDef (): SearchMappings {
-  const hash: Record<string, string> = {
+  const aliasMap: Record<string, string> = {
     'title': 'title',
     'pagename': 'title',
     'page name': 'title',
@@ -110,7 +110,7 @@ export function getResultsDef (): SearchMappings {
     'entries.priority': 'number',
     'entries.hitCountCached': 'number'
   }
-  const opHash: Record<string, string> = {
+  const opMap: Record<string, string> = {
     ':': 'in',
     '=': 'eq',
     'is': 'eq',
@@ -129,7 +129,7 @@ export function getResultsDef (): SearchMappings {
   const defaults: string[] = ['title', 'tags', 'url', 'entries.keywords']
   const sortDefaults: SortParam[] = [{ field: 'title', direction: 'asc' }, { field: 'tagcount', direction: 'desc' }]
   const noSort: Set<string> = new Set<string>(['entries.keywords', 'entries.mode', 'entries.priority', 'entries.hitCountCached'])
-  return { hash, metas, opHash, defaults, sortDefaults, fields: getFields(hash), noSort } as const
+  return { aliasMap, metas, opMap, defaults, sortDefaults, fields: getFields(aliasMap), noSort } as const
 }
 
 export interface ResultEntry {
