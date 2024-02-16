@@ -8,6 +8,8 @@ import { isValidUrl, logEvent, logResponse } from './lib/util/helpers'
 
 if (!building) await mongoConnect()
 
+// Note this cache has a default of 5 minute fresh TTL and 10 minute stale TTL - so if the AD group is updated it
+// will take at least 5 minutes to be reflected in the app if the cache had just been refreshed before the update.
 const editorGroupCache = new Cache(async () => {
   const { accounts } = await motion.query<{ accounts: { netid: string, canLogin: boolean }[] }>(`
     query getFeaturedSearchEditors ($groupName: StringCI!) {
@@ -79,6 +81,8 @@ export async function handle ({ event, resolve }) {
     // It's not enough to send the headers to the preflight request, we also have to send them to the simple request.
     response.headers.set('Access-Control-Allow-Origin', origin ?? '*')
     response.headers.set('Access-Control-Allow-Credentials', 'true')
+    // TODO: uncomment when ready to test.
+    // response.headers.set('Cache-Control', 'no-cache')
   }
   // logResponse(response)
   console.log('Returned from response.')

@@ -239,7 +239,7 @@ export interface SearchMappings {
   metas?: Record<string, any>
   /** Any lookup definitions needed for foreign keyed tables/collections. This can use values in the MetaSearch object passed to it but of most
    * likely significance is the `correlations` property that will be populated by the same key as the corresponding correlation. Under that key
-   * will MAY be the properties `unionSearches` and `intersectSearches` for the correlation function to mutate the MetaSearch record with by
+   * MAY be the properties `unionSearches` and `intersectSearches` for the correlation function to mutate the MetaSearch record with by
    * executing the respective searches with their respective SearchMappings definitions to find and pass back correlating foreign keys for use
    * in joining against the originating data set via the Sets `metaSearch.correlations[key].unionIds` and `metaSearch.correlations[key].intersectIds`. */
   correlations?: Record<string, (metaSearch: MetaSearch) => Promise<MetaSearch>>

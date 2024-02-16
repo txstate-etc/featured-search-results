@@ -472,6 +472,7 @@ ResultSchema.statics.getByQuery = async function (words: string[]) {
 ResultSchema.statics.findByQuery = async function (query: string) {
   if (isBlank(query)) return []
   const words = querysplit(query)
+  if (words.length === 0) return []
   const wordset = new Set(words)
   const wordsjoined = words.join(' ')
   const results = await this.getByQuery(words) as (ResultDocument & { priority?: number })[]
