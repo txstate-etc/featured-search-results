@@ -1,10 +1,10 @@
-# search-featured-results
+# featured-search-results
 
 A RESTful API for storing/retrieving featured search results as well as `Search Result Admin` app that provides
 an interface to use the API for managing `Result` associations to searches, reviewing `Query` statistics, and
 detecting malfunctioning urls/links associated with `Results`.
 
-In addition search-featured-results provides directory listings associated with `PeopleSearch` and the code for
+In addition featured-search-results provides directory listings associated with `PeopleSearch` and the code for
 maintaining, updating, and searching directory information, including active `department` listings, is provided
 with this code and the API endpoints they implement.
 
@@ -99,10 +99,7 @@ From there you should be able to use the following sections to run tests and hav
 
 ## subsequent updates
 
-Note that updates to the Mongoose/Mongo models will require a rebuild and restart to pick up in running developement instances since Mongoose doesn't currently
-have a means of updating its models at runtime - or if it does we haven't found it yet anyways.
-
-If you're planning on pushing an image to qual make sure to both update the version number to signify the change in builds but also to tag the commit the build is built from with the same version number. This helps us to correlate archived logs to both their associated build and the code commit associated with that build. You can use the `qual.sh` script and pass it a version number for a convenient way to push a versioned build image to the repository. It's up to you to tag your commit and push it with `git push orgin --tags`.
+If you're planning on pushing an image to qual make sure to both update the version number to signify the change in builds but also to tag the commit the build is built from with the same version number. This helps us to correlate archived logs to both their associated build and the code commit associated with that build. You can use the `qual.sh` script and pass it a version number for a convenient way to push a versioned build image to the registry. It's up to you to tag your commit and push it with `git push orgin --tags` if you don't use the `qual.sh` script.
 
 ## run tests
 
