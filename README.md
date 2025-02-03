@@ -16,7 +16,12 @@ with this code and the API endpoints they implement.
     * _`Exact`_ - The words in the matching's definition must exactly match the search submitted.
     * _`Phrase`_ - The words in the matching's definition must be present anywhere in the search submitted but in the order found in the matching's definition.
     * _`Keyword`_ - The words in the matching's definition must be present in the search submitted but the order in which they're found doesn't matter.
-* __`Query` or `Visitor Searches`__ - The search requests submitted to the service. These are logged along with the timestamp of submission and any matching `Results` that the system responded with. An interval task runs roughly every 27 minutes to expire logged Queries that are over 6 months old and recalculate associated hit counts.
+* __`Query`__ - The visitor search requests submitted to the service. These are logged along with the timestamp of submission and any matching `Results` that the system responded with. An interval task runs roughly every 27 minutes to expire logged Queries that are over 6 months old and recalculate associated hit counts.
+* _`Search Types`_
+  * _`Visitor Searches`_ - These are searches routed through the API's `/search` endpoint. These get logged as Queries as described above. These can be `asyoutype` searches that are run to pre-fetch results for autocompletion or actual search submissions. Both are handled in the same place but have slightly different limitations, in particular that `asyoutype` searches require a minimum of three characters before they get run against the featured Result definitions.
+  * _`Admin Search`_ - These are searches done against the meta data used to configure and help manage this service. These are done through the Admin interface for this service and are not included in the Query hitcount and last hit metrics.
+  * _`People Search`_ - These are searches against publicly accessible directory inforamtion about active faculty and staff.
+  * _`Department Search`_ - This just gets a list of departments associated with active personel.
 
 ## api endpoints
 
@@ -116,6 +121,16 @@ If you're planning on pushing an image to qual make sure to both update the vers
 `./test.sh` in the root directory
 
 Use `./test.sh show` to show all the logs from the other containers (useful for debugging).
+
+  > __TODO:__ We're currently in the process of implementing the tests in Playwright. The `test.sh` script will run the build to get all the services running with a Playwright instance that can be configured and have tests written for this service but the configuraiton and test definitions remain to be done in a way that will integrate with our continuous integration framework.
+  >> In the mean time manual tests need be run against your Dev and Qual instances.
+  >> * Test admin login and that admin pages load.
+  >> * Test API functionality.
+  >> * Test search syntaxes in Admin pages and that API /search endpoint can handle different search expectations for 'asyoutype' or not.
+  >> * Test Result creation and Query logging ensuring data is saved correctly and UI is dynamically updating without glitches.
+  >> * Test validations in Result Creation: Title, URL equivalencies, Matchings...
+  >> * Test that searches are getting valid featured results given Result definitions for matching types and weights.
+  >> * Test pagination.
 
 ## run development environment
 
