@@ -23,7 +23,7 @@ import axios from 'axios'
 import { DateTime } from 'luxon'
 import mongoose from 'mongoose'
 const { Schema, models, model, Error, deleteModel } = mongoose
-import type { Model, Document, ObjectId } from 'mongoose'
+import type { Model, Document, ObjectId, IndexDefinition } from 'mongoose'
 import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
 import { getUrlEquivalencies, isValidHttpUrl, normalizeUrl, querysplit, getMongoStages, getFields } from '../util/helpers.js'
 import type { Paging, AdvancedSearchResult, AggregateResult, SearchMappings, MappingType, SortParam } from '../util/helpers.js'
@@ -284,9 +284,10 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
 })
 // ResultSchema.plugin(paginate)
 
-ResultSchema.index({ 'entries.keywords': 1 })
-ResultSchema.index({ 'currency.tested': 1 })
-ResultSchema.index({ url: 1 })
+const existingIndexes = ResultSchema.indexes()
+existingIndexes.includes([{ 'entries.keywords': 1 }, {}]) ? console.log('ResultSchema index { \'entries.keywords\': 1 } already exists.') : ResultSchema.index({ 'entries.keywords': 1 })
+existingIndexes.includes([{ 'currency.tested': 1 }, {}]) ? console.log('ResultSchema index { \'currency.tested\': 1 } already exists.') : ResultSchema.index({ 'currency.tested': 1 })
+existingIndexes.includes([{ url: 1 }, {}]) ? console.log('ResultSchema index { url: 1 } already exists.') : ResultSchema.index({ url: 1 })
 
 ResultSchema.methods.basic = function () {
   return {

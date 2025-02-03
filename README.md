@@ -8,6 +8,16 @@ In addition featured-search-results provides directory listings associated with 
 maintaining, updating, and searching directory information, including active `department` listings, is provided
 with this code and the API endpoints they implement.
 
+## terminology
+
+* __`Result`__ - A result is URL we associate with different types of search _`Matchings`_ that can be found in searches submitted to this service. A part of each result's definition is a _`Display Title`_, the _`Target URL`_, a list of _`Matchings`_, and a percentile _`Weight`_ for use in prioritizing which matchings take precedence when there's multiple Matchings with hits (possibly across multiple Results) - higher weight takes precedence.
+  * _`Matchings`_ - These associate individual or sets of words to be matched with the search by a _`Matching Type`_ which determines the matching logic to use with the words defined for the Matching.
+  * _`Matching Types`_ - All comparisons are done case insensitive.
+    * _`Exact`_ - The words in the matching's definition must exactly match the search submitted.
+    * _`Phrase`_ - The words in the matching's definition must be present anywhere in the search submitted but in the order found in the matching's definition.
+    * _`Keyword`_ - The words in the matching's definition must be present in the search submitted but the order in which they're found doesn't matter.
+* __`Query` or `Visitor Searches`__ - The search requests submitted to the service. These are logged along with the timestamp of submission and any matching `Results` that the system responded with. An interval task runs roughly every 27 minutes to expire logged Queries that are over 6 months old and recalculate associated hit counts.
+
 ## api endpoints
 
 ### public endpoints
