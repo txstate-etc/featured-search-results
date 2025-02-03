@@ -1,14 +1,37 @@
-#!/bin/sh
+#!/bin/bash
 # Pass version as first argument - REQUIRED.
 #VER="${1:-`git symbolic-ref -q --short HEAD || git describe --tags --exact-match`}"
 VER=$1
+getNPMVer () {
+  npm pkg get version | sed -e 's/^"//' -e 's/"$//'
+}
+integrityExit () {
+  echo "$1"
+  echo "Aborting build to preserve build tag integrity with commits." && exit 1
+}
 GITBRANCH=`git symbolic-ref -q --short HEAD`
 GITTAG=`git describe --tags --exact-match 2>/dev/null`
 COMMIT=$(git rev-parse HEAD)
-integrityExit () {
-  echo $1
-  echo "Aborting build to preserve build tag integrity with commits." && exit 1
-}
+cd `git rev-parse --show-toplevel` # cd to repo root.
+IMAGENAME=`basename $(pwd)`2
+if [ -f ./package.json ]; then
+  NPMVER=`getNPMVer`
+fi
+echo "Build Tag: $VER"
+echo "NPM-Ver:   $NPMVER"
+echo "Branch:    $GITBRANCH"
+echo "Git Tag:   $GITTAG"
+echo Commit: $COMMIT
+echo Image Name: $IMAGENAME
+echo
+# Ensure they've already updated their npm version to match what they want to tag the build with.
+if [[ "$NPMVER" != "" && "$VER" != "$NPMVER" ]]; then
+  integrityExit "The version in your npm package.json file does not match the build tag passed.
+Please run the following command to update your package version and commit those changes before attempting to build:
+
+    npm version -no-git-tag-version $VER
+"
+fi
 # Ensure we're building from committed changes.
 if `git diff-index --quiet HEAD --`; then
   echo "Active branch $GITBRANCH is clean. Continuing with checks..."
@@ -19,33 +42,64 @@ fi
 if [ "$VER" = "$GITBRANCH" ]; then
    integrityExit "Not tagging commit $COMMIT on branch $GITBRANCH with tag $GITBRANCH. Please provide a versioning argument."
 fi
-# Ensure our version paramenter is not in conflict with an existing commit tag.
-if [[ "$GITTAG" != "" && "$GITTAG" != "$VER" ]]; then
-  integrityExit "Not overwriting existing tag $GITTAG on commit $COMMIT with new tag $VER."
-fi
+## Ensure our version paramenter is not in conflict with an existing commit tag.
+#if [[ "$GITTAG" != "" && "$GITTAG" != "v$VER" ]]; then
+#  integrityExit "Not overwriting existing tag $GITTAG on commit $COMMIT with new tag $VER."
+#fi
 # Ensure we're able to tag the commit with the version.
-if [ "$VER" = "$GITTAG" ]; then
+if [[ "$VER" = "$GITTAG" || "v$VER" = "$GITTAG" ]]; then
   echo "Commit $COMMIT is already tagged as $GITTAG."
 else
-  if `git tag $VER $COMMIT`; then
-    echo "Tagged commit $COMMIT on branch $GITBRANCH with tag $VER."
-  else
-    integrityExit "Failed to tag commit $COMMIT on branch $GITBRANCH with tag $VER."
-  fi
-fi
-# Ensure our package version is in sync with the tags.
-if `npm version $VER`; then
-  echo "Updated package.json version to $VER."
-else
-  integrityExit "Failed to update package.json version to $VER."
+  integrityExit "Please tag current commit"
+#  if `git tag $VER $COMMIT`; then
+#    echo "Tagged commit $COMMIT on branch $GITBRANCH with tag $VER."
+#  else
+#    integrityExit "Failed to tag commit $COMMIT on branch $GITBRANCH with tag $VER."
+#  fi
 fi
 echo "Proceeding with versioned builds..."
-docker build -t registry.its.txstate.edu/search-featured-results .
-docker tag registry.its.txstate.edu/search-featured-results registry.its.txstate.edu/search-featured-results:$VER
-docker push registry.its.txstate.edu/search-featured-results
-docker push registry.its.txstate.edu/search-featured-results:$VER
-docker build -t registry.its.txstate.edu/search-featured-results-cron -f Dockerfile.cron .
-docker tag registry.its.txstate.edu/search-featured-results-cron registry.its.txstate.edu/search-featured-results-cron:$VER
-docker push registry.its.txstate.edu/search-featured-results-cron
-docker push registry.its.txstate.edu/search-featured-results-cron:$VER
+docker build -t registry.its.txstate.edu/$IMAGENAME .
+docker tag registry.its.txstate.edu/$IMAGENAME registry.its.txstate.edu/$IMAGENAME:$VER
+PUSH_STATUS=$(docker push registry.its.txstate.edu/$IMAGENAME:latest --quiet)
+if [[ "$PUSH_STATUS" = "registry.its.txstate.edu/$IMAGENAME:latest" ]]; then
+  echo "Pushed latest build to registry.its.txstate.edu/$IMAGENAME."
+else
+  integrityExit "Failed to push latest build to registry.its.txstate.edu/$IMAGENAME.
+Please resolve the issues preventing the push and try again with the following command:
+
+    docker push registry.its.txstate.edu/$IMAGENAME:latest
+"
+fi
+PUSH_STATUS=$(docker push registry.its.txstate.edu/$IMAGENAME:$VER --quiet)
+if [[ "$PUSH_STATUS" = "registry.its.txstate.edu/$IMAGENAME:$VER" ]]; then
+  echo "Pushed tagged build to registry.its.txstate.edu/$IMAGENAME:$VER."
+else
+  integrityExit "Failed to push tagged build to registry.its.txstate.edu/$IMAGENAME:$VER.
+Please resolve the issues preventing the push and try again with the following command:
+
+    docker push registry.its.txstate.edu/$IMAGENAME:$VER
+"
+fi
+docker build -t registry.its.txstate.edu/$IMAGENAME-cron -f Dockerfile.cron .
+docker tag registry.its.txstate.edu/$IMAGENAME-cron registry.its.txstate.edu/$IMAGENAME-cron:$VER
+PUSH_STATUS=$(docker push registry.its.txstate.edu/$IMAGENAME-cron:latest --quiet)
+if [[ "$PUSH_STATUS" = "registry.its.txstate.edu/$IMAGENAME-cron:latest" ]]; then
+  echo "Pushed latest build to registry.its.txstate.edu/$IMAGENAME-cron."
+else
+  integrityExit "Failed to push latest build to registry.its.txstate.edu/$IMAGENAME-cron.
+Please resolve the issues preventing the push and try again with the following command:
+
+    docker push registry.its.txstate.edu/$IMAGENAME-cron:latest
+"
+fi
+PUSH_STATUS=$(docker push registry.its.txstate.edu/$IMAGENAME-cron:$VER --quiet)
+if [[ "$PUSH_STATUS" = "registry.its.txstate.edu/$IMAGENAME-cron:$VER" ]]; then
+  echo "Pushed tagged build to registry.its.txstate.edu/$IMAGENAME-cron:$VER."
+else
+  integrityExit "Failed to push tagged build to registry.its.txstate.edu/$IMAGENAME-cron:$VER.
+Please resolve the issues preventing the push and try again with the following command:
+
+    docker push registry.its.txstate.edu/$IMAGENAME-cron:$VER
+"
+fi
 git push origin --tags

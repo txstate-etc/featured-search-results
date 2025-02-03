@@ -167,10 +167,11 @@ const QuerySchema = new Schema<IQuery, QueryModel, IQueryMethods>({
   lasthit: { type: Date },
   results: [{ type: Schema.Types.ObjectId, ref: 'Result' }]
 })
-QuerySchema.index({ query: 1 })
+const existingIndexes = QuerySchema.indexes()
+existingIndexes.includes([{ query: 1 }, {}]) ? console.log('QuerySchema index { query: 1 } already exists.') : QuerySchema.index({ query: 1 })
 // we always push later dates on the end of hits, so hits[0] is the minimum and the
 // only index we need - luckily mongo supports this with dot notation
-QuerySchema.index({ 'hits.0': 1 })
+existingIndexes.includes([{ 'hits.0': 1 }, {}]) ? console.log('QuerySchema index { hits.0: 1 } already exists.') : QuerySchema.index({ 'hits.0': 1 })
 
 QuerySchema.methods.basic = function () {
   return {
