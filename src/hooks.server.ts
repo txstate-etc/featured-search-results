@@ -85,6 +85,6 @@ export async function handle ({ event, resolve }) {
     // response.headers.set('Cache-Control', 'no-cache')
   }
   // logResponse(response)
-  console.log('Returned from response.')
+  console.log('Returning response.')
   return response
 }

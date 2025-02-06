@@ -132,6 +132,38 @@ Use `./test.sh show` to show all the logs from the other containers (useful for 
   >> * Test that searches are getting valid featured results given Result definitions for matching types and weights.
   >> * Test pagination.
 
+### Demo Testing Links
+
+Provided as simple samples to quickly verify basic functionality. Modify to test edge cases.
+
+#### QUAL
+
+* [API `/search`](https://featured.search.qual.txstate.edu/search?q=w2)
+* [API `/search` AsYouType](https://featured.search.qual.txstate.edu/search?q=w-2&asyoutype=1)
+* [API `/adminsearch`](https://featured.search.qual.txstate.edu/search?q=w2)
+* [API `/peoplesearch`](https://featured.search.qual.txstate.edu/peoplesearch?q=Wing&description=IsAwesome)
+* [API `/departments`](https://featured.search.qual.txstate.edu/departments)
+* [University domain's Homepage search ref - _Prepends API `/search` response to Google results._](https://www.qual.txst.edu/search.html)
+* [Admin Login - _Should drop you into admin `/results` UI after auth._](https://featured.search.qual.txstate.edu)
+  * _Click the name (top link of any Page Name column's entries) from one of the listed results to test Admin's `/results/[id]` UI._
+  * [Admin `/results/create`](https://featured.search.qual.txstate.edu/admin/results/create)
+  * [Admin `/queries`](https://featured.search.qual.txstate.edu/admin/queries)
+  * _Click the Logout button in upper right corner to verify Logout._
+
+#### PROD
+
+* [API `/search`](https://featured.search.txstate.edu/search?q=w2)
+* [API `/search` AsYouType](https://featured.search.txstate.edu/search?q=w-2&asyoutype=1)
+* [API `/adminsearch`](https://featured.search.txstate.edu/search?q=w2)
+* [API `/peoplesearch`](https://featured.search.txstate.edu/peoplesearch?q=Wing&description=IsAwesome)
+* [API `/departments`](https://featured.search.txstate.edu/departments)
+* [University domain's Homepage search ref - _Prepends API `/search` response to Google results._](https://www.txst.edu/search.html)
+* [Admin Login - _Should drop you into admin `/results` UI after auth._](https://featured.search.txstate.edu)
+  * _Click the name (top link of any Page Name column's entries) from one of the listed results to test Admin's `/results/[id]` UI._
+  * [Admin `/results/create`](https://featured.search.txstate.edu/admin/results/create)
+  * [Admin `/queries`](https://featured.search.txstate.edu/admin/queries)
+  * _Click the Logout button in upper right corner to verify Logout._
+
 ## run development environment
 
 Add a motion token to `docker-compose.override.yml`, then
