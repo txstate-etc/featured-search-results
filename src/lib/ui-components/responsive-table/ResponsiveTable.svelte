@@ -243,7 +243,7 @@
     return meta.sort((a, b) => { return Number(nestingKeys.has(a.key)) - Number(nestingKeys.has(b.key)) })
   }
 
-  let ascending = sortedOn[0]?.direction === 'asc' ? true : false ?? true
+  let ascending = sortedOn[0]?.direction === 'asc'
   let selectedHeading = sortedMapping?.[sortedOn[0]?.field] ?? sortedOn[0]?.field ?? ''
   /** By default this sorts `data` by the heading `{ key, type }` data associated with the records in it. Array and object properties
    * are default sorted simply by their length. This also handles updating what heading is selected for soriting and toggling asc/desc.
