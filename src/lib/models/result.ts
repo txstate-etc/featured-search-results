@@ -284,10 +284,17 @@ const ResultSchema = new Schema<IResult, ResultModel, IResultMethods>({
 })
 // ResultSchema.plugin(paginate)
 
-const existingIndexes = ResultSchema.indexes()
-existingIndexes.includes([{ 'entries.keywords': 1 }, {}]) ? console.log('ResultSchema index { \'entries.keywords\': 1 } already exists.') : ResultSchema.index({ 'entries.keywords': 1 })
-existingIndexes.includes([{ 'currency.tested': 1 }, {}]) ? console.log('ResultSchema index { \'currency.tested\': 1 } already exists.') : ResultSchema.index({ 'currency.tested': 1 })
-existingIndexes.includes([{ url: 1 }, {}]) ? console.log('ResultSchema index { url: 1 } already exists.') : ResultSchema.index({ url: 1 })
+/** After many warnings from Mongoose about these I tracked down their documentation recomending to turn off the the autoIndex feature,
+ * remove any statements in the app code to create the indexes and manually create them in the database once development is done.
+ * The autoIndex feature and the statements to create the index here are ONLY provided as a convenience for quickly getting them
+ * recreated in development where your DB can frequently get wiped to test with a clean slate. Leaving statements in place but commented
+ * in case someone is working with a volatile development DB instance in the future but I'm otherwise disabling the autoIndex feature
+ * while development on the models and dev data is pretty much done. Either manually create them in a tool like MongoDB Compass or
+ * temporarily enable the auto creation extra indexes below. */
+ResultSchema.set('autoIndex', false)
+// ResultSchema.index({ 'entries.keywords': 1 })
+// ResultSchema.index({ 'currency.tested': 1 })
+// ResultSchema.index({ url: 1 })
 
 ResultSchema.methods.basic = function () {
   return {

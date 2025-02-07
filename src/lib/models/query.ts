@@ -167,11 +167,19 @@ const QuerySchema = new Schema<IQuery, QueryModel, IQueryMethods>({
   lasthit: { type: Date },
   results: [{ type: Schema.Types.ObjectId, ref: 'Result' }]
 })
-const existingIndexes = QuerySchema.indexes()
-existingIndexes.includes([{ query: 1 }, {}]) ? console.log('QuerySchema index { query: 1 } already exists.') : QuerySchema.index({ query: 1 })
+
+/** After many warnings from Mongoose about these I tracked down their documentation recomending to turn off the the autoIndex feature,
+ * remove any statements in the app code to create the indexes and manually create them in the database once development is done.
+ * The autoIndex feature and the statements to create the index here are ONLY provided as a convenience for quickly getting them
+ * recreated in development where your DB can frequently get wiped to test with a clean slate. Leaving statements in place but commented
+ * in case someone is working with a volatile development DB instance in the future but I'm otherwise disabling the autoIndex feature
+ * while development on the models and dev data is pretty much done. Either manually create them in a tool like MongoDB Compass or
+ * temporarily enable the auto creation extra indexes below. */
+QuerySchema.set('autoIndex', false)
+// QuerySchema.index({ query: 1 })
 // we always push later dates on the end of hits, so hits[0] is the minimum and the
 // only index we need - luckily mongo supports this with dot notation
-existingIndexes.includes([{ 'hits.0': 1 }, {}]) ? console.log('QuerySchema index { hits.0: 1 } already exists.') : QuerySchema.index({ 'hits.0': 1 })
+// QuerySchema.index({ 'hits.0': 1 })
 
 QuerySchema.methods.basic = function () {
   return {

@@ -19,6 +19,7 @@ module.exports = {
 		'@typescript-eslint/no-throw-literal': 'off', // svelte shorthand allows `throw error(number, { message: string })`
 		'@typescript-eslint/no-unnecessary-boolean-literal-compare': ['off'],
     '@typescript-eslint/no-unused-vars': 'off', // typescript does this better
+    '@typescript-eslint/no-unsafe-argument': 'off', // typescript does this better
 		'@typescript-eslint/no-use-before-define': 'off', // svelte problems
     "@typescript-eslint/prefer-nullish-coalescing": ["off"],
     '@typescript-eslint/prefer-readonly': ['off'],
