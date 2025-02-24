@@ -1,4 +1,4 @@
-FROM node:20-alpine as build
+FROM node:20-alpine AS build
 RUN apk update && apk upgrade
 
 WORKDIR /usr/app
@@ -21,5 +21,5 @@ COPY package-lock.json ./
 RUN npm ci --omit dev
 COPY static static
 COPY --from=build /usr/app/build build
-ENV PORT 80
+ENV PORT=80
 CMD ["node", "build"]
