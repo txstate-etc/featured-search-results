@@ -7,4 +7,4 @@ COPY playwright.config.ts ./
 COPY tests tests
 
 RUN npm --quiet install
-CMD ["npm", "test"]
+CMD npm test

@@ -18,4 +18,4 @@ COPY package-lock.json ./
 RUN npm ci --omit dev
 COPY static static
 COPY --from=build /usr/app/dist dist
-CMD ["node", "dist/cron.js"]
+CMD node dist/cron.js

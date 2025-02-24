@@ -11,4 +11,4 @@ COPY src src
 COPY static static
 
 RUN npm --quiet install
-CMD ["npm", "run", "dev"]
+CMD npm run dev
