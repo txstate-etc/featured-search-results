@@ -205,6 +205,7 @@ export function querysplit (query: string) {
   return clean.split(' ')
 }
 
+
 /** `typeof` operator doesn't distinguish between 'object' and 'array' and we want the distinction here. */
 export type EnhancedType = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function' | 'array'
 // eslint-disable-next-line @typescript-eslint/consistent-indexed-object-style
@@ -404,6 +405,15 @@ export function getLimitClause (pageNum: number, pageSizes: number) {
   const offset = (pageNum > 1) ? `${(pageNum - 1) * pageSizes}, ` : ''
   return (pageSizes > 0) ? ` limit ${offset}${pageSizes}` : limitDefault
 }
+
+/** The following functions are used to build a MongoDB aggregation pipeline from a search string.
+ *
+ *  TODO: Consider refactoring the below to use the Above translation functions for SQL and
+ * then use ANTLR to translate that SQL to MongoDB aggregation pipeline stages so that we have
+ * a more formalized and non-ideomatic approach.
+ * [Complex SQL-NoSQL Query Translation for Data Lake Management](https://thescipub.com/pdf/jcssp.2022.1179.1188.pdf)
+ * If not using ANTLR we can perhaps try? [NoQL](https://noql.synatic.dev/)
+ */
 
 /** Convenient means of passing Token metadata between mutator functions. */
 export interface MetaToken {
