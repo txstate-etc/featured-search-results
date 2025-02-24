@@ -23,7 +23,7 @@ import axios from 'axios'
 import { DateTime } from 'luxon'
 import mongoose from 'mongoose'
 const { Schema, models, model, Error, deleteModel } = mongoose
-import type { Model, Document, ObjectId } from 'mongoose'
+import type { Model, Document, ObjectId, IndexDefinition } from 'mongoose'
 import { isBlank, isNotNull, sortby, eachConcurrent } from 'txstate-utils'
 import { getUrlEquivalencies, isValidHttpUrl, normalizeUrl, querysplit, getMongoStages, getFields } from '../util/helpers.js'
 import type { Paging, AdvancedSearchResult, AggregateResult, SearchMappings, MappingType, SortParam } from '../util/helpers.js'
@@ -163,12 +163,8 @@ interface ResultModel extends Model<IResult, any, IResultMethods> {
   searchAllResults: (search: string, pagination?: Paging) => Promise<AdvancedSearchResult>
   /** @async Returns array of all `Result` documents with `keywords` that start with any of the `words`. */
   getByQuery: (words: string[]) => Promise<ResultDocument[]>
-  /** @async Returns array of all `Result` documents with `keywords` having size of one that start with `word` if word is longer than 3 characters or exactly match if less. */
-  getByOneWordQuery: (word: string) => Promise<ResultDocument[]>
   /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `match()` on the tokenized `query`. */
-  findByQuery: (query: string) => Promise<ResultDocument[]>
-  /** @async Returns array, sorted by priority decending, of all `Result` documents with `entries` that `oneWordMatch()` on the `query` word. */
-  findByOneWordQuery: (query: string) => Promise<ResultDocument[]>
+  findByQuery: (query?: string) => Promise<ResultDocument[]>
   /** @async Returns array of all `Result` documents with `url` that match any of the `url` equivalencies. */
   findByUrl: (url: string) => Promise<ResultDocument[]>
   /** @async Concurrently runs currencyTest() on all `Result` documents with an `currency.tested` date older than 1 day or `undefined`. */
@@ -190,10 +186,7 @@ interface IResultMethods {
   sortedEntries: () => IResultEntry[]
   /** Tests `entries` of a `Result` for a match against `words` based on the entry's
    *  `mode` and returns the highest matching `priority` or `undefined` if no matches. */
-  getHighestPriorityMatch: (words: string[], wordset: Set<string>, wordsjoined: string) => number | undefined
-  /** Tests `keyword` `entries` of a `Result` for a match against `word` and returns the highest
-   *  matching `priority` or `undefined` if no matches. */
-  getHighestPriorityOneWordMatch: (word: string) => number | undefined
+  match: (words: string[], wordset: Set<string>, wordsjoined: string) => number | undefined
   /** Updates the result's values with those passed in via `input`.
    * Intended to be used with non-saving validation checks. */
   fromPartialJson: (input: TemplateResult) => void
@@ -328,7 +321,7 @@ ResultSchema.methods.outentries = function () {
   return outentries
 }
 ResultSchema.methods.sortedEntries = function () {
-  (this as any)._sortedEntries ??= sortby(this.entries, 'priority', true)
+  (this as any)._sortedEntries ??= sortby([...this.entries], 'priority', true)
   return (this as any)._sortedEntries
 }
 ResultSchema.methods.resetSorting = function () {
@@ -344,8 +337,9 @@ ResultSchema.methods.full = function () {
     tags: this.tags
   }
 }
-export function entryMatchesQuery (entry: IResultEntry, words: string[], wordset: Set<string>, wordsjoined: string) {
-  // Given a query string, determine whether this entry is a match after accounting for mode.
+export function entryMatch (entry: IResultEntry, words: string[], wordset: Set<string>, wordsjoined: string) {
+  // given a query string, determine whether this entry is a match
+  // after accounting for mode
   if (entry.mode === 'exact') {
     if (entry.keywords.length === words.length && entry.keywords.join(' ').startsWith(wordsjoined)) return true
   } else if (entry.mode === 'phrase') {
@@ -369,21 +363,12 @@ export function entryMatchesQuery (entry: IResultEntry, words: string[], wordset
     }
     if (count === entry.keywords.length || (count === entry.keywords.length - 1 && prefixcount >= 1)) return true
   }
+
   return false
 }
-ResultSchema.methods.getHighestPriorityMatch = function (words: string[], wordset: Set<string>, wordsjoined: string) {
+ResultSchema.methods.match = function (words: string[], wordset: Set<string>, wordsjoined: string) {
   for (const entry of this.sortedEntries()) {
-    if (entryMatchesQuery(entry, words, wordset, wordsjoined)) return entry.priority ?? 0
-  }
-  return undefined
-}
-ResultSchema.methods.getHighestPriorityOneWordMatch = function (word: string) {
-  // if (!word.length) return undefined // <- Handled by caller.
-  for (const entry of this.sortedEntries().filter(e => e.keywords.length === 1)) {
-    // If a search query is only one word long then the rules about mode coalesce to being equivalent,
-    // allowing us to significantly simplify and reduce the matching workload for one word queries.
-    // If search query is less than 3 characters do exact match to avoid too many results, else startsWith match.
-    if (word.length < 3 ? entry.keywords[0] === word : entry.keywords[0].startsWith(word)) return entry.priority ?? 0
+    if (entryMatch(entry, words, wordset, wordsjoined)) return entry.priority ?? 0
   }
   return undefined
 }
@@ -492,17 +477,6 @@ ResultSchema.statics.getByQuery = async function (words: string[]) {
   })
   return ret
 }
-ResultSchema.statics.getByOneWordQuery = async function (word: string) {
-  // if (!word?.trim()) throw new Error('Attempted Result.getByOneWordQuery(word: string) with an empty or undefined word.') // <- Handled by caller.
-  const ret = word.length > 3 // If word is less than 3 characters then exact match, else startsWith match.
-    ? await this.find({
-      'entries.keywords': { $regex: '^' + word }
-    })
-    : await this.find({
-      'entries.keywords': [word]
-    })
-  return ret
-}
 ResultSchema.statics.findByQuery = async function (query: string) {
   if (isBlank(query)) return []
   const words = querysplit(query)
@@ -510,16 +484,7 @@ ResultSchema.statics.findByQuery = async function (query: string) {
   const wordset = new Set(words)
   const wordsjoined = words.join(' ')
   const results = await this.getByQuery(words) as (ResultDocument & { priority?: number })[]
-  for (const r of results) r.priority = r.getHighestPriorityMatch(words, wordset, wordsjoined)
-  const filteredresults = results.filter(r => isNotNull(r.priority))
-  return sortby(filteredresults, 'priority', true, 'title')
-}
-ResultSchema.statics.findByOneWordQuery = async function (query: string) {
-  if (isBlank(query)) return []
-  const words = querysplit(query) // Still calling querysplit for its input sanitization.
-  if (words.length !== 1) throw new Error('Attempted Result.findByOneWordQuery(query: string) with a multi-word query.')
-  const results = await this.getByOneWordQuery(words[0]) as (ResultDocument & { priority?: number })[]
-  for (const r of results) r.priority = r.getHighestPriorityOneWordMatch(words[0])
+  for (const r of results) r.priority = r.match(words, wordset, wordsjoined)
   const filteredresults = results.filter(r => isNotNull(r.priority))
   return sortby(filteredresults, 'priority', true, 'title')
 }
