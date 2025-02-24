@@ -20,7 +20,7 @@ with this code and the API endpoints they implement.
 * _`Search Types`_
   * _`Visitor Searches`_ - These are searches routed through the API's `/search` endpoint. These get logged as Queries as described above. These can be `asyoutype` searches that are run to pre-fetch results for autocompletion or actual search submissions. Both are handled in the same place but have slightly different limitations, in particular that `asyoutype` searches require a minimum of three characters before they get run against the featured Result definitions.
   * _`Admin Search`_ - These are searches done against the meta data used to configure and help manage this service. These are done through the Admin interface for this service and are not included in the Query hitcount and last hit metrics.
-  * _`People Search`_ - These are searches against publicly accessible directory inforamtion about active faculty and staff.
+  * _`People Search`_ - These are searches against publicly accessible directory information about active faculty and staff.
   * _`Department Search`_ - This just gets a list of departments associated with active personel.
 
 ## api endpoints

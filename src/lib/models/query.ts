@@ -26,7 +26,7 @@ import mongoose from 'mongoose'
 const { Schema, models, model, deleteModel } = mongoose
 import type { Model, Document, ObjectId, PipelineStage } from 'mongoose'
 import { isBlank, keyby, unique } from 'txstate-utils'
-import { type ResultDocument, type ResultBasicPlusId, entryMatch, getResultsDef } from './result.js'
+import { type ResultDocument, type ResultBasicPlusId, entryMatchesQuery, getResultsDef } from './result.js'
 import { getMongoStages, querysplit, getFields } from '../util/helpers.js'
 import type { Paging, AdvancedSearchResult, AggregateResult, SearchMappings, MetaSearch, MappingType, SortParam } from '../util/helpers.js'
 
@@ -266,7 +266,7 @@ QuerySchema.statics.updateHitCounts = async function () {
     const resultIds = unique(words.flatMap(w => resultIdsByKeyword[w] ?? []).concat(resultIdsByPrefix[lastword] ?? []))
     for (const r of resultIds.map(rId => resultsById[rId]) as unknown as ResultDocument[]) {
       for (const e of r.sortedEntries()) { // Sorted on priority desc.
-        if (entryMatch(e, words, wordset, wordsjoined)) {
+        if (entryMatchesQuery(e, words, wordset, wordsjoined)) {
           hitCounts[e.id] ??= 0
           hitCounts[e.id] += q.hitcount
           break // Only update the hitcount of the highest priority entry that first matched the query.
