@@ -22,4 +22,4 @@ RUN npm ci --omit dev
 COPY static static
 COPY --from=build /usr/app/build build
 ENV PORT 80
-CMD node build
+CMD ["node", "build"]
