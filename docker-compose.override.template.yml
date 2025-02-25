@@ -19,6 +19,14 @@ services:
       # Otherwise ---- Leave it commented out to be considerate to Motion.
       # MOTION_TOKEN: <pull-from-ansible>
       MYSQL_PASS: secret
+  mysql:
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh" ,"--innodb_initialized"]
+      start_period: 4s
+  mongodb:
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      start_period: 4s
 networks:
   default:
     external:

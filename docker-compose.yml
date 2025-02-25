@@ -1,5 +1,5 @@
 services:
-  search-featured-results:
+  featured-search-results:
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -24,9 +24,11 @@ services:
     ports:
       - 80:80
     depends_on:
-      - mongodb
-      - mysql
-  search-featured-results-cron:
+      mongodb:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+  featured-search-results-cron:
     build:
       context: .
       dockerfile: Dockerfile.cron
@@ -40,15 +42,14 @@ services:
       MYSQL_PORT: 3306
       MYSQL_PASS: set this in docker-compose.override.yml
     depends_on:
-      - mongodb
-      - mysql
+      mongodb:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
   mysql:
     # Switched to using local instance of mysql for development so we can
     # docker-compose down -v to reset when we want to rebuild a table.
     image: mariadb
-    environment:
-      MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: peoplesearch
     ports:
       - 3306:3306
     volumes:
