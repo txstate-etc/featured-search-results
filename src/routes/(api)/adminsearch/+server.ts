@@ -5,7 +5,7 @@ import { error, json } from '@sveltejs/kit'
 export async function GET ({ url, locals }) {
   if (!locals.isEditor) throw error(403)
   const query = url.searchParams.get('q') ?? undefined
-  if (query && query.length > 1024) throw error(400, { message: 'Query length is limited to 1kB.' })
+  if (!query?.length || query.length > 1024) return json([])
   const results = await Result.findByQuery(query)
   const ret = results.map(result => result.basicPlusId())
   return json(ret)

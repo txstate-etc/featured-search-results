@@ -27,6 +27,10 @@ Considerations:
         value if 2 or greater, or the value is numeric and predicated by an 'i' or 'n' character to indicate
         index or nth position. DECIDED AGAINST THIS APPROACH on grounds that it starts to clutter the caller
         interface with too many options. Boolean or Number - no conditional clutter.
+      > INSTEAD: Introduce a new `asyoutypeindex` parameter that is a number and indicates the index of the
+        word in the search input that the cursor is on. This eliminates possible confusion on the meaning of
+        the value passed. This also allows us to keep the `asyoutype` parameter as a boolean for backwards
+        compatibility with existing code and callers.
   - Query Length and Actionable Results
     > It turns out that most searches of less than 3 characters end up getting a lot of inactionable results
       from our own Featured Results as well as from the Google search results. To avoid waisted bandwidth
@@ -58,7 +62,7 @@ export async function GET ({ url, setHeaders }) {
   if (!query?.length || query.length > 1024) return json([])
   /** Not currently using this as an index as discussed in Considerations note as we'd need to guarantee callers
   are passing `asyoutype` in a way that distinguishes between boolean and number values in a non-truthy way.
-  const asYouTypeFocusIndex = url.searchParams.get('asyoutype') as number | null ?? undefined */
+  const asYouTypeFocusIndex = url.searchParams.get('asyoutypeindex') as number | null ?? undefined */
   const asYouType = !!url.searchParams.get('asyoutype')
   const isOneWord = isOneWordQuery(query)
   if (query.length < 3 && !isOneWord) return json([])

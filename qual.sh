@@ -9,6 +9,25 @@ integrityExit () {
   echo "$1"
   echo "Aborting build to preserve build tag integrity with commits." && exit 1
 }
+# Our in-house convention is that version tags should not be prefixed and should
+# match across git, npm, and build images. To avoid all sorts of problems in
+# tagging with `npm version` - if it's not empty, we'll try setting it to empty
+# or abort the build with the config opened for manual editing so the user can
+# set it to an empty value manually.
+if [ `npm config get tag-version-prefix` != "" ]; then
+  echo "NPM tag-version-prefix is not blank."
+  echo "Setting NPM tag-version-prefix to ''..."
+  npm config set tag-version-prefix ''
+  if [ `npm config get tag-version-prefix` = "" ]; then
+    echo "NPM tag-version-prefix is now set to ''."
+  else
+    echo "The command,"
+    echo "  npm config set tag-version-prefix ''"
+    echo ", is currently broken. Opening npm's config in manual edit mode..."
+    npm config edit --editor code
+    integrityExit "Please set npm's tag-version-prefix to '' and try again."
+  fi
+fi
 GITBRANCH=`git symbolic-ref -q --short HEAD`
 GITTAG=`git describe --tags --exact-match 2>/dev/null`
 COMMIT=$(git rev-parse HEAD)
@@ -29,7 +48,7 @@ if [[ "$NPMVER" != "" && "$VER" != "$NPMVER" ]]; then
   integrityExit "The version in your npm package.json file does not match the build tag passed.
 Please run the following command to update your package version and commit those changes before attempting to build:
 
-    npm version -no-git-tag-version $VER
+    npm version $VER
 "
 fi
 # Ensure we're building from committed changes.

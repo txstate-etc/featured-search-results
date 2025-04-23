@@ -331,9 +331,6 @@ ResultSchema.methods.sortedEntries = function () {
   (this as any)._sortedEntries ??= sortby(this.entries, 'priority', true)
   return (this as any)._sortedEntries
 }
-ResultSchema.methods.resetSorting = function () {
-  this._sortedEntries = undefined
-}
 ResultSchema.methods.full = function () {
   const info = this.basicPlusId()
   const entries = this.outentries()
@@ -512,7 +509,7 @@ ResultSchema.statics.findByQuery = async function (query: string) {
   const results = await this.getByQuery(words) as (ResultDocument & { priority?: number })[]
   for (const r of results) r.priority = r.getHighestPriorityMatch(words, wordset, wordsjoined)
   const filteredresults = results.filter(r => isNotNull(r.priority))
-  return sortby(filteredresults, 'priority', true, 'title')
+  return sortby(filteredresults, r => r.priority, true, r => r.title)
 }
 ResultSchema.statics.findByOneWordQuery = async function (query: string) {
   if (isBlank(query)) return []
@@ -521,7 +518,7 @@ ResultSchema.statics.findByOneWordQuery = async function (query: string) {
   const results = await this.getByOneWordQuery(words[0]) as (ResultDocument & { priority?: number })[]
   for (const r of results) r.priority = r.getHighestPriorityOneWordMatch(words[0])
   const filteredresults = results.filter(r => isNotNull(r.priority))
-  return sortby(filteredresults, 'priority', true, 'title')
+  return sortby(filteredresults, r => r.priority, true, r => r.title)
 }
 ResultSchema.statics.findByUrl = async function (url: string) {
   const equivalencies = getUrlEquivalencies(url)
