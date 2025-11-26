@@ -29,7 +29,7 @@ export async function loadPeople () {
 
     console.log('Loading `people` table from results...')
     console.group()
-
+    const excludedUserids = new Set(await db.getvals<string>('SELECT userid FROM special_exclusions'))
     const loadDef = await db.getvals(`
       SELECT column_name
         FROM information_schema.columns
@@ -42,7 +42,7 @@ export async function loadPeople () {
       const record = []
       // Adding this test because AD doesn't always return just (Faculty|Staff|Retired) for displayRole.
       // We need to filter out things like Guests, Lockout, and we'll need to replace Retired.* with Retired.
-      if (filterRegEx.test(person.category)) {
+      if (filterRegEx.test(person.category) && !excludedUserids.has(person.userid) && person.userid.length < 9) {
         for (const field of loadDef) {
           if (field === 'category') {
             record.push((person as any)[field as string].replace(filterRegEx, '$1'))
