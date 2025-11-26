@@ -31,7 +31,7 @@ services:
   featured-search-results-cron:
     build:
       context: .
-      dockerfile: Dockerfile.cron
+      dockerfile: cron/Dockerfile
     environment:
       NODE_ENV: development
       DB_HOST: mongodb
