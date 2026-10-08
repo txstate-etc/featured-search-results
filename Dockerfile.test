@@ -1,10 +1,10 @@
-FROM mcr.microsoft.com/playwright:v1.38.0-jammy
+# The image version must match the @playwright/test version resolved in package-lock.json
+# or Playwright will refuse to run with the image's pre-installed browsers.
+FROM mcr.microsoft.com/playwright:v1.50.1-jammy
 
-COPY package.json ./
-COPY package-lock.json ./
-COPY tsconfig.json ./
-COPY playwright.config.ts ./
+WORKDIR /usr/app
+COPY package.json package-lock.json playwright.config.ts ./
+RUN npm ci --quiet
 COPY tests tests
 
-RUN npm --quiet install
 CMD ["npm", "test"]

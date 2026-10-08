@@ -122,14 +122,15 @@ If you're planning on pushing an image to qual make sure to both update the vers
 
 Use `./test.sh show` to show all the logs from the other containers (useful for debugging).
 
-  > __TODO:__ We're currently in the process of implementing the tests in Playwright. The `test.sh` script will run the build to get all the services running with a Playwright instance that can be configured and have tests written for this service but the configuraiton and test definitions remain to be done in a way that will integrate with our continuous integration framework.
-  >> In the mean time manual tests need be run against your Dev and Qual instances.
+The script builds a self-contained stack from `docker-compose.test.yml` (the app, mongo, the unified-auth stub, and a Playwright runner built from `Dockerfile.test`), runs the suites in `tests/`, and tears everything down, exiting with the Playwright exit code. Drop a `docker-compose.test.override.yml` next to it for any local tweaks. Note the `mcr.microsoft.com/playwright` image tag in `Dockerfile.test` must match the `@playwright/test` version in `package-lock.json`.
+
+The suites seed `Result` fixtures directly in mongo (the editor-gated write endpoints require a Motion AD-group lookup the harness can't make) and cover the `/search` matching modes and query recording, `/linkcheck`, 403s on the editor-gated endpoints, and the unauthenticated admin redirect to unified auth.
+
+  > __TODO:__ Remaining scenarios still need manual testing against Dev/Qual (they require real auth + Motion):
   >> * Test admin login and that admin pages load.
-  >> * Test API functionality.
-  >> * Test search syntaxes in Admin pages and that API /search endpoint can handle different search expectations for 'asyoutype' or not.
   >> * Test Result creation and Query logging ensuring data is saved correctly and UI is dynamically updating without glitches.
   >> * Test validations in Result Creation: Title, URL equivalencies, Matchings...
-  >> * Test that searches are getting valid featured results given Result definitions for matching types and weights.
+  >> * Test `/peoplesearch` and `/departments` (need a seeded mysql `people` table).
   >> * Test pagination.
 
 ### Demo Testing Links

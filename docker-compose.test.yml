@@ -4,73 +4,27 @@ services:
       context: .
       dockerfile: Dockerfile.test
     environment:
-      API_HOST: localhost
+      # The test suite connects to mongo directly to seed Result fixtures, so these
+      # must match the app service's values below.
       DB_HOST: mongodb
-      FEATURED_SECRET: mysecret
-    links:
+      DB_DATABASE: featured-tests
+    depends_on:
       - search-featured-results
-      - mongodb
   search-featured-results:
     build: .
     read_only: true
     environment:
       DB_HOST: mongodb
-      FEATURED_SECRET: mysecret
-      MOTION_URL: https://motion.tr.qual.txstate.edu/v2/api
-      MOTION_TOKEN: set this in docker-compose.override.yml
-      MYSQL_HOST: mysql
-      MYSQL_DATABASE: peoplesearch
-      MYSQL_PORT: 3306
-      MYSQL_PASS: secret
-      ORIGIN: http://localhost
-      PUBLIC_BASE_URL: http://localhost
-      PUBLIC_AUTH_BASE_URL: http://localhost:3001
-      PUBLIC_AUTH_REDIRECT_URL: http://localhost:3001/login?clientId=search-featured-results
-    volumes:
-      - ./src:/usr/app/src
-    ports:
-      - 80:80
+      DB_DATABASE: featured-tests
+      JWT_TRUSTED_ISSUERS: '[{ "iss": "unified-auth", "url": "http://fakeauth/jwks" }]'
+      ORIGIN: http://search-featured-results
+      PUBLIC_BASE_URL: http://search-featured-results
+      PUBLIC_AUTH_BASE_URL: http://fakeauth
     depends_on:
       - mongodb
-      - mysql
-  search-featured-results-cron:
-    build:
-      context: .
-      dockerfile: cron/Dockerfile
-    environment:
-      NODE_ENV: development
-      DB_HOST: mongodb
-      MOTION_URL: https://motion.tr.qual.txstate.edu/v2/api
-      MOTION_TOKEN: set this in docker-compose.override.yml
-      MYSQL_HOST: mysql
-      MYSQL_DATABASE: peoplesearch
-      MYSQL_PORT: 3306
-      MYSQL_PASS: set this in docker-compose.override.yml
-    depends_on:
-      - mongodb
-      - mysql
+      - fakeauth
   mongodb:
-    image: mongo:latest
+    image: mongo:7
     command: --logpath /dev/null
-    ports:
-      - 27017:27017
-    volumes:
-      - featureddb:/data/db
-  mysql:
-    # Switched to using local instance of mysql for development so we can
-    # docker-compose down -v to reset when we want to rebuild a table.
-    image: mariadb
-    environment:
-      MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: peoplesearch
-    ports:
-      - 3306:3306
-    volumes:
-      - peoplesearchdata:/var/lib/mysql
   fakeauth:
     image: registry.its.txstate.edu/unified-auth-stub:dev
-    ports:
-      - 3001:80
-volumes:
-  featureddb: {}
-  peoplesearchdata: {}
